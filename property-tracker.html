@@ -35,6 +35,7 @@ function RouteIcon(p){ return svgIcon([e('circle',{key:"1",cx:6,cy:19,r:3}), e('
 function DownloadIcon(p){ return svgIcon([e('path',{key:"1",d:"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"}), e('path',{key:"2",d:"M7 10l5 5 5-5"}), e('path',{key:"3",d:"M12 15V3"})], p); }
 function UploadIcon(p){ return svgIcon([e('path',{key:"1",d:"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"}), e('path',{key:"2",d:"M17 8l-5-5-5 5"}), e('path',{key:"3",d:"M12 3v12"})], p); }
 function PencilIcon(p){ return svgIcon([e('path',{key:"1",d:"M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"})], p); }
+function CameraIcon(p){ return svgIcon([e('path',{key:"1",d:"M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"}), e('circle',{key:"2",cx:12,cy:13,r:3.5})], p); }
 function TrashIcon(p){ return svgIcon([e('path',{key:"1",d:"M3 6h18"}), e('path',{key:"2",d:"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"}), e('path',{key:"3",d:"M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"})], p); }
 function FilterIcon(p){ return svgIcon([e('path',{key:"1",d:"M22 3H2l8 9.46V19l4 2v-8.54L22 3z"})], p); }
 
@@ -60,7 +61,32 @@ function priorityMeta(key) {
   return PRIORITIES[2];
 }
 function emptyForm() {
-  return { name: "", address: "", priority: "普通", status: "更地", statusOther: "", type: "不明", memo: "" };
+  return { name: "", address: "", priority: "普通", status: "更地", statusOther: "", type: "不明", memo: "", photos: [] };
+}
+function resizeImage(file) {
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      var img = new Image();
+      img.onload = function() {
+        var maxDim = 1024;
+        var width = img.width, height = img.height;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) { height = Math.round(height * maxDim / width); width = maxDim; }
+          else { width = Math.round(width * maxDim / height); height = maxDim; }
+        }
+        var canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.72));
+      };
+      img.onerror = reject;
+      img.src = ev.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 var fontDisplay = { fontFamily: "'Barlow Condensed', sans-serif" };
@@ -95,6 +121,7 @@ function PropertyTracker() {
   var editingIdState = useState(null); var editingId = editingIdState[0], setEditingId = editingIdState[1];
   var formState = useState(emptyForm()); var form = formState[0], setForm = formState[1];
   var toastState = useState(""); var toast = toastState[0], setToast = toastState[1];
+  var viewerState = useState(null); var viewer = viewerState[0], setViewer = viewerState[1];
   var importOpenState = useState(false); var importOpen = importOpenState[0], setImportOpen = importOpenState[1];
   var importTextState = useState(""); var importText = importTextState[0], setImportText = importTextState[1];
 
@@ -160,10 +187,21 @@ function PropertyTracker() {
       name: it.name, address: it.address, priority: it.priority,
       status: STATUS_OPTIONS.includes(it.status) ? it.status : "その他",
       statusOther: STATUS_OPTIONS.includes(it.status) ? "" : it.status,
-      type: it.type || "不明", memo: it.memo || "",
+      type: it.type || "不明", memo: it.memo || "", photos: it.photos || [],
     });
     setEditingId(it.id);
     setFormOpen(true);
+  }
+  function handlePhotoFiles(fileList) {
+    var files = Array.from(fileList || []);
+    if (!files.length) return;
+    Promise.all(files.map(function(f){ return resizeImage(f).catch(function(){ return null; }); })).then(function(results){
+      var ok = results.filter(function(r){ return r; });
+      setForm(function(prev){ return Object.assign({}, prev, { photos: (prev.photos || []).concat(ok) }); });
+    });
+  }
+  function removePhoto(idx) {
+    setForm(function(prev){ return Object.assign({}, prev, { photos: prev.photos.filter(function(_, i){ return i !== idx; }) }); });
   }
   function saveForm() {
     if (!form.address.trim()) { showToast("住所を入力してください"); return; }
@@ -171,10 +209,10 @@ function PropertyTracker() {
     var next;
     if (editingId) {
       next = items.map(function(it) {
-        return it.id === editingId ? Object.assign({}, it, { name: form.name.trim(), address: form.address.trim(), priority: form.priority, status: statusValue, type: form.type, memo: form.memo.trim() }) : it;
+        return it.id === editingId ? Object.assign({}, it, { name: form.name.trim(), address: form.address.trim(), priority: form.priority, status: statusValue, type: form.type, memo: form.memo.trim(), photos: form.photos || [] }) : it;
       });
     } else {
-      next = [{ id: uid(), name: form.name.trim(), address: form.address.trim(), priority: form.priority, status: statusValue, type: form.type, memo: form.memo.trim(), createdAt: Date.now() }].concat(items);
+      next = [{ id: uid(), name: form.name.trim(), address: form.address.trim(), priority: form.priority, status: statusValue, type: form.type, memo: form.memo.trim(), photos: form.photos || [], createdAt: Date.now() }].concat(items);
     }
     persist(next);
     setFormOpen(false);
@@ -335,6 +373,10 @@ function PropertyTracker() {
       var pm = priorityMeta(it.priority);
       return e('div', {key:it.id, style:{background:"#FAF9F4", border:"1px solid #C6C0AE", borderRadius:6, padding:12, display:"flex", gap:10}},
         e('input', {type:"checkbox", checked:selected.has(it.id), onChange:function(){ toggleSelect(it.id); }, style:{marginTop:4, width:18, height:18, accentColor:"#C9481F"}, "aria-label":"選択"}),
+        (it.photos && it.photos.length > 0) ? e('button', {onClick:function(ev){ ev.stopPropagation(); setViewer({photos: it.photos, index: 0}); }, style:{flex:"0 0 auto", position:"relative", width:48, height:48}, "aria-label":"写真を表示"},
+          e('img', {src:it.photos[0], alt:"", style:{width:48, height:48, objectFit:"cover", borderRadius:4, border:"1px solid #C6C0AE"}}),
+          it.photos.length > 1 ? e('span', {style:{position:"absolute", bottom:-4, right:-4, background:"#232323", color:"#fff", fontSize:9, borderRadius:8, padding:"1px 5px"}}, "+" + (it.photos.length - 1)) : null
+        ) : null,
         e('div', {style:{flex:1, minWidth:0, cursor:"pointer"}, onClick:function(){ openEdit(it); }},
           e('div', {style:{display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", marginBottom:4}},
             e('span', {style:{fontSize:11, fontWeight:600, color:pm.color, background:pm.bg, padding:"2px 7px", borderRadius:3}}, it.priority),
@@ -363,6 +405,33 @@ function PropertyTracker() {
   ) : null;
 
   var toastNode = toast ? e('div', {key:"toast", style:{position:"fixed", top:14, left:"50%", transform:"translateX(-50%)", background:"#232323", color:"#fff", padding:"8px 16px", borderRadius:6, fontSize:13, zIndex:50}}, toast) : null;
+
+  var viewerNode = viewer ? e('div', {key:"viewer", style:{position:"fixed", inset:0, background:"rgba(10,10,10,0.94)", zIndex:60, display:"flex", flexDirection:"column"}},
+    e('div', {style:{display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 16px", color:"#fff"}},
+      e('span', {style:{fontSize:13, opacity:0.8}}, (viewer.index + 1) + " / " + viewer.photos.length),
+      e('button', {onClick:function(){ setViewer(null); }, "aria-label":"閉じる"}, e(XIcon,{size:24,color:"#fff"}))
+    ),
+    e('div', {
+      style:{flex:1, display:"flex", overflowX:"auto", scrollSnapType:"x mandatory"},
+      ref: function(el){ if (el) el.scrollLeft = viewer.index * el.clientWidth; },
+      onScroll: function(ev){
+        var w = ev.currentTarget.clientWidth;
+        var idx = Math.round(ev.currentTarget.scrollLeft / w);
+        if (idx !== viewer.index) setViewer(function(v){ return v ? Object.assign({}, v, {index: idx}) : v; });
+      }
+    },
+      viewer.photos.map(function(src, i){
+        return e('div', {key:i, style:{flex:"0 0 100%", scrollSnapAlign:"center", display:"flex", alignItems:"center", justifyContent:"center", padding:12}},
+          e('img', {src:src, alt:"", style:{maxWidth:"100%", maxHeight:"100%", objectFit:"contain"}})
+        );
+      })
+    ),
+    viewer.photos.length > 1 ? e('div', {style:{display:"flex", justifyContent:"center", gap:6, padding:"10px 0 18px"}},
+      viewer.photos.map(function(_, i){
+        return e('div', {key:i, style:{width:6, height:6, borderRadius:"50%", background: i===viewer.index ? "#fff" : "rgba(255,255,255,0.35)"}});
+      })
+    ) : null
+  ) : null;
 
   var importNode = importOpen ? e('div', {key:"importmodal", style:{position:"fixed", inset:0, background:"rgba(20,20,20,0.5)", display:"flex", alignItems:"flex-end", zIndex:40}, onClick:function(){ setImportOpen(false); }},
     e('div', {style:{background:"#FAF9F4", width:"100%", maxHeight:"88vh", overflowY:"auto", borderRadius:"12px 12px 0 0", padding:18}, onClick:function(ev){ ev.stopPropagation(); }},
@@ -408,6 +477,21 @@ function PropertyTracker() {
           return e('button', {key:t, onClick:function(){ setForm(Object.assign({}, form, {type:t})); }, style:{flex:1, padding:"8px 0", borderRadius:4, border:"1.5px solid #B8912F", background: form.type===t?"#B8912F":"transparent", color: form.type===t?"#fff":"#7A5C1E", fontWeight:600, fontSize:13}}, t);
         })
       ),
+      e('label', {style:labelStyle()}, "写真"),
+      e('div', {style:{display:"flex", flexWrap:"wrap", gap:8, marginBottom:12}},
+        (form.photos || []).map(function(src, idx){
+          return e('div', {key:idx, style:{position:"relative", width:64, height:64}},
+            e('img', {src:src, alt:"", style:{width:64, height:64, objectFit:"cover", borderRadius:4, border:"1px solid #C6C0AE"}}),
+            e('button', {onClick:function(){ removePhoto(idx); }, style:{position:"absolute", top:-6, right:-6, width:20, height:20, borderRadius:"50%", background:"#232323", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center"}, "aria-label":"写真を削除"}, e(XIcon,{size:12}))
+          );
+        }).concat([
+          e('label', {key:"add", style:{width:64, height:64, borderRadius:4, border:"1.5px dashed #B8B2A3", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", color:"#8a8478", cursor:"pointer"}},
+            e(CameraIcon, {size:18}),
+            e('span', {style:{fontSize:10, marginTop:2}}, "追加"),
+            e('input', {type:"file", accept:"image/*", multiple:true, style:{display:"none"}, onChange:function(ev){ handlePhotoFiles(ev.target.files); }})
+          )
+        ])
+      ),
       e('label', {style:labelStyle()}, "メモ"),
       e('textarea', {value:form.memo, onChange:function(ev){ setForm(Object.assign({}, form, {memo:ev.target.value})); }, style:Object.assign({}, inputStyle, {minHeight:70, resize:"vertical"}), placeholder:"所有者情報・連絡状況など"}),
       e('div', {style:{display:"flex", gap:8, marginTop:16}},
@@ -418,7 +502,7 @@ function PropertyTracker() {
   ) : null;
 
   return e('div', {style:Object.assign({background:"#E7E3D8", minHeight:"100vh", color:"#232323"}, fontBody)},
-    headerNode, searchNode, listNode, fabNode, selBarNode, toastNode, importNode, formNode
+    headerNode, searchNode, listNode, fabNode, selBarNode, toastNode, viewerNode, importNode, formNode
   );
 }
 
