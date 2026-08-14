@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>新規物件リスト</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  button { font: inherit; border: none; background: none; cursor: pointer; padding: 0; }
+  input, textarea { font: inherit; }
+  input:focus, textarea:focus, button:focus { outline: 2px solid #3F6577; outline-offset: 1px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo } = React;
+
+/* ---- icons (no library dependency; simple inline SVGs, MIT-style lucide paths) ---- */
+function Icon({ path, size = 18, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      {path}
+    </svg>
+  );
+}
+const SearchIcon = (p) => <Icon {...p} path={<><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></>} />;
+const PlusIcon = (p) => <Icon {...p} path={<><path d="M5 12h14" /><path d="M12 5v14" /></>} />;
+const PinIcon = (p) => <Icon {...p} path={<><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></>} />;
+const XIcon = (p) => <Icon {...p} path={<><path d="M18 6 6 18" /><path d="m6 6 12 12" /></>} />;
+const RouteIcon = (p) => <Icon {...p} path={<><circle cx="6" cy="19" r="3" /><circle cx="18" cy="5" r="3" /><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" /></>} />;
+const DownloadIcon = (p) => <Icon {...p} path={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M7 10l5 5 5-5" /><path d="M12 15V3" /></>} />;
+const UploadIcon = (p) => <Icon {...p} path={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M17 8l-5-5-5 5" /><path d="M12 3v12" /></>} />;
+const PencilIcon = (p) => <Icon {...p} path={<><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></>} />;
+const TrashIcon = (p) => <Icon {...p} path={<><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></>} />;
+const FilterIcon = (p) => <Icon {...p} path={<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />} />;
+
+/* ---- data ---- */
+const PRIORITIES = [
+  { key: "最優先", color: "#C9481F", bg: "#FBE4D8" },
+  { key: "優先", color: "#C97A1F", bg: "#FBEBD8" },
+  { key: "普通", color: "#3F6577", bg: "#DCE7EB" },
+  { key: "保留", color: "#7A7568", bg: "#E7E3D8" },
+];
+const STATUS_OPTIONS = ["更地", "建設中", "解体中", "内装中", "空室", "交渉中", "その他"];
+const TYPE_OPTIONS = ["新規地", "跡地", "不明"];
+const STORAGE_KEY = "daybreak_properties";
+const AUTH_KEY = "daybreak_auth";
+const APP_PASSWORD = "day9000";
+
+function toHalfWidth(str = "") {
+  return str.replace(/[Ａ-Ｚａ-ｚ０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).replace(/　/g, " ");
+}
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+function priorityMeta(key) {
+  return PRIORITIES.find((p) => p.key === key) || PRIORITIES[2];
+}
+function emptyForm() {
+  return { name: "", address: "", priority: "普通", status: "更地", statusOther: "", type: "不明", memo: "" };
+}
+
+const fontDisplay = { fontFamily: "'Barlow Condensed', sans-serif" };
+const fontBody = { fontFamily: "'IBM Plex Sans', sans-serif" };
+const fontMono = { fontFamily: "'IBM Plex Mono', monospace" };
+const inputStyle = { width: "100%", border: "1.5px solid #C6C0AE", borderRadius: 4, padding: "9px 10px", fontSize: 14, background: "#fff", color: "#232323", ...fontBody };
+function labelStyle() {
+  return { display: "block", fontSize: 12, color: "#6b665a", marginBottom: 4, marginTop: 10, ...fontBody };
+}
+
+function loadJson(key) {
+  try {
+    const v = localStorage.getItem(key);
+    return v ? JSON.parse(v) : null;
+  } catch (e) {
+    return null;
+  }
+}
+function saveJson(key, val) {
+  try {
+    localStorage.setItem(key, JSON.stringify(val));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function PropertyTracker() {
+  const [locked, setLocked] = useState(true);
+  const [pwInput, setPwInput] = useState("");
+  const [pwError, setPwError] = useState(false);
+  const [items, setItems] = useState([]);
+  const [query, setQuery] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState(new Set());
+  const [statusFilter, setStatusFilter] = useState(new Set());
+  const [showFilters, setShowFilters] = useState(false);
+  const [selected, setSelected] = useState(new Set());
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState(emptyForm());
+  const [toast, setToast] = useState("");
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState("");
+
+  useEffect(() => {
+    if (loadJson(AUTH_KEY) === "ok") setLocked(false);
+    const savedItems = loadJson(STORAGE_KEY);
+    if (savedItems) setItems(savedItems);
+  }, []);
+
+  function persist(next) {
+    setItems(next);
+    if (!saveJson(STORAGE_KEY, next)) showToast("保存に失敗しました");
+  }
+  function showToast(msg) {
+    setToast(msg);
+    setTimeout(() => setToast(""), 2200);
+  }
+  function submitPassword() {
+    if (pwInput === APP_PASSWORD) {
+      setLocked(false);
+      setPwError(false);
+      saveJson(AUTH_KEY, "ok");
+    } else {
+      setPwError(true);
+    }
+  }
+
+  const filtered = useMemo(() => {
+    const tokens = toHalfWidth(query).trim().split(/\s+/).filter(Boolean);
+    return items
+      .filter((it) => {
+        if (priorityFilter.size && !priorityFilter.has(it.priority)) return false;
+        if (statusFilter.size && !statusFilter.has(it.status)) return false;
+        if (!tokens.length) return true;
+        const hay = toHalfWidth(`${it.name} ${it.address} ${it.status} ${it.type} ${it.memo}`).toLowerCase();
+        return tokens.every((t) => hay.includes(t.toLowerCase()));
+      })
+      .sort((a, b) => {
+        const order = { 最優先: 0, 優先: 1, 普通: 2, 保留: 3 };
+        const oa = order[a.priority] ?? 9;
+        const ob = order[b.priority] ?? 9;
+        if (oa !== ob) return oa - ob;
+        return (b.createdAt || 0) - (a.createdAt || 0);
+      });
+  }, [items, query, priorityFilter, statusFilter]);
+
+  function togglePriorityFilter(key) {
+    const next = new Set(priorityFilter);
+    next.has(key) ? next.delete(key) : next.add(key);
+    setPriorityFilter(next);
+  }
+  function toggleStatusFilter(key) {
+    const next = new Set(statusFilter);
+    next.has(key) ? next.delete(key) : next.add(key);
+    setStatusFilter(next);
+  }
+  function toggleSelect(id) {
+    const next = new Set(selected);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setSelected(next);
+  }
+  function openAdd() {
+    setForm(emptyForm());
+    setEditingId(null);
+    setFormOpen(true);
+  }
+  function openEdit(it) {
+    setForm({
+      name: it.name,
+      address: it.address,
+      priority: it.priority,
+      status: STATUS_OPTIONS.includes(it.status) ? it.status : "その他",
+      statusOther: STATUS_OPTIONS.includes(it.status) ? "" : it.status,
+      type: it.type || "不明",
+      memo: it.memo || "",
+    });
+    setEditingId(it.id);
+    setFormOpen(true);
+  }
+  function saveForm() {
+    if (!form.address.trim()) {
+      showToast("住所を入力してください");
+      return;
+    }
+    const statusValue = form.status === "その他" ? form.statusOther.trim() || "その他" : form.status;
+    let next;
+    if (editingId) {
+      next = items.map((it) =>
+        it.id === editingId
+          ? { ...it, name: form.name.trim(), address: form.address.trim(), priority: form.priority, status: statusValue, type: form.type, memo: form.memo.trim() }
+          : it
+      );
+    } else {
+      next = [
+        { id: uid(), name: form.name.trim(), address: form.address.trim(), priority: form.priority, status: statusValue, type: form.type, memo: form.memo.trim(), createdAt: Date.now() },
+        ...items,
+      ];
+    }
+    persist(next);
+    setFormOpen(false);
+    showToast(editingId ? "更新しました" : "登録しました");
+  }
+  function deleteCurrent() {
+    if (!editingId) return;
+    if (!window.confirm("この物件を削除しますか？")) return;
+    persist(items.filter((it) => it.id !== editingId));
+    const nextSel = new Set(selected);
+    nextSel.delete(editingId);
+    setSelected(nextSel);
+    setFormOpen(false);
+    showToast("削除しました");
+  }
+  function openInMaps(address) {
+    window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`, "_blank");
+  }
+  function openRoute() {
+    const addrs = items.filter((it) => selected.has(it.id)).map((it) => it.address);
+    if (!addrs.length) return;
+    const destination = addrs[addrs.length - 1];
+    const waypoints = addrs.slice(0, -1);
+    let url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving`;
+    if (waypoints.length) url += `&waypoints=${waypoints.map(encodeURIComponent).join("|")}`;
+    window.open(url, "_blank");
+  }
+  function exportCsv() {
+    const rows = items.filter((it) => selected.has(it.id));
+    const target = rows.length ? rows : filtered;
+    const header = ["物件名", "住所", "優先度", "状態", "区分", "メモ"];
+    const esc = (s) => `"${String(s ?? "").replace(/"/g, '""')}"`;
+    const csv = [header.map(esc).join(",")].concat(target.map((it) => [it.name, it.address, it.priority, it.status, it.type, it.memo].map(esc).join(","))).join("\r\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `新規物件_マイマップ用_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast("CSVを書き出しました");
+  }
+  function parseCsvLine(line) {
+    const out = [];
+    let cur = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (inQuotes) {
+        if (c === '"') {
+          if (line[i + 1] === '"') { cur += '"'; i++; } else { inQuotes = false; }
+        } else cur += c;
+      } else if (c === '"') inQuotes = true;
+      else if (c === ",") { out.push(cur); cur = ""; }
+      else cur += c;
+    }
+    out.push(cur);
+    return out;
+  }
+  function pickCol(headers, candidates) {
+    for (const cand of candidates) {
+      const idx = headers.findIndex((h) => h.trim() === cand);
+      if (idx !== -1) return idx;
+    }
+    return -1;
+  }
+  function handleImportFile(file) {
+    file.text().then((text) => setImportText(text));
+  }
+  function doImport() {
+    const raw = importText.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").filter((l) => l.trim().length);
+    if (raw.length < 2) { showToast("データが見つかりません"); return; }
+    const headers = parseCsvLine(raw[0]);
+    const addrIdx = pickCol(headers, ["住所", "所在地"]);
+    const nameIdx = pickCol(headers, ["物件名", "近隣・目安", "目安", "名前"]);
+    const priIdx = pickCol(headers, ["優先度"]);
+    const statIdx = pickCol(headers, ["現状", "状態"]);
+    const typeIdx = pickCol(headers, ["区分"]);
+    const memoIdx = pickCol(headers, ["備考", "メモ"]);
+    if (addrIdx === -1) { showToast("「住所」列が見つかりません"); return; }
+    const existingAddrs = new Set(items.map((it) => it.address.trim()));
+    const added = [];
+    let skipped = 0;
+    for (let i = 1; i < raw.length; i++) {
+      const cols = parseCsvLine(raw[i]);
+      const address = (cols[addrIdx] || "").trim();
+      if (!address) continue;
+      if (existingAddrs.has(address)) { skipped++; continue; }
+      existingAddrs.add(address);
+      const rawName = nameIdx !== -1 ? (cols[nameIdx] || "").trim() : "";
+      added.push({
+        id: uid(),
+        name: rawName === "未定" ? "" : rawName,
+        address,
+        priority: priIdx !== -1 && cols[priIdx] ? cols[priIdx].trim() : "普通",
+        status: statIdx !== -1 && cols[statIdx] ? cols[statIdx].trim() : "その他",
+        type: typeIdx !== -1 && cols[typeIdx] ? cols[typeIdx].trim() : "不明",
+        memo: memoIdx !== -1 ? (cols[memoIdx] || "").trim() : "",
+        createdAt: Date.now() - i,
+      });
+    }
+    if (added.length) persist([...added, ...items]);
+    setImportOpen(false);
+    setImportText("");
+    showToast(`${added.length}件取り込みました${skipped ? `（重複${skipped}件はスキップ）` : ""}`);
+  }
+
+  return (
+    <div style={{ ...fontBody, background: "#E7E3D8", minHeight: "100vh", color: "#232323" }}>
+      {locked ? (
+        <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, background: "#1F2933", color: "#F4F1E8" }}>
+          <div style={{ ...fontDisplay, fontSize: 24, fontWeight: 700, marginBottom: 4 }}>新規物件リスト</div>
+          <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 20 }}>パスワードを入力してください</div>
+          <input
+            type="password"
+            value={pwInput}
+            onChange={(e) => { setPwInput(e.target.value); setPwError(false); }}
+            onKeyDown={(e) => e.key === "Enter" && submitPassword()}
+            style={{ ...inputStyle, maxWidth: 260, textAlign: "center", letterSpacing: 2, color: "#232323" }}
+            placeholder="パスワード"
+            autoFocus
+          />
+          {pwError && <div style={{ color: "#E8631C", fontSize: 12.5, marginTop: 8 }}>パスワードが違います</div>}
+          <button onClick={submitPassword} style={{ marginTop: 14, background: "#C9481F", color: "#fff", padding: "10px 28px", borderRadius: 4, fontWeight: 600 }}>開く</button>
+        </div>
+      ) : (
+        <>
+          <div style={{ background: "#1F2933", color: "#F4F1E8" }}>
+            <div style={{ padding: "18px 16px 10px" }}>
+              <div style={{ ...fontDisplay, fontSize: 26, fontWeight: 700, letterSpacing: 0.5 }}>新規物件リスト</div>
+              <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>営業スカウトノート ・ 全{items.length}件</div>
+            </div>
+            <div style={{ display: "flex", overflow: "hidden", height: 10 }}>
+              {Array.from({ length: 40 }).map((_, i) => (
+                <div key={i} style={{ flex: "0 0 auto", width: 12, borderLeft: i % 5 === 0 ? "1.5px solid #C9481F" : "1px solid #4B5768", height: i % 5 === 0 ? 10 : 6 }} />
+              ))}
+            </div>
+          </div>
+
+          <div style={{ padding: 12, position: "sticky", top: 0, background: "#E7E3D8", zIndex: 10, borderBottom: "1px solid #C6C0AE" }}>
+            <div style={{ display: "flex", alignItems: "center", background: "#FAF9F4", border: "1.5px solid #232323", borderRadius: 4, padding: "8px 10px", gap: 8 }}>
+              <SearchIcon size={18} color="#5B5648" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="物件名・住所・状態で検索（スペース区切りでAND）" style={{ border: "none", background: "transparent", flex: 1, fontSize: 14, color: "#232323", ...fontBody }} />
+              {query && (<button onClick={() => setQuery("")} aria-label="検索をクリア"><XIcon size={16} color="#8a8478" /></button>)}
+              <button onClick={() => setShowFilters((s) => !s)} style={{ display: "flex", alignItems: "center", gap: 4, color: showFilters || priorityFilter.size || statusFilter.size ? "#C9481F" : "#5B5648" }} aria-label="絞り込み"><FilterIcon size={18} /></button>
+              <button onClick={() => setImportOpen(true)} style={{ display: "flex", alignItems: "center", gap: 4, color: "#5B5648" }} aria-label="CSV取込"><UploadIcon size={18} /></button>
+            </div>
+            {showFilters && (
+              <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {PRIORITIES.map((p) => (
+                    <button key={p.key} onClick={() => togglePriorityFilter(p.key)} style={{ fontSize: 12, padding: "5px 10px", borderRadius: 999, border: `1.5px solid ${p.color}`, background: priorityFilter.has(p.key) ? p.color : "transparent", color: priorityFilter.has(p.key) ? "#fff" : p.color }}>{p.key}</button>
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {STATUS_OPTIONS.filter((s) => s !== "その他").map((s) => (
+                    <button key={s} onClick={() => toggleStatusFilter(s)} style={{ fontSize: 12, padding: "5px 10px", borderRadius: 999, border: "1.5px solid #5B5648", background: statusFilter.has(s) ? "#232323" : "transparent", color: statusFilter.has(s) ? "#fff" : "#5B5648" }}>{s}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div style={{ padding: "8px 12px 120px", display: "flex", flexDirection: "column", gap: 10 }}>
+            {filtered.length === 0 && (
+              <div style={{ textAlign: "center", padding: "50px 20px", color: "#8a8478" }}>
+                {items.length === 0 ? (
+                  <>
+                    <div style={{ fontSize: 15, marginBottom: 6 }}>まだ物件が登録されていません</div>
+                    <div style={{ fontSize: 13 }}>右下の「＋」から新しく見つけた物件を登録してください</div>
+                  </>
+                ) : (<div style={{ fontSize: 14 }}>条件に一致する物件がありません</div>)}
+              </div>
+            )}
+            {filtered.map((it) => {
+              const pm = priorityMeta(it.priority);
+              return (
+                <div key={it.id} style={{ background: "#FAF9F4", border: "1px solid #C6C0AE", borderRadius: 6, padding: 12, display: "flex", gap: 10 }}>
+                  <input type="checkbox" checked={selected.has(it.id)} onChange={() => toggleSelect(it.id)} style={{ marginTop: 4, width: 18, height: 18, accentColor: "#C9481F" }} aria-label="選択" />
+                  <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => openEdit(it)}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 4 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: pm.color, background: pm.bg, padding: "2px 7px", borderRadius: 3 }}>{it.priority}</span>
+                      <span style={{ fontSize: 11, color: "#5B5648", border: "1px solid #C6C0AE", padding: "2px 7px", borderRadius: 3 }}>{it.status}</span>
+                      {it.type && it.type !== "不明" && (<span style={{ fontSize: 11, color: "#7A5C1E", border: "1px dashed #B8912F", padding: "2px 7px", borderRadius: 3 }}>{it.type}</span>)}
+                      <span style={{ marginLeft: "auto" }}><PencilIcon size={14} color="#8a8478" /></span>
+                    </div>
+                    <div style={{ ...fontDisplay, fontSize: 17, fontWeight: 600, lineHeight: 1.2 }}>{it.name || "（物件名未登録）"}</div>
+                    <button onClick={(e) => { e.stopPropagation(); openInMaps(it.address); }} style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, color: "#3F6577", ...fontMono, fontSize: 12.5, textAlign: "left" }}>
+                      <PinIcon size={13} />
+                      <span style={{ textDecoration: "underline", textUnderlineOffset: 2 }}>{it.address}</span>
+                    </button>
+                    {it.memo && (<div style={{ fontSize: 12.5, color: "#6b665a", marginTop: 5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{it.memo}</div>)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <button onClick={openAdd} style={{ position: "fixed", right: 18, bottom: selected.size ? 90 : 18, width: 54, height: 54, borderRadius: "50%", background: "#C9481F", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 3px 10px rgba(0,0,0,0.3)", transition: "bottom 0.15s" }} aria-label="新規物件を登録">
+            <PlusIcon size={26} />
+          </button>
+
+          {selected.size > 0 && (
+            <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, background: "#1F2933", color: "#fff", padding: "10px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 13 }}>{selected.size}件選択中</span>
+              <button onClick={openRoute} style={{ display: "flex", alignItems: "center", gap: 4, background: "#3F6577", padding: "8px 10px", borderRadius: 4, fontSize: 12.5, color: "#fff" }}><RouteIcon size={15} /> 経路を開く</button>
+              <button onClick={exportCsv} style={{ display: "flex", alignItems: "center", gap: 4, background: "#374151", padding: "8px 10px", borderRadius: 4, fontSize: 12.5, color: "#fff" }}><DownloadIcon size={15} /> CSV書き出し</button>
+              <button onClick={() => setSelected(new Set())} style={{ marginLeft: "auto", color: "#cbd2d9" }} aria-label="選択解除"><XIcon size={18} /></button>
+            </div>
+          )}
+
+          {toast && (<div style={{ position: "fixed", top: 14, left: "50%", transform: "translateX(-50%)", background: "#232323", color: "#fff", padding: "8px 16px", borderRadius: 6, fontSize: 13, zIndex: 50 }}>{toast}</div>)}
+
+          {importOpen && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(20,20,20,0.5)", display: "flex", alignItems: "flex-end", zIndex: 40 }} onClick={() => setImportOpen(false)}>
+              <div style={{ background: "#FAF9F4", width: "100%", maxHeight: "88vh", overflowY: "auto", borderRadius: "12px 12px 0 0", padding: 18 }} onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
+                  <div style={{ ...fontDisplay, fontSize: 20, fontWeight: 700 }}>CSV取込</div>
+                  <button style={{ marginLeft: "auto" }} onClick={() => setImportOpen(false)} aria-label="閉じる"><XIcon size={20} /></button>
+                </div>
+                <div style={{ fontSize: 12.5, color: "#6b665a", marginBottom: 10, lineHeight: 1.6 }}>
+                  エクセルから書き出したCSVファイルを選ぶか、内容を貼り付けてください。「住所」列は必須。「優先度」「現状」「区分」「備考」列があれば自動で反映します（「名前」列が「未定」の場合は空欄扱いにします）。同じ住所はスキップします。
+                </div>
+                <input type="file" accept=".csv,text/csv" onChange={(e) => e.target.files[0] && handleImportFile(e.target.files[0])} style={{ marginBottom: 10, fontSize: 13 }} />
+                <textarea value={importText} onChange={(e) => setImportText(e.target.value)} placeholder="ここにCSVの内容を貼り付けることもできます" style={{ ...inputStyle, minHeight: 140, resize: "vertical", ...fontMono, fontSize: 12 }} />
+                <div style={{ display: "flex", marginTop: 14 }}>
+                  <button onClick={doImport} disabled={!importText.trim()} style={{ marginLeft: "auto", background: "#C9481F", color: "#fff", padding: "10px 22px", borderRadius: 4, fontWeight: 600, opacity: !importText.trim() ? 0.6 : 1 }}>取り込む</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {formOpen && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(20,20,20,0.5)", display: "flex", alignItems: "flex-end", zIndex: 40 }} onClick={() => setFormOpen(false)}>
+              <div style={{ background: "#FAF9F4", width: "100%", maxHeight: "88vh", overflowY: "auto", borderRadius: "12px 12px 0 0", padding: 18 }} onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: "flex", alignItems: "center", marginBottom: 12 }}>
+                  <div style={{ ...fontDisplay, fontSize: 20, fontWeight: 700 }}>{editingId ? "物件を編集" : "新規物件を登録"}</div>
+                  <button style={{ marginLeft: "auto" }} onClick={() => setFormOpen(false)} aria-label="閉じる"><XIcon size={20} /></button>
+                </div>
+                <label style={labelStyle()}>物件名（任意）</label>
+                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} style={inputStyle} placeholder="例）〇〇町 空き地" />
+                <label style={labelStyle()}>住所 *</label>
+                <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} style={inputStyle} placeholder="番地まで入力するとマップ精度が上がります" />
+                <label style={labelStyle()}>優先度</label>
+                <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                  {PRIORITIES.map((p) => (
+                    <button key={p.key} onClick={() => setForm({ ...form, priority: p.key })} style={{ flex: 1, padding: "9px 0", borderRadius: 4, border: `1.5px solid ${p.color}`, background: form.priority === p.key ? p.color : "transparent", color: form.priority === p.key ? "#fff" : p.color, fontWeight: 600, fontSize: 12.5 }}>{p.key}</button>
+                  ))}
+                </div>
+                <label style={labelStyle()}>状態</label>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: form.status === "その他" ? 8 : 12 }}>
+                  {STATUS_OPTIONS.map((s) => (
+                    <button key={s} onClick={() => setForm({ ...form, status: s })} style={{ fontSize: 13, padding: "7px 12px", borderRadius: 999, border: "1.5px solid #232323", background: form.status === s ? "#232323" : "transparent", color: form.status === s ? "#fff" : "#232323" }}>{s}</button>
+                  ))}
+                </div>
+                {form.status === "その他" && (<input value={form.statusOther} onChange={(e) => setForm({ ...form, statusOther: e.target.value })} style={{ ...inputStyle, marginBottom: 12 }} placeholder="状態を入力" />)}
+                <label style={labelStyle()}>区分（跡地・新規地・不明）</label>
+                <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                  {TYPE_OPTIONS.map((t) => (
+                    <button key={t} onClick={() => setForm({ ...form, type: t })} style={{ flex: 1, padding: "8px 0", borderRadius: 4, border: "1.5px solid #B8912F", background: form.type === t ? "#B8912F" : "transparent", color: form.type === t ? "#fff" : "#7A5C1E", fontWeight: 600, fontSize: 13 }}>{t}</button>
+                  ))}
+                </div>
+                <label style={labelStyle()}>メモ</label>
+                <textarea value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} style={{ ...inputStyle, minHeight: 70, resize: "vertical" }} placeholder="所有者情報・連絡状況など" />
+                <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                  {editingId && (<button onClick={deleteCurrent} style={{ display: "flex", alignItems: "center", gap: 4, color: "#B3261E", padding: "10px 12px" }}><TrashIcon size={16} /> 削除</button>)}
+                  <button onClick={saveForm} style={{ marginLeft: "auto", background: "#C9481F", color: "#fff", padding: "10px 22px", borderRadius: 4, fontWeight: 600 }}>保存</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<PropertyTracker />);
+</script>
+</body>
+</html>
