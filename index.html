@@ -221,6 +221,13 @@
     color:var(--sub);
     margin-top:2px;
   }
+  .addr-link{
+    color:var(--brand-blue-dark);
+    text-decoration:underline;
+    text-decoration-color:rgba(30,91,143,.35);
+    text-underline-offset:2px;
+  }
+  .addr-link:active{ opacity:.6; }
   .site-details{
     margin-top:6px;
     font-size:12.5px;
@@ -422,6 +429,14 @@ function escapeHtml(s){
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+// 住所をタップするとGoogleマップで開くリンクにする
+function mapLink(address){
+  const addr = (address||'').toString().trim();
+  if(!addr) return '—';
+  const url = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addr);
+  return `<a href="${url}" class="addr-link" onclick="event.stopPropagation()">${escapeHtml(addr)}</a>`;
+}
+
 function fmtPrice(v){
   if(!v) return '0円';
   return Number(v).toLocaleString('ja-JP') + '円';
@@ -444,7 +459,7 @@ function renderSite(site){
   return `
   <div class="site ${cls}">
     <div class="site-name">${escapeHtml(site.t1)}${name2}${tag}</div>
-    <div class="site-addr">${escapeHtml(site.taddr) || '—'}</div>
+    <div class="site-addr">${mapLink(site.taddr)}</div>
     <div class="site-details">
       ${site.shohin ? `<span><b>商品</b>${escapeHtml(site.shohin)}</span>` : ''}
       <span><b>単価</b><span class="price">${fmtPrice(site.tanka)}</span>${site.taniname ? '/'+escapeHtml(site.taniname):''}${site.tekiyou ? ` <span style="color:var(--sub);font-weight:400;">(適用開始日: ${escapeHtml(site.tekiyou)})</span>`:''}</span>
@@ -478,7 +493,7 @@ function renderGroup(group, tokens, forceOpen){
     <div class="group-header" onclick="this.parentElement.classList.toggle('open')">
       <div>
         <div class="group-title">${escapeHtml(group.k1)}${name2}</div>
-        <div class="group-sub">${escapeHtml(group.kaddr) || '—'}</div>
+        <div class="group-sub">${mapLink(group.kaddr)}</div>
       </div>
       <div style="display:flex;align-items:center;gap:10px;">
         <div class="group-count">${siteList.length}件</div>
