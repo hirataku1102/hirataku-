@@ -4,6 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
 <title>新規物件リスト</title>
+<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+<script>eruda.init();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
 <script crossorigin src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -17,7 +19,22 @@
 </head>
 <body>
 <div id="root">読み込み中…</div>
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+
+var firebaseConfig = {
+  apiKey: "AIzaSyD8JW9526h0TKa9_hEaGrmlpVG8NeW4c3Q",
+  authDomain: "hirataku1102.firebaseapp.com",
+  projectId: "hirataku1102",
+  storageBucket: "hirataku1102.firebasestorage.app",
+  messagingSenderId: "219252490669",
+  appId: "1:219252490669:web:bb3d9dc019a17a5a01e124"
+};
+var fbApp = initializeApp(firebaseConfig);
+var db = getFirestore(fbApp);
+var propertiesCol = collection(db, "properties");
+
 var e = React.createElement;
 var F = React.Fragment;
 var useState = React.useState, useEffect = React.useEffect, useMemo = React.useMemo;
@@ -127,13 +144,27 @@ function PropertyTracker() {
 
   useEffect(function() {
     if (loadJson(AUTH_KEY) === "ok") setLocked(false);
-    var savedItems = loadJson(STORAGE_KEY);
-    if (savedItems) setItems(savedItems);
+    var unsub = onSnapshot(propertiesCol, function(snapshot) {
+      var list = [];
+      snapshot.forEach(function(docSnap) {
+        list.push(Object.assign({ id: docSnap.id }, docSnap.data()));
+      });
+      setItems(list);
+    }, function(err) {
+      showToast("データベースへの接続に失敗しました");
+    });
+    return unsub;
   }, []);
 
-  function persist(next) {
-    setItems(next);
-    if (!saveJson(STORAGE_KEY, next)) showToast("保存に失敗しました");
+  function saveItemDoc(id, data) {
+    setDoc(doc(propertiesCol, id), data).catch(function(err) {
+      showToast("保存に失敗しました");
+    });
+  }
+  function deleteItemDoc(id) {
+    deleteDoc(doc(propertiesCol, id)).catch(function(err) {
+      showToast("削除に失敗しました");
+    });
   }
   function showToast(msg) {
     setToast(msg);
@@ -206,22 +237,20 @@ function PropertyTracker() {
   function saveForm() {
     if (!form.address.trim()) { showToast("住所を入力してください"); return; }
     var statusValue = form.status === "その他" ? (form.statusOther.trim() || "その他") : form.status;
-    var next;
     if (editingId) {
-      next = items.map(function(it) {
-        return it.id === editingId ? Object.assign({}, it, { name: form.name.trim(), address: form.address.trim(), priority: form.priority, status: statusValue, type: form.type, memo: form.memo.trim(), photos: form.photos || [] }) : it;
-      });
+      var existing = items.find(function(it){ return it.id === editingId; }) || {};
+      saveItemDoc(editingId, Object.assign({}, existing, { name: form.name.trim(), address: form.address.trim(), priority: form.priority, status: statusValue, type: form.type, memo: form.memo.trim(), photos: form.photos || [] }));
     } else {
-      next = [{ id: uid(), name: form.name.trim(), address: form.address.trim(), priority: form.priority, status: statusValue, type: form.type, memo: form.memo.trim(), photos: form.photos || [], createdAt: Date.now() }].concat(items);
+      var newId = uid();
+      saveItemDoc(newId, { name: form.name.trim(), address: form.address.trim(), priority: form.priority, status: statusValue, type: form.type, memo: form.memo.trim(), photos: form.photos || [], createdAt: Date.now() });
     }
-    persist(next);
     setFormOpen(false);
     showToast(editingId ? "更新しました" : "登録しました");
   }
   function deleteCurrent() {
     if (!editingId) return;
     if (!window.confirm("この物件を削除しますか？")) return;
-    persist(items.filter(function(it){ return it.id !== editingId; }));
+    deleteItemDoc(editingId);
     var nextSel = new Set(selected);
     nextSel.delete(editingId);
     setSelected(nextSel);
@@ -312,7 +341,14 @@ function PropertyTracker() {
         createdAt: Date.now() - i,
       });
     }
-    if (added.length) persist(added.concat(items));
+    if (added.length) {
+      added.forEach(function(item) {
+        var id = item.id;
+        var data = Object.assign({}, item);
+        delete data.id;
+        saveItemDoc(id, data);
+      });
+    }
     setImportOpen(false);
     setImportText("");
     showToast(added.length + "件取り込みました" + (skipped ? "（重複" + skipped + "件はスキップ）" : ""));
