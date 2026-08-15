@@ -4,8 +4,6 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
 <title>新規物件リスト</title>
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-<script>eruda.init();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
 <script crossorigin src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -73,6 +71,11 @@ function toHalfWidth(str) {
   return str.replace(/[Ａ-Ｚａ-ｚ０-９]/g, function(c){ return String.fromCharCode(c.charCodeAt(0) - 0xfee0); }).replace(/　/g, " ");
 }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+function formatDate(ts) {
+  if (!ts) return "";
+  var d = new Date(ts);
+  return d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate();
+}
 function priorityMeta(key) {
   for (var i=0;i<PRIORITIES.length;i++){ if (PRIORITIES[i].key===key) return PRIORITIES[i]; }
   return PRIORITIES[2];
@@ -239,10 +242,10 @@ function PropertyTracker() {
     var statusValue = form.status === "その他" ? (form.statusOther.trim() || "その他") : form.status;
     if (editingId) {
       var existing = items.find(function(it){ return it.id === editingId; }) || {};
-      saveItemDoc(editingId, Object.assign({}, existing, { name: form.name.trim(), address: form.address.trim(), priority: form.priority, status: statusValue, type: form.type, memo: form.memo.trim(), photos: form.photos || [] }));
+      saveItemDoc(editingId, Object.assign({}, existing, { name: form.name.trim(), address: form.address.trim(), priority: form.priority, status: statusValue, type: form.type, memo: form.memo.trim(), photos: form.photos || [], updatedAt: Date.now() }));
     } else {
       var newId = uid();
-      saveItemDoc(newId, { name: form.name.trim(), address: form.address.trim(), priority: form.priority, status: statusValue, type: form.type, memo: form.memo.trim(), photos: form.photos || [], createdAt: Date.now() });
+      saveItemDoc(newId, { name: form.name.trim(), address: form.address.trim(), priority: form.priority, status: statusValue, type: form.type, memo: form.memo.trim(), photos: form.photos || [], createdAt: Date.now(), updatedAt: Date.now() });
     }
     setFormOpen(false);
     showToast(editingId ? "更新しました" : "登録しました");
@@ -339,6 +342,7 @@ function PropertyTracker() {
         type: (typeIdx !== -1 && cols[typeIdx]) ? cols[typeIdx].trim() : "不明",
         memo: memoIdx !== -1 ? (cols[memoIdx] || "").trim() : "",
         createdAt: Date.now() - i,
+        updatedAt: Date.now() - i,
       });
     }
     if (added.length) {
@@ -425,7 +429,8 @@ function PropertyTracker() {
             e(PinIcon,{size:13}),
             e('span', {style:{textDecoration:"underline", textUnderlineOffset:2}}, it.address)
           ),
-          it.memo ? e('div', {style:{fontSize:12.5, color:"#6b665a", marginTop:5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden"}}, it.memo) : null
+          it.memo ? e('div', {style:{fontSize:12.5, color:"#6b665a", marginTop:5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden"}}, it.memo) : null,
+          (it.updatedAt || it.createdAt) ? e('div', {style:{fontSize:10.5, color:"#a8a290", marginTop:5}}, "更新: " + formatDate(it.updatedAt || it.createdAt)) : null
         )
       );
     })
