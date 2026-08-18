@@ -20,6 +20,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
 import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+import { getStorage, ref as storageRef, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-storage.js";
 
 var firebaseConfig = {
   apiKey: "AIzaSyD8JW9526h0TKa9_hEaGrmlpVG8NeW4c3Q",
@@ -31,7 +32,22 @@ var firebaseConfig = {
 };
 var fbApp = initializeApp(firebaseConfig);
 var db = getFirestore(fbApp);
+var storage = getStorage(fbApp);
 var propertiesCol = collection(db, "properties");
+
+function uploadPhotos(itemId, photos) {
+  var tasks = (photos || []).map(function(p) {
+    if (typeof p === "string" && p.indexOf("data:") === 0) {
+      var path = "properties/" + itemId + "/" + uid() + ".jpg";
+      var sref = storageRef(storage, path);
+      return uploadString(sref, p, "data_url").then(function() {
+        return getDownloadURL(sref);
+      });
+    }
+    return Promise.resolve(p);
+  });
+  return Promise.all(tasks);
+}
 
 var e = React.createElement;
 var F = React.Fragment;
@@ -144,6 +160,7 @@ function PropertyTracker() {
   var viewerState = useState(null); var viewer = viewerState[0], setViewer = viewerState[1];
   var importOpenState = useState(false); var importOpen = importOpenState[0], setImportOpen = importOpenState[1];
   var importTextState = useState(""); var importText = importTextState[0], setImportText = importTextState[1];
+  var savingState = useState(false); var saving = savingState[0], setSaving = savingState[1];
 
   useEffect(function() {
     if (loadJson(AUTH_KEY) === "ok") setLocked(false);
@@ -240,15 +257,22 @@ function PropertyTracker() {
   function saveForm() {
     if (!form.address.trim()) { showToast("住所を入力してください"); return; }
     var statusValue = form.status === "その他" ? (form.statusOther.trim() || "その他") : form.status;
-    if (editingId) {
-      var existing = items.find(function(it){ return it.id === editingId; }) || {};
-      saveItemDoc(editingId, Object.assign({}, existing, { name: form.name.trim(), address: form.address.trim(), priority: form.priority, status: statusValue, type: form.type, memo: form.memo.trim(), photos: form.photos || [], updatedAt: Date.now() }));
-    } else {
-      var newId = uid();
-      saveItemDoc(newId, { name: form.name.trim(), address: form.address.trim(), priority: form.priority, status: statusValue, type: form.type, memo: form.memo.trim(), photos: form.photos || [], createdAt: Date.now(), updatedAt: Date.now() });
-    }
-    setFormOpen(false);
-    showToast(editingId ? "更新しました" : "登録しました");
+    var targetId = editingId || uid();
+    setSaving(true);
+    uploadPhotos(targetId, form.photos || []).then(function(uploadedPhotos) {
+      if (editingId) {
+        var existing = items.find(function(it){ return it.id === editingId; }) || {};
+        saveItemDoc(editingId, Object.assign({}, existing, { name: form.name.trim(), address: form.address.trim(), priority: form.priority, status: statusValue, type: form.type, memo: form.memo.trim(), photos: uploadedPhotos, updatedAt: Date.now() }));
+      } else {
+        saveItemDoc(targetId, { name: form.name.trim(), address: form.address.trim(), priority: form.priority, status: statusValue, type: form.type, memo: form.memo.trim(), photos: uploadedPhotos, createdAt: Date.now(), updatedAt: Date.now() });
+      }
+      setSaving(false);
+      setFormOpen(false);
+      showToast(editingId ? "更新しました" : "登録しました");
+    }).catch(function(err) {
+      setSaving(false);
+      showToast("写真のアップロードに失敗しました");
+    });
   }
   function deleteCurrent() {
     if (!editingId) return;
@@ -537,7 +561,7 @@ function PropertyTracker() {
       e('textarea', {value:form.memo, onChange:function(ev){ setForm(Object.assign({}, form, {memo:ev.target.value})); }, style:Object.assign({}, inputStyle, {minHeight:70, resize:"vertical"}), placeholder:"所有者情報・連絡状況など"}),
       e('div', {style:{display:"flex", gap:8, marginTop:16}},
         editingId ? e('button', {onClick:deleteCurrent, style:{display:"flex", alignItems:"center", gap:4, color:"#B3261E", padding:"10px 12px"}}, e(TrashIcon,{size:16}), " 削除") : null,
-        e('button', {onClick:saveForm, style:{marginLeft:"auto", background:"#C9481F", color:"#fff", padding:"10px 22px", borderRadius:4, fontWeight:600}}, "保存")
+        e('button', {onClick:saveForm, disabled:saving, style:{marginLeft:"auto", background:"#C9481F", color:"#fff", padding:"10px 22px", borderRadius:4, fontWeight:600, opacity: saving?0.6:1}}, saving ? "保存中…" : "保存")
       )
     )
   ) : null;
