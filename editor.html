@@ -109,6 +109,7 @@
 <header>
   <h1>🚚 コース表 編集
     <span class="btns">
+      <button class="btn ghost sm" id="seedBtn">テストデータ追加</button>
       <button class="btn ghost sm" id="csvBtn">CSV登録</button>
     </span>
   </h1>
@@ -149,7 +150,7 @@ const WASTE_TYPES = [
   { key: 'vinyl', label: 'ビニール', icon: '🛍️' },
 ];
 const WT = Object.fromEntries(WASTE_TYPES.map(w => [w.key, w]));
-const WEEKDAYS = ['月', '火', '水', '木', '金', '土'];
+const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 const COLORS = ['#FF7A29', '#4FA88D', '#4C8DFF', '#E8B84B', '#E85D4E', '#9B7EDE'];
 
 /* ==== ロック画面 ==== */
