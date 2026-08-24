@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>コース表 編集ツール（管理用）</title>
+<style>
+  :root{
+    --bg:#181b16; --card:#20241f; --border:rgba(255,255,255,.1); --border2:rgba(255,255,255,.25);
+    --text:#f4f2ec; --sub:#9a9a92; --orange:#FF7A29; --teal:#4FA88D; --red:#E85D4E; --blue:#4C8DFF;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif}
+  header{position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--border);padding:12px 14px 8px;z-index:10}
+  h1{margin:0 0 8px;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:space-between;gap:8px}
+  h1 .btns{display:flex;gap:6px}
+  .toprow{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
+  .toprow button{flex:0 0 auto;border:1px solid var(--border);border-radius:999px;padding:8px 13px;font-weight:800;font-size:13px;color:var(--sub);background:transparent}
+  .toprow button.active{border-color:var(--border2);background:rgba(255,255,255,.1);color:#fff}
+  .courserow{display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px}
+  .courserow button{flex:0 0 auto;display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:7px 12px;font-weight:700;font-size:12.5px;color:var(--sub);background:transparent}
+  .courserow button.active{border-color:var(--border2);background:rgba(255,255,255,.08);color:#fff}
+  .courserow button.add{border-style:dashed}
+  .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+  main{padding:12px 14px 60px;max-width:640px;margin:0 auto}
+  .btn{display:inline-flex;align-items:center;gap:6px;border-radius:10px;padding:9px 13px;font-weight:800;font-size:13px;border:1px solid var(--border2);background:transparent;color:var(--text);cursor:pointer}
+  .btn.primary{background:var(--orange);color:#1a1a1a;border-color:var(--orange)}
+  .btn.danger{background:rgba(232,93,78,.15);border-color:rgba(232,93,78,.5);color:#f2a89e}
+  .btn.ghost{background:transparent}
+  .btn.block{width:100%;justify-content:center;padding:13px}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.sm{padding:6px 10px;font-size:12px}
+  .search{width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--border);background:rgba(0,0,0,.25);color:#fff;font-size:15px;margin-bottom:10px}
+  .card{display:flex;align-items:center;gap:10px;border:1px solid var(--border);background:var(--card);border-radius:14px;padding:12px;margin-bottom:8px}
+  .num{flex:0 0 auto;width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+  .updown{display:flex;flex-direction:column;flex:0 0 auto}
+  .updown button{background:none;border:none;color:var(--sub);font-size:13px;padding:1px 4px;cursor:pointer}
+  .updown button:disabled{opacity:.2}
+  .info{flex:1;min-width:0;cursor:pointer}
+  .name{font-weight:800;font-size:15px}
+  .addr{font-size:11px;color:var(--sub);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}
+  .badge{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700}
+  .badge.key{background:rgba(79,168,141,.2);color:#8fd8c2}
+  .badge.nokey{background:rgba(232,93,78,.2);color:#f2a89e}
+  .badge.type{background:rgba(255,255,255,.08);color:#cfcfc7}
+  .badge.days{background:rgba(76,141,255,.15);color:#9dbdfb}
+  .maplink{flex:0 0 auto;width:36px;height:36px;border-radius:10px;background:rgba(76,141,255,.15);color:var(--blue);display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:15px}
+  .empty{text-align:center;color:var(--sub);padding:50px 20px;font-size:14px;line-height:1.7}
+  .section-head{display:flex;justify-content:space-between;align-items:center;margin:6px 0 10px}
+  .section-head h2{margin:0;font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px}
+  .count{font-size:12px;color:var(--sub);font-weight:600}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:flex-end;justify-content:center;z-index:50}
+  .overlay.show{display:flex}
+  .modal{width:100%;max-height:92vh;overflow-y:auto;background:var(--card);border-radius:20px 20px 0 0;border-top:1px solid var(--border)}
+  .modal-head{position:sticky;top:0;background:var(--card);display:flex;justify-content:space-between;align-items:center;padding:16px;border-bottom:1px solid var(--border)}
+  .modal-head h2{margin:0;font-size:16px;font-weight:900}
+  .closebtn{background:rgba(255,255,255,.1);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:18px}
+  .modal-body{padding:16px}
+  .field{display:block;margin-bottom:16px}
+  .field .lb{display:block;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;color:var(--sub);margin-bottom:6px}
+  input[type=text], input[type=search], textarea, select{width:100%;padding:11px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.3);color:#fff;font-size:15px}
+  textarea{resize:vertical}
+  .colorrow{display:flex;gap:8px;flex-wrap:wrap}
+  .colorrow button{width:34px;height:34px;border-radius:50%;border:2px solid transparent;cursor:pointer}
+  .colorrow button.active{border-color:#fff}
+  .keyrow{display:flex;gap:8px}
+  .keyrow button{flex:1;padding:11px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:transparent;color:var(--sub);font-weight:700;font-size:14px;cursor:pointer}
+  .keyrow button.active.yes{border-color:var(--teal);background:rgba(79,168,141,.2);color:#8fd8c2}
+  .keyrow button.active.no{border-color:var(--red);background:rgba(232,93,78,.2);color:#f2a89e}
+  .daysrow{display:flex;gap:6px;flex-wrap:wrap}
+  .daysrow button{width:38px;height:38px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:transparent;color:var(--sub);font-weight:800;font-size:13px}
+  .daysrow button.active{border-color:var(--blue);background:rgba(76,141,255,.2);color:#9dbdfb}
+  .photobox{position:relative}
+  .photobox img{width:100%;height:190px;object-fit:cover;border-radius:10px;border:1px solid var(--border)}
+  .photobox .rm{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.7);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:15px}
+  .uploadbox{height:130px;width:100%;border:2px dashed rgba(255,255,255,.2);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--sub);cursor:pointer;background:none}
+  .modal-actions{display:flex;justify-content:space-between;gap:8px;margin-top:6px;align-items:center}
+  .modal-actions .right{display:flex;gap:8px}
+  .confirmbox{border:1px solid rgba(232,93,78,.4);background:rgba(232,93,78,.1);border-radius:10px;padding:14px;margin-top:10px}
+  .confirmbox p{margin:0 0 10px;font-size:13.5px;color:#f2a89e}
+  .confirm-actions{display:flex;justify-content:flex-end;gap:8px}
+  .hint{font-size:12px;color:var(--sub);line-height:1.7;margin-bottom:12px}
+  .hint code{background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px}
+  .preview{margin-top:10px;border:1px solid rgba(79,168,141,.4);background:rgba(79,168,141,.1);border-radius:10px;padding:10px;font-size:12.5px;color:#8fd8c2}
+  .toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#2a2f27;border:1px solid var(--border2);color:#fff;padding:10px 18px;border-radius:999px;font-size:13px;font-weight:700;z-index:100;display:none;box-shadow:0 6px 20px rgba(0,0,0,.4)}
+  a.maplink-inline{color:var(--blue);font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:5px;margin-top:6px}
+  .typebox{border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px}
+  .typebox .th{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .typebox .th strong{font-size:13.5px;font-weight:800}
+  .togglechip{border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:5px 11px;font-size:12px;font-weight:700;color:var(--sub);background:transparent}
+  .togglechip.on{border-color:var(--teal);background:rgba(79,168,141,.2);color:#8fd8c2}
+  .lockscreen{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;text-align:center}
+  .lockscreen input{width:220px;text-align:center;font-size:18px;letter-spacing:2px}
+  .spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="lockscreen" id="lockscreen">
+  <div style="font-size:34px">🔒</div>
+  <div style="font-weight:800">編集用パスコード</div>
+  <input type="text" id="passInput" autocapitalize="off" autocorrect="off" placeholder="パスコード">
+  <button class="btn primary" id="passBtn">開く</button>
+  <div id="passErr" style="color:#f2a89e;font-size:12px;display:none">パスコードが違います</div>
+</div>
+
+<header>
+  <h1>🚚 コース表 編集
+    <span class="btns">
+      <button class="btn ghost sm" id="csvBtn">CSV登録</button>
+    </span>
+  </h1>
+  <div class="toprow" id="topTabs"></div>
+  <div class="courserow" id="courseTabs"></div>
+</header>
+
+<main>
+  <div id="content"></div>
+</main>
+
+<div class="overlay" id="overlay"><div class="modal" id="modalRoot"></div></div>
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+<script>
+/* ==== 設定 ==== */
+const EDIT_PASSCODE = "sakai2026"; // ← ここを好きなパスコードに変更してください
+const firebaseConfig = {
+  apiKey: "AIzaSyD8JW9526h0TKa9_hEaGrmlpVG8NeW4c3Q",
+  authDomain: "hirataku1102.firebaseapp.com",
+  projectId: "hirataku1102",
+  storageBucket: "hirataku1102.firebasestorage.app",
+  messagingSenderId: "219252490669",
+  appId: "1:219252490669:web:bb3d9dc019a17a5a01e124"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const storage = firebase.storage();
+
+const WASTE_TYPES = [
+  { key: 'combustible', label: '可燃ゴミ', icon: '🔥' },
+  { key: 'cardboard', label: 'ダンボール', icon: '📦' },
+  { key: 'beverage', label: '飲料容器', icon: '🥤' },
+  { key: 'styrofoam', label: '発泡スチロール', icon: '🧊' },
+  { key: 'vinyl', label: 'ビニール', icon: '🛍️' },
+];
+const WT = Object.fromEntries(WASTE_TYPES.map(w => [w.key, w]));
+const WEEKDAYS = ['月', '火', '水', '木', '金', '土'];
+const COLORS = ['#FF7A29', '#4FA88D', '#4C8DFF', '#E8B84B', '#E85D4E', '#9B7EDE'];
+
+/* ==== ロック画面 ==== */
+try { if (sessionStorage.getItem('cm_unlocked') === '1') document.getElementById('lockscreen').style.display = 'none'; } catch (e) {}
+document.getElementById('passBtn').onclick = tryUnlock;
+document.getElementById('passInput').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
+function tryUnlock() {
+  const v = document.getElementById('passInput').value;
+  if (v === EDIT_PASSCODE) {
+    try { sessionStorage.setItem('cm_unlocked', '1'); } catch (e) {}
+    document.getElementById('lockscreen').style.display = 'none';
+  } else {
+    document.getElementById('passErr').style.display = 'block';
+  }
+}
+
+/* ==== helpers ==== */
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+function mapsUrl(addr) { return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addr); }
+function esc(s) { return (s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast._h); toast._h = setTimeout(() => t.style.display = 'none', 2200); }
+function photoUrl(id) { return `https://firebasestorage.googleapis.com/v0/b/${firebaseConfig.storageBucket}/o/${encodeURIComponent('course-photos/' + id + '.jpg')}?alt=media&t=${Date.now()}`; }
+function compressImage(file, maxDim = 900, quality = 0.72) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('読み込み失敗'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('画像解析失敗'));
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) { height = Math.round(height * maxDim / width); width = maxDim; }
+          else { width = Math.round(width * maxDim / height); height = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('変換失敗')), 'image/jpeg', quality);
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ==== Firestore layer ==== */
+async function fetchAll() {
+  const [cs, us] = await Promise.all([db.collection('cm_courses').get(), db.collection('cm_customers').get()]);
+  courses = cs.docs.map(d => ({ id: d.id, ...d.data() }));
+  customers = us.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+async function saveCourseDoc(course) { await db.collection('cm_courses').doc(course.id).set(course); }
+async function deleteCourseDoc(id) { await db.collection('cm_courses').doc(id).delete(); }
+async function saveCustomerDoc(cu) { await db.collection('cm_customers').doc(cu.id).set({ ...cu, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }); }
+async function deleteCustomerDoc(id) { await db.collection('cm_customers').doc(id).delete(); }
+async function uploadPhoto(id, blob) { await storage.ref('course-photos/' + id + '.jpg').put(blob, { contentType: 'image/jpeg' }); }
+async function deletePhotoObj(id) { try { await storage.ref('course-photos/' + id + '.jpg').delete(); } catch (e) {} }
+
+/* ==== state ==== */
+let courses = [], customers = [];
+let mode = 'search'; // 'search' | wasteType key
+let activeCourseId = null;
+let busy = false;
+
+async function refresh(showLoading) {
+  if (showLoading) document.getElementById('content').innerHTML = `<div class="empty"><span class="spin"></span> 読み込み中…</div>`;
+  try { await fetchAll(); } catch (e) { toast('読み込みに失敗しました'); console.error(e); }
+  renderTopTabs(); renderCourseTabs(); renderContent();
+}
+
+/* ==== top / course tabs ==== */
+function renderTopTabs() {
+  const box = document.getElementById('topTabs');
+  box.innerHTML = `<button data-m="search" class="${mode === 'search' ? 'active' : ''}">🔎 検索</button>` +
+    WASTE_TYPES.map(w => `<button data-m="${w.key}" class="${mode === w.key ? 'active' : ''}">${w.icon} ${w.label}</button>`).join('');
+  box.querySelectorAll('button').forEach(b => b.onclick = () => {
+    mode = b.dataset.m;
+    if (mode !== 'search') {
+      const first = courses.filter(c => c.wasteType === mode).sort((a,b)=>(a.order??0)-(b.order??0))[0];
+      activeCourseId = first ? first.id : null;
+    }
+    renderTopTabs(); renderCourseTabs(); renderContent();
+  });
+}
+function renderCourseTabs() {
+  const box = document.getElementById('courseTabs');
+  if (mode === 'search') { box.innerHTML = ''; return; }
+  const list = courses.filter(c => c.wasteType === mode).sort((a,b)=>(a.order??0)-(b.order??0));
+  box.innerHTML = list.map(c => `<button data-c="${c.id}" class="${c.id === activeCourseId ? 'active' : ''}"><span class="dot" style="background:${c.color}"></span>${esc(c.name)}</button>`).join('')
+    + `<button class="add" id="addCourseBtn">＋ コース追加</button>`;
+  box.querySelectorAll('[data-c]').forEach(b => b.onclick = () => { activeCourseId = b.dataset.c; renderCourseTabs(); renderContent(); });
+  document.getElementById('addCourseBtn').onclick = () => openCourseModal(null, mode);
+}
+
+/* ==== main content ==== */
+function customerTypeBadges(cu, excludeType) {
+  return WASTE_TYPES.filter(w => w.key !== excludeType && cu.items && cu.items[w.key]).map(w => {
+    const it = cu.items[w.key];
+    const c = courses.find(c => c.id === it.courseId);
+    return `<span class="badge type">${w.icon} ${c ? esc(c.name) : '未設定'}</span>`;
+  }).join('');
+}
+
+function renderContent() {
+  const box = document.getElementById('content');
+  if (mode === 'search') {
+    box.innerHTML = `
+      <input class="search" id="search" placeholder="得意先名・住所で検索">
+      <div class="count" id="meta" style="margin-bottom:8px"></div>
+      <div id="list"></div>
+      <button class="btn block ghost" id="addNewBtn" style="margin-top:12px;border-style:dashed">＋ 新規得意先を登録</button>
+    `;
+    document.getElementById('search').addEventListener('input', renderSearchList);
+    document.getElementById('addNewBtn').onclick = () => openCustomerModal(null, null, null);
+    renderSearchList();
+    return;
+  }
+  const course = courses.find(c => c.id === activeCourseId);
+  box.innerHTML = `
+    <div class="section-head">
+      <h2>${course ? `<span class="dot" style="background:${course.color};display:inline-block"></span> ${esc(course.name)}` : WT[mode].label}
+        ${course ? `<span class="count" id="cnt"></span>` : ''}
+      </h2>
+      ${course ? `<button class="btn ghost sm" id="editCourseBtn">編集</button>` : ''}
+    </div>
+    <div id="list"></div>
+    ${course ? `<div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn block ghost" id="addExistingBtn" style="border-style:dashed">既存から選んで追加</button>
+      <button class="btn block ghost" id="addNewInCourseBtn" style="border-style:dashed">＋ 新規登録</button>
+    </div>` : ''}
+  `;
+  if (!course) { document.getElementById('list').innerHTML = `<div class="empty">この品目にはまだコースがありません。「＋ コース追加」から作成してください。</div>`; return; }
+  document.getElementById('editCourseBtn').onclick = () => openCourseModal(course, mode);
+  document.getElementById('addExistingBtn').onclick = () => openPickExisting(course);
+  document.getElementById('addNewInCourseBtn').onclick = () => openCustomerModal(null, mode, course.id);
+  renderCourseList(course);
+}
+
+function renderSearchList() {
+  const q = (document.getElementById('search').value || '').trim().toLowerCase();
+  const list = document.getElementById('list');
+  document.getElementById('meta').textContent = q ? '検索結果' : `全${customers.length}件`;
+  const results = q ? customers.filter(c => (c.name||'').toLowerCase().includes(q) || (c.address||'').toLowerCase().includes(q)) : [];
+  if (!q) { list.innerHTML = `<div class="empty">得意先名または住所で検索してください。</div>`; return; }
+  if (!results.length) { list.innerHTML = `<div class="empty">見つかりませんでした。</div>`; return; }
+  list.innerHTML = results.map(cu => `
+    <div class="card">
+      <div class="info" data-edit="${cu.id}">
+        <div class="name">${esc(cu.name)}</div>
+        ${cu.address ? `<div class="addr">${esc(cu.address)}</div>` : ''}
+        <div class="badges">
+          ${cu.hasKey ? `<span class="badge key">🔑 ${esc(cu.keyNumber||'鍵あり')}</span>` : `<span class="badge nokey">鍵なし</span>`}
+          ${customerTypeBadges(cu)}
+        </div>
+      </div>
+      ${cu.address ? `<a class="maplink" href="${mapsUrl(cu.address)}" target="_blank">📍</a>` : ''}
+    </div>
+  `).join('');
+  list.querySelectorAll('[data-edit]').forEach(el => el.onclick = () => openCustomerModal(customers.find(c => c.id === el.dataset.edit), null, null));
+}
+
+function renderCourseList(course) {
+  let items = customers.filter(c => c.items && c.items[mode] && c.items[mode].courseId === course.id);
+  items.sort((a, b) => (a.items[mode].order ?? 0) - (b.items[mode].order ?? 0));
+  document.getElementById('cnt').textContent = `${items.length}件`;
+  const list = document.getElementById('list');
+  if (!items.length) { list.innerHTML = `<div class="empty">まだ得意先が登録されていません。</div>`; return; }
+  list.innerHTML = items.map((cu, i) => {
+    const it = cu.items[mode];
+    return `
+    <div class="card">
+      <div class="updown">
+        <button data-move="-1" data-id="${cu.id}" ${i===0?'disabled':''}>▲</button>
+        <button data-move="1" data-id="${cu.id}" ${i===items.length-1?'disabled':''}>▼</button>
+      </div>
+      <div class="num">${i+1}</div>
+      <div class="info" data-edit="${cu.id}">
+        <div class="name">${esc(cu.name)}</div>
+        <div class="badges">
+          ${cu.hasKey ? `<span class="badge key">🔑 ${esc(cu.keyNumber||'鍵あり')}</span>` : `<span class="badge nokey">鍵なし</span>`}
+          ${it.days && it.days.length ? `<span class="badge days">${it.days.join('')}</span>` : ''}
+          ${customerTypeBadges(cu, mode)}
+        </div>
+      </div>
+      ${cu.address ? `<a class="maplink" href="${mapsUrl(cu.address)}" target="_blank">📍</a>` : ''}
+    </div>`;
+  }).join('');
+  list.querySelectorAll('[data-edit]').forEach(el => el.onclick = () => openCustomerModal(customers.find(c => c.id === el.dataset.edit), mode, course.id));
+  list.querySelectorAll('[data-move]').forEach(btn => btn.onclick = () => moveCustomer(course, btn.dataset.id, parseInt(btn.dataset.move, 10), items));
+}
+
+async function moveCustomer(course, id, dir, items) {
+  if (busy) return;
+  const i = items.findIndex(c => c.id === id);
+  const j = i + dir;
+  if (j < 0 || j >= items.length) return;
+  busy = true;
+  try {
+    const a = items[i], b = items[j];
+    const tmp = a.items[mode].order; a.items[mode].order = b.items[mode].order; b.items[mode].order = tmp;
+    await saveCustomerDoc(a); await saveCustomerDoc(b);
+    await refresh(false);
+  } catch (e) { toast('並び替えに失敗しました'); console.error(e); }
+  busy = false;
+}
+
+/* ==== modal helpers ==== */
+function closeModal() { document.getElementById('overlay').classList.remove('show'); document.getElementById('modalRoot').innerHTML = ''; }
+document.getElementById('overlay').addEventListener('click', e => { if (e.target.id === 'overlay') closeModal(); });
+function openModal(html) { document.getElementById('modalRoot').innerHTML = html; document.getElementById('overlay').classList.add('show'); }
+
+/* ==== course modal ==== */
+function openCourseModal(course, presetType) {
+  let wasteType = course?.wasteType || presetType || WASTE_TYPES[0].key;
+  let color = course?.color || COLORS[courses.length % COLORS.length];
+  let typicalDays = course?.typicalDays ? [...course.typicalDays] : [];
+  openModal(`
+    <div class="modal-head"><h2>${course ? 'コースを編集' : 'コースを追加'}</h2><button class="closebtn" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="field"><span class="lb">品目</span>
+        <div class="colorrow" id="wtRow" style="gap:6px">
+          ${WASTE_TYPES.map(w => `<button data-wt="${w.key}" class="togglechip ${w.key===wasteType?'on':''}" style="border-radius:8px">${w.icon} ${w.label}</button>`).join('')}
+        </div>
+      </div>
+      <div class="field"><span class="lb">コース名</span><input type="text" id="cName" value="${course ? esc(course.name) : ''}" placeholder="例：可燃1号"></div>
+      <div class="field"><span class="lb">基本の回収曜日（新規登録時の初期値として使われます）</span>
+        <div class="daysrow" id="cDays">${WEEKDAYS.map(d => `<button data-d="${d}" class="${typicalDays.includes(d)?'active':''}">${d}</button>`).join('')}</div>
+      </div>
+      <div class="field"><span class="lb">色ラベル</span><div class="colorrow" id="cColors"></div></div>
+      <div id="cActions"></div>
+    </div>
+  `);
+  document.getElementById('wtRow').querySelectorAll('[data-wt]').forEach(b => b.onclick = () => {
+    wasteType = b.dataset.wt;
+    document.getElementById('wtRow').querySelectorAll('[data-wt]').forEach(x => x.classList.toggle('on', x === b));
+  });
+  document.getElementById('cDays').querySelectorAll('[data-d]').forEach(b => b.onclick = () => {
+    const d = b.dataset.d;
+    if (typicalDays.includes(d)) { typicalDays = typicalDays.filter(x => x !== d); b.classList.remove('active'); }
+    else { typicalDays.push(d); b.classList.add('active'); }
+  });
+  const colorRow = document.getElementById('cColors');
+  colorRow.innerHTML = COLORS.map(hex => `<button data-hex="${hex}" style="background:${hex}" class="${hex===color?'active':''}"></button>`).join('');
+  colorRow.querySelectorAll('button').forEach(b => b.onclick = () => { color = b.dataset.hex; colorRow.querySelectorAll('button').forEach(x => x.classList.toggle('active', x===b)); });
+
+  renderCourseActions();
+  document.getElementById('cName').focus();
+
+  function renderCourseActions() {
+    const box = document.getElementById('cActions');
+    box.innerHTML = `
+      <div class="modal-actions">
+        ${course ? `<button class="btn danger" id="delCourseBtn">削除</button>` : '<span></span>'}
+        <div class="right"><button class="btn ghost" onclick="closeModal()">キャンセル</button><button class="btn primary" id="saveCourseBtn">保存</button></div>
+      </div>`;
+    document.getElementById('saveCourseBtn').onclick = async () => {
+      const name = document.getElementById('cName').value.trim();
+      if (!name) { toast('コース名を入力してください'); return; }
+      try {
+        const sameTypeCount = courses.filter(c => c.wasteType === wasteType && c.id !== course?.id).length;
+        await saveCourseDoc({ id: course ? course.id : uid(), name, wasteType, color, typicalDays, order: course ? (course.order ?? sameTypeCount) : sameTypeCount });
+        closeModal(); mode = wasteType; await refresh(true);
+        toast('保存しました');
+      } catch (e) { toast('保存に失敗しました'); console.error(e); }
+    };
+    if (course) {
+      document.getElementById('delCourseBtn').onclick = () => {
+        box.innerHTML = `<div class="confirmbox"><p>⚠️ このコースを削除します。ここに登録されている得意先の「${WT[wasteType].label}」の割り当ても解除されます（得意先自体や他品目の情報は残ります）。よろしいですか？</p>
+          <div class="confirm-actions"><button class="btn ghost" id="cancelDel">やめる</button><button class="btn danger" id="confirmDel">完全に削除</button></div></div>`;
+        document.getElementById('cancelDel').onclick = renderCourseActions;
+        document.getElementById('confirmDel').onclick = async () => {
+          try {
+            const affected = customers.filter(c => c.items && c.items[wasteType] && c.items[wasteType].courseId === course.id);
+            for (const cu of affected) { const items = { ...cu.items }; delete items[wasteType]; await saveCustomerDoc({ ...cu, items }); }
+            await deleteCourseDoc(course.id);
+            if (activeCourseId === course.id) activeCourseId = null;
+            closeModal(); await refresh(true);
+            toast('削除しました');
+          } catch (e) { toast('削除に失敗しました'); console.error(e); }
+        };
+      };
+    }
+  }
+}
+
+/* ==== pick existing customer to add to a course ==== */
+function openPickExisting(course) {
+  openModal(`
+    <div class="modal-head"><h2>既存の得意先を追加</h2><button class="closebtn" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <input class="search" id="pickSearch" placeholder="得意先名・住所で検索">
+      <div id="pickList"></div>
+    </div>
+  `);
+  function render() {
+    const q = (document.getElementById('pickSearch').value || '').trim().toLowerCase();
+    const box = document.getElementById('pickList');
+    if (!q) { box.innerHTML = `<div class="empty">検索してください。</div>`; return; }
+    const results = customers.filter(c => ((c.name||'').toLowerCase().includes(q) || (c.address||'').toLowerCase().includes(q))
+      && !(c.items && c.items[mode] && c.items[mode].courseId === course.id));
+    if (!results.length) { box.innerHTML = `<div class="empty">見つかりません（すでにこのコースにいる場合も表示されません）。</div>`; return; }
+    box.innerHTML = results.slice(0, 30).map(cu => `
+      <div class="card"><div class="info" data-pick="${cu.id}">
+        <div class="name">${esc(cu.name)}</div>
+        ${cu.address ? `<div class="addr">${esc(cu.address)}</div>` : ''}
+        <div class="badges">${customerTypeBadges(cu)}</div>
+      </div></div>
+    `).join('');
+    box.querySelectorAll('[data-pick]').forEach(el => el.onclick = () => { closeModal(); openCustomerModal(customers.find(c => c.id === el.dataset.pick), mode, course.id); });
+  }
+  document.getElementById('pickSearch').addEventListener('input', render);
+  render();
+}
+
+/* ==== customer modal ==== */
+async function openCustomerModal(cu, presetType, presetCourseId) {
+  let photoUrlLocal = cu?.hasPhoto ? photoUrl(cu.id) : null;
+  let photoBlob = null, photoChanged = false, photoRemoved = false;
+  let hasKey = cu?.hasKey ?? false;
+  const items = cu?.items ? JSON.parse(JSON.stringify(cu.items)) : {};
+  if (presetType && !items[presetType]) {
+    const c = courses.find(x => x.id === presetCourseId);
+    items[presetType] = { courseId: presetCourseId, order: 9999, days: c?.typicalDays ? [...c.typicalDays] : [] };
+  }
+
+  openModal(`
+    <div class="modal-head"><h2>${cu ? '得意先を編集' : '得意先を追加'}</h2><button class="closebtn" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="field"><span class="lb">得意先名</span><input type="text" id="uName" value="${cu ? esc(cu.name) : ''}" placeholder="例：〇〇マンション"></div>
+      <div class="field"><span class="lb">住所</span>
+        <input type="text" id="uAddress" value="${cu ? esc(cu.address||'') : ''}" placeholder="住所を入力（Googleマップで検索されます）">
+        <div id="uMapLink"></div>
+      </div>
+      <div class="field"><span class="lb">鍵</span>
+        <div class="keyrow" id="uKeyRow">
+          <button data-v="1" class="${hasKey?'active yes':''}">🔑 あり</button>
+          <button data-v="0" class="${!hasKey?'active no':''}">なし／不要</button>
+        </div>
+      </div>
+      <div class="field" id="uKeyNumField" style="display:${hasKey?'':'none'}">
+        <span class="lb">鍵の番号</span><input type="text" id="uKeyNumber" value="${cu ? esc(cu.keyNumber||''):''}" placeholder="例：No.12 / 事務所保管">
+      </div>
+      <div class="field"><span class="lb">品目・コースの割り当て</span><div id="typeBoxes"></div></div>
+      <div class="field"><span class="lb">ゴミ庫・回収場所の写真</span><div id="uPhotoBox"></div><input type="file" accept="image/*" capture="environment" id="uPhotoFile" style="display:none"></div>
+      <div class="field"><span class="lb">メモ</span><textarea id="uMemo" rows="3" placeholder="回収漏れ注意点など">${cu ? esc(cu.memo||''):''}</textarea></div>
+      <div id="uActions"></div>
+    </div>
+  `);
+
+  function updateMapLink() {
+    const addr = document.getElementById('uAddress').value.trim();
+    document.getElementById('uMapLink').innerHTML = addr ? `<a class="maplink-inline" href="${mapsUrl(addr)}" target="_blank">📍 Googleマップで確認</a>` : '';
+  }
+  document.getElementById('uAddress').addEventListener('input', updateMapLink); updateMapLink();
+
+  document.getElementById('uKeyRow').querySelectorAll('button').forEach(b => b.onclick = () => {
+    hasKey = b.dataset.v === '1';
+    document.getElementById('uKeyRow').querySelectorAll('button').forEach(x => x.className = '');
+    b.className = hasKey ? 'active yes' : 'active no';
+    document.getElementById('uKeyNumField').style.display = hasKey ? '' : 'none';
+  });
+
+  function renderTypeBoxes() {
+    const box = document.getElementById('typeBoxes');
+    box.innerHTML = WASTE_TYPES.map(w => {
+      const on = !!items[w.key];
+      const coursesOfType = courses.filter(c => c.wasteType === w.key);
+      const cur = items[w.key];
+      return `<div class="typebox">
+        <div class="th"><strong>${w.icon} ${w.label}</strong><button class="togglechip ${on?'on':''}" data-toggle="${w.key}">${on?'登録中':'未登録'}</button></div>
+        ${on ? `
+          <div class="field" style="margin-bottom:8px">
+            <select data-course="${w.key}">
+              <option value="">コースを選択</option>
+              ${coursesOfType.map(c => `<option value="${c.id}" ${cur.courseId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="daysrow" data-days="${w.key}">${WEEKDAYS.map(d => `<button data-d="${d}" class="${cur.days && cur.days.includes(d)?'active':''}">${d}</button>`).join('')}</div>
+        ` : ''}
+      </div>`;
+    }).join('');
+    box.querySelectorAll('[data-toggle]').forEach(b => b.onclick = () => {
+      const k = b.dataset.toggle;
+      if (items[k]) { delete items[k]; }
+      else {
+        const first = courses.find(c => c.wasteType === k);
+        items[k] = { courseId: first ? first.id : '', order: 9999, days: first?.typicalDays ? [...first.typicalDays] : [] };
+      }
+      renderTypeBoxes();
+    });
+    box.querySelectorAll('[data-course]').forEach(sel => sel.onchange = () => {
+      const k = sel.dataset.course;
+      items[k].courseId = sel.value;
+      const c = courses.find(c => c.id === sel.value);
+      if (c?.typicalDays) items[k].days = [...c.typicalDays];
+      renderTypeBoxes();
+    });
+    box.querySelectorAll('[data-days]').forEach(row => {
+      const k = row.dataset.days;
+      row.querySelectorAll('[data-d]').forEach(b => b.onclick = () => {
+        const d = b.dataset.d;
+        if (!items[k].days) items[k].days = [];
+        if (items[k].days.includes(d)) items[k].days = items[k].days.filter(x => x !== d);
+        else items[k].days.push(d);
+        b.classList.toggle('active');
+      });
+    });
+  }
+  renderTypeBoxes();
+
+  function renderPhotoBox() {
+    const pbox = document.getElementById('uPhotoBox');
+    if (photoUrlLocal && !photoRemoved) {
+      pbox.innerHTML = `<div class="photobox"><img src="${photoUrlLocal}" onerror="this.parentElement.parentElement.innerHTML='<button class=uploadbox id=uPhotoPick type=button>📷<span style=font-size:12px>写真を選択・撮影</span></button>'"><button class="rm" id="uPhotoRemove">✕</button></div>
+        <button class="btn ghost sm" id="uPhotoChange" style="margin-top:8px">写真を変更</button>`;
+      const rm = document.getElementById('uPhotoRemove'); if (rm) rm.onclick = () => { photoRemoved = true; photoChanged = true; photoUrlLocal = null; renderPhotoBox(); };
+      const ch = document.getElementById('uPhotoChange'); if (ch) ch.onclick = () => document.getElementById('uPhotoFile').click();
+    } else {
+      pbox.innerHTML = `<button class="uploadbox" id="uPhotoPick" type="button">📷<span style="font-size:12px">写真を選択・撮影</span></button>`;
+      document.getElementById('uPhotoPick').onclick = () => document.getElementById('uPhotoFile').click();
+    }
+  }
+  renderPhotoBox();
+  document.getElementById('uPhotoFile').addEventListener('change', async e => {
+    const file = e.target.files?.[0]; if (!file) return;
+    try { photoBlob = await compressImage(file); photoChanged = true; photoRemoved = false; photoUrlLocal = URL.createObjectURL(photoBlob); renderPhotoBox(); }
+    catch { toast('画像の処理に失敗しました'); }
+  });
+
+  const box = document.getElementById('uActions');
+  box.innerHTML = `<div class="modal-actions">
+    ${cu ? `<button class="btn danger" id="delCustBtn">削除</button>` : '<span></span>'}
+    <div class="right"><button class="btn ghost" onclick="closeModal()">キャンセル</button><button class="btn primary" id="saveCustBtn">保存</button></div>
+  </div>`;
+  document.getElementById('saveCustBtn').onclick = async () => {
+    const name = document.getElementById('uName').value.trim();
+    if (!name) { toast('得意先名を入力してください'); return; }
+    for (const k of Object.keys(items)) if (!items[k].courseId) { toast(`${WT[k].label}のコースを選択してください`); return; }
+    const btn = document.getElementById('saveCustBtn'); btn.disabled = true; btn.textContent = '保存中…';
+    try {
+      const id = cu ? cu.id : uid();
+      for (const k of Object.keys(items)) {
+        if (items[k].order === 9999) {
+          const existing = customers.filter(c => c.id !== id && c.items && c.items[k] && c.items[k].courseId === items[k].courseId);
+          items[k].order = existing.length;
+        }
+      }
+      let hasPhoto = cu?.hasPhoto || false;
+      if (photoChanged) {
+        if (photoRemoved) { await deletePhotoObj(id); hasPhoto = false; }
+        else { await uploadPhoto(id, photoBlob); hasPhoto = true; }
+      }
+      await saveCustomerDoc({
+        id, name, address: document.getElementById('uAddress').value.trim(),
+        hasKey, keyNumber: hasKey ? document.getElementById('uKeyNumber').value.trim() : '',
+        memo: document.getElementById('uMemo').value.trim(), items, hasPhoto,
+      });
+      closeModal(); await refresh(true); toast('保存しました');
+    } catch (e) { toast('保存に失敗しました'); console.error(e); btn.disabled = false; btn.textContent = '保存'; }
+  };
+  if (cu) {
+    document.getElementById('delCustBtn').onclick = () => {
+      box.innerHTML = `<div class="confirmbox"><p>⚠️ この得意先をすべての品目から完全に削除します。よろしいですか？</p>
+        <div class="confirm-actions"><button class="btn ghost" id="cancelDelC">やめる</button><button class="btn danger" id="confirmDelC">完全に削除</button></div></div>`;
+      document.getElementById('cancelDelC').onclick = () => { closeModal(); openCustomerModal(cu, presetType, presetCourseId); };
+      document.getElementById('confirmDelC').onclick = async () => {
+        try {
+          await deleteCustomerDoc(cu.id);
+          if (cu.hasPhoto) await deletePhotoObj(cu.id);
+          closeModal(); await refresh(true); toast('削除しました');
+        } catch (e) { toast('削除に失敗しました'); console.error(e); }
+      };
+    };
+  }
+}
+
+/* ==== CSV import ==== */
+function parseCSV(text) {
+  const rows = []; let row = [], field = '', inQ = false;
+  const s = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  for (let i=0;i<s.length;i++){const c=s[i];
+    if(inQ){ if(c==='"'){ if(s[i+1]==='"'){field+='"';i++;} else inQ=false;} else field+=c; }
+    else { if(c==='"')inQ=true; else if(c===','){row.push(field);field='';} else if(c==='\n'){row.push(field);rows.push(row);row=[];field='';} else field+=c; }
+  }
+  if (field.length||row.length){row.push(field);rows.push(row);}
+  return rows.filter(r=>r.some(c=>c.trim()!==''));
+}
+
+document.getElementById('csvBtn').onclick = () => {
+  let preview = null;
+  let targetType = mode !== 'search' ? mode : WASTE_TYPES[0].key;
+  let targetCourseId = activeCourseId && mode !== 'search' ? activeCourseId : '';
+  openModal(`
+    <div class="modal-head"><h2>CSVで一括登録</h2><button class="closebtn" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="hint">この取り込みは<b>新規の得意先</b>として登録されます（既存得意先への品目追加は「既存から選んで追加」を使ってください）。<br>
+        1行目を見出しにして次の列を用意してください：<br><code>得意先名, 住所, 鍵有無, 鍵番号, 曜日, メモ</code><br>
+        曜日は「月水金」のように詰めて書いてください（空欄ならコースの基本曜日が使われます）。</div>
+      <div class="field"><span class="lb">登録先の品目</span>
+        <select id="csvType">${WASTE_TYPES.map(w=>`<option value="${w.key}" ${w.key===targetType?'selected':''}>${w.icon} ${w.label}</option>`).join('')}</select>
+      </div>
+      <div class="field"><span class="lb">登録先のコース</span><select id="csvCourse"></select></div>
+      <div class="field"><button class="btn ghost" id="csvPick">CSVファイルを選択</button><input type="file" accept=".csv,text/csv" id="csvFile" style="display:none"></div>
+      <div class="field"><textarea id="csvText" rows="6" placeholder="またはここに直接貼り付け" style="font-family:monospace;font-size:12px"></textarea></div>
+      <div id="csvPreview"></div>
+      <div class="modal-actions" style="margin-top:14px"><span></span><div class="right"><button class="btn ghost" onclick="closeModal()">キャンセル</button><button class="btn primary" id="csvImportBtn" disabled>取り込む</button></div></div>
+    </div>
+  `);
+  function refreshCourseSelect() {
+    const sel = document.getElementById('csvCourse');
+    const list = courses.filter(c => c.wasteType === document.getElementById('csvType').value);
+    sel.innerHTML = list.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('') || `<option value="">（先にコースを作成してください）</option>`;
+    if (targetCourseId && list.some(c=>c.id===targetCourseId)) sel.value = targetCourseId;
+  }
+  document.getElementById('csvType').addEventListener('change', refreshCourseSelect);
+  refreshCourseSelect();
+
+  function analyze(raw) {
+    const prevBox = document.getElementById('csvPreview'), importBtn = document.getElementById('csvImportBtn');
+    try {
+      const rows = parseCSV(raw);
+      if (rows.length < 2) { prevBox.innerHTML=''; importBtn.disabled=true; preview=null; return; }
+      const header = rows[0].map(h=>h.trim());
+      const idx = {
+        name: header.findIndex(h=>/得意先|名称|名前/.test(h)),
+        address: header.findIndex(h=>/住所/.test(h)),
+        key: header.findIndex(h=>/鍵.*(有無|状態)|鍵$/.test(h)),
+        keyNum: header.findIndex(h=>/鍵.*(番号|no)/i.test(h)),
+        days: header.findIndex(h=>/曜日/.test(h)),
+        memo: header.findIndex(h=>/メモ|備考/.test(h)),
+      };
+      if (idx.name === -1) { prevBox.innerHTML = `<p style="color:#f2a89e;font-size:13px">「得意先名」の列が見つかりません。</p>`; importBtn.disabled=true; preview=null; return; }
+      const list = [];
+      for (const r of rows.slice(1)) {
+        const custName = (r[idx.name]||'').trim();
+        if (!custName) continue;
+        const keyRaw = idx.key!==-1 ? (r[idx.key]||'').trim() : '';
+        const daysRaw = idx.days!==-1 ? (r[idx.days]||'').trim() : '';
+        list.push({
+          name: custName, address: idx.address!==-1 ? (r[idx.address]||'').trim() : '',
+          hasKey: /あり|有|yes|y|○/i.test(keyRaw), keyNumber: idx.keyNum!==-1 ? (r[idx.keyNum]||'').trim() : '',
+          days: WEEKDAYS.filter(d => daysRaw.includes(d)),
+          memo: idx.memo!==-1 ? (r[idx.memo]||'').trim() : '',
+        });
+      }
+      if (!list.length) { prevBox.innerHTML = `<p style="color:#f2a89e;font-size:13px">有効なデータ行がありません。</p>`; importBtn.disabled=true; preview=null; return; }
+      preview = list;
+      prevBox.innerHTML = `<div class="preview">${list.length}件を取り込みます。</div>`;
+      importBtn.disabled = false;
+    } catch { prevBox.innerHTML = `<p style="color:#f2a89e;font-size:13px">CSVの読み込みに失敗しました。</p>`; importBtn.disabled=true; preview=null; }
+  }
+  document.getElementById('csvPick').onclick = () => document.getElementById('csvFile').click();
+  document.getElementById('csvFile').addEventListener('change', e => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => { document.getElementById('csvText').value = reader.result; analyze(reader.result); };
+    reader.readAsText(file, 'utf-8');
+  });
+  document.getElementById('csvText').addEventListener('input', e => analyze(e.target.value));
+  document.getElementById('csvImportBtn').onclick = async () => {
+    const courseId = document.getElementById('csvCourse').value;
+    const type = document.getElementById('csvType').value;
+    if (!preview || !courseId) { toast('登録先コースを選択してください'); return; }
+    const btn = document.getElementById('csvImportBtn'); btn.disabled = true; btn.textContent = '取り込み中…';
+    try {
+      const course = courses.find(c => c.id === courseId);
+      const existingCount = customers.filter(c => c.items && c.items[type] && c.items[type].courseId === courseId).length;
+      let order = existingCount;
+      for (const r of preview) {
+        const id = uid();
+        await saveCustomerDoc({
+          id, name: r.name, address: r.address, hasKey: r.hasKey, keyNumber: r.keyNumber, memo: r.memo, hasPhoto: false,
+          items: { [type]: { courseId, order: order++, days: r.days.length ? r.days : (course?.typicalDays || []) } },
+        });
+      }
+      closeModal(); mode = type; activeCourseId = courseId; await refresh(true);
+      toast('取り込みました');
+    } catch (e) { toast('取り込みに失敗しました'); console.error(e); btn.disabled=false; btn.textContent='取り込む'; }
+  };
+};
+
+/* ==== init ==== */
+refresh(true);
+</script>
+</body>
+</html>

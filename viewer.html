@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>コース表</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<meta name="theme-color" content="#181b16">
+<style>
+  :root{
+    --bg:#181b16; --card:#20241f; --border:rgba(255,255,255,.1); --border2:rgba(255,255,255,.2);
+    --text:#f4f2ec; --sub:#9a9a92; --orange:#FF7A29; --teal:#4FA88D; --red:#E85D4E; --blue:#4C8DFF;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;-webkit-tap-highlight-color:transparent}
+  header{position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--border);padding:12px 14px 8px;z-index:10}
+  h1{margin:0 0 8px;font-size:17px;font-weight:900;display:flex;align-items:center;gap:8px}
+  .toprow{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
+  .toprow button{flex:0 0 auto;border:1px solid var(--border);border-radius:999px;padding:8px 13px;font-weight:800;font-size:13px;color:var(--sub);background:transparent;display:flex;align-items:center;gap:5px}
+  .toprow button.active{border-color:var(--border2);background:rgba(255,255,255,.1);color:#fff}
+  .courserow{display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px}
+  .courserow button{flex:0 0 auto;display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:7px 12px;font-weight:700;font-size:12.5px;color:var(--sub);background:transparent}
+  .courserow button.active{border-color:var(--border2);background:rgba(255,255,255,.08);color:#fff}
+  .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+  main{padding:12px 14px 50px;max-width:640px;margin:0 auto}
+  .search{width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--border);background:rgba(0,0,0,.25);color:#fff;font-size:15px;margin-bottom:10px}
+  .search::placeholder{color:var(--sub)}
+  .meta{font-size:12px;color:var(--sub);margin-bottom:8px}
+  .card{display:flex;align-items:center;gap:10px;border:1px solid var(--border);background:var(--card);border-radius:14px;padding:11px;margin-bottom:7px}
+  .num{flex:0 0 auto;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;color:#ddd}
+  .info{flex:1;min-width:0}
+  .name{font-weight:800;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .addr{font-size:11.5px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+  .badges{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+  .badge{display:inline-flex;align-items:center;gap:3px;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap}
+  .badge.key{background:rgba(79,168,141,.2);color:#8fd8c2}
+  .badge.nokey{background:rgba(232,93,78,.2);color:#f2a89e}
+  .badge.type{background:rgba(255,255,255,.08);color:#cfcfc7}
+  .badge.days{background:rgba(76,141,255,.15);color:#9dbdfb}
+  .maplink{flex:0 0 auto;width:40px;height:40px;border-radius:10px;background:rgba(76,141,255,.15);color:var(--blue);display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:17px}
+  .empty{text-align:center;color:var(--sub);padding:50px 20px;font-size:14px;line-height:1.7}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:flex-end;justify-content:center;z-index:50}
+  .overlay.show{display:flex}
+  .sheet{width:100%;max-height:88vh;overflow-y:auto;background:var(--card);border-radius:20px 20px 0 0;border-top:1px solid var(--border)}
+  .sheet-head{position:sticky;top:0;background:var(--card);display:flex;justify-content:space-between;align-items:center;padding:16px;border-bottom:1px solid var(--border)}
+  .sheet-head h2{margin:0;font-size:17px;font-weight:900}
+  .closebtn{background:rgba(255,255,255,.1);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:18px}
+  .sheet-body{padding:16px}
+  .photo{width:100%;border-radius:12px;display:block;margin-bottom:14px;background:#0d0f0c;object-fit:cover;max-height:280px}
+  .photo-ph{width:100%;border-radius:12px;background:rgba(255,255,255,.05);color:var(--sub);display:flex;align-items:center;justify-content:center;height:100px;font-size:12px;margin-bottom:14px}
+  .typeblock{border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px}
+  .typeblock .th{font-weight:800;font-size:13.5px;display:flex;align-items:center;gap:6px;margin-bottom:6px}
+  .typeblock .tv{font-size:13px;color:var(--sub)}
+  .row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--border)}
+  .row:last-child{border-bottom:none}
+  .row .label{font-size:12px;color:var(--sub);font-weight:700}
+  .row .val{font-size:14.5px;font-weight:700;text-align:right}
+  .bigmap{display:block;text-align:center;margin-top:14px;background:var(--blue);color:#0b1220;font-weight:900;padding:13px;border-radius:12px;text-decoration:none;font-size:15px}
+  .updated{color:var(--sub);font-size:11px;text-align:center;padding:10px 0 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>🚚 コース表</h1>
+  <div class="toprow" id="topTabs"></div>
+  <div class="courserow" id="courseTabs"></div>
+</header>
+<main>
+  <input class="search" id="search" placeholder="得意先名・住所で検索">
+  <div class="meta" id="meta"></div>
+  <div id="list"></div>
+</main>
+
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <div class="sheet-head"><h2 id="sheetName"></h2><button class="closebtn" onclick="closeSheet()">✕</button></div>
+    <div class="sheet-body" id="sheetBody"></div>
+  </div>
+</div>
+<p class="updated" id="updatedAt"></p>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyD8JW9526h0TKa9_hEaGrmlpVG8NeW4c3Q",
+  authDomain: "hirataku1102.firebaseapp.com",
+  projectId: "hirataku1102",
+  storageBucket: "hirataku1102.firebasestorage.app",
+  messagingSenderId: "219252490669",
+  appId: "1:219252490669:web:bb3d9dc019a17a5a01e124"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const WASTE_TYPES = [
+  { key: 'combustible', label: '可燃ゴミ', icon: '🔥' },
+  { key: 'cardboard', label: 'ダンボール', icon: '📦' },
+  { key: 'beverage', label: '飲料容器', icon: '🥤' },
+  { key: 'styrofoam', label: '発泡スチロール', icon: '🧊' },
+  { key: 'vinyl', label: 'ビニール', icon: '🛍️' },
+];
+function photoUrl(id) {
+  return `https://firebasestorage.googleapis.com/v0/b/${firebaseConfig.storageBucket}/o/${encodeURIComponent('course-photos/' + id + '.jpg')}?alt=media`;
+}
+function mapsUrl(addr) { return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addr); }
+function esc(s) { return (s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+let courses = [];
+let customers = [];
+let mode = 'search'; // 'search' | wasteType key
+let activeCourseId = null;
+
+async function load() {
+  try {
+    const [cs, us] = await Promise.all([
+      db.collection('cm_courses').get(),
+      db.collection('cm_customers').get(),
+    ]);
+    courses = cs.docs.map(d => ({ id: d.id, ...d.data() }));
+    customers = us.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) {
+    document.getElementById('list').innerHTML = '<div class="empty">データを読み込めませんでした。通信環境をご確認ください。</div>';
+    return;
+  }
+  renderTopTabs();
+  renderCourseTabs();
+  renderList();
+  const latest = customers.reduce((m, c) => c.updatedAt && c.updatedAt.toMillis && c.updatedAt.toMillis() > m ? c.updatedAt.toMillis() : m, 0);
+  if (latest) document.getElementById('updatedAt').textContent = '最終更新: ' + new Date(latest).toLocaleString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
+
+function renderTopTabs() {
+  const box = document.getElementById('topTabs');
+  box.innerHTML = `<button data-m="search" class="${mode === 'search' ? 'active' : ''}">🔎 検索</button>` +
+    WASTE_TYPES.map(w => `<button data-m="${w.key}" class="${mode === w.key ? 'active' : ''}">${w.icon} ${w.label}</button>`).join('');
+  box.querySelectorAll('button').forEach(b => b.onclick = () => {
+    mode = b.dataset.m;
+    if (mode !== 'search') {
+      const first = courses.filter(c => c.wasteType === mode).sort((a,b)=>(a.order??0)-(b.order??0))[0];
+      activeCourseId = first ? first.id : null;
+    }
+    document.getElementById('search').value = '';
+    renderTopTabs(); renderCourseTabs(); renderList();
+  });
+}
+
+function renderCourseTabs() {
+  const box = document.getElementById('courseTabs');
+  if (mode === 'search') { box.innerHTML = ''; return; }
+  const list = courses.filter(c => c.wasteType === mode).sort((a,b)=>(a.order??0)-(b.order??0));
+  box.innerHTML = list.map(c => `
+    <button data-c="${c.id}" class="${c.id === activeCourseId ? 'active' : ''}"><span class="dot" style="background:${c.color}"></span>${esc(c.name)}</button>
+  `).join('');
+  box.querySelectorAll('button').forEach(b => b.onclick = () => { activeCourseId = b.dataset.c; renderCourseTabs(); renderList(); });
+}
+
+function customerTypeBadges(cu, excludeType) {
+  return WASTE_TYPES.filter(w => w.key !== excludeType && cu.items && cu.items[w.key]).map(w => {
+    const it = cu.items[w.key];
+    const course = courses.find(c => c.id === it.courseId);
+    return `<span class="badge type">${w.icon} ${course ? esc(course.name) : '未設定'}</span>`;
+  }).join('');
+}
+
+function renderList() {
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const list = document.getElementById('list');
+
+  if (mode === 'search') {
+    document.getElementById('meta').textContent = q ? '検索結果' : `全${customers.length}件`;
+    const results = q
+      ? customers.filter(c => (c.name || '').toLowerCase().includes(q) || (c.address || '').toLowerCase().includes(q))
+      : [];
+    if (!q) { list.innerHTML = `<div class="empty">得意先名または住所を入力して検索してください。</div>`; return; }
+    if (!results.length) { list.innerHTML = `<div class="empty">該当する得意先が見つかりません。</div>`; return; }
+    list.innerHTML = results.map(cu => `
+      <div class="card" onclick="openSheet('${cu.id}')">
+        <div class="info">
+          <div class="name">${esc(cu.name)}</div>
+          ${cu.address ? `<div class="addr">${esc(cu.address)}</div>` : ''}
+          <div class="badges">${customerTypeBadges(cu)}</div>
+        </div>
+        ${cu.address ? `<a class="maplink" href="${mapsUrl(cu.address)}" target="_blank" onclick="event.stopPropagation()">📍</a>` : ''}
+      </div>
+    `).join('');
+    return;
+  }
+
+  const course = courses.find(c => c.id === activeCourseId);
+  if (!course) { document.getElementById('meta').textContent = ''; list.innerHTML = `<div class="empty">この品目にはまだコースが登録されていません。</div>`; return; }
+  let items = customers.filter(c => c.items && c.items[mode] && c.items[mode].courseId === course.id);
+  items.sort((a, b) => (a.items[mode].order ?? 0) - (b.items[mode].order ?? 0));
+  if (q) items = items.filter(c => (c.name || '').toLowerCase().includes(q) || (c.address || '').toLowerCase().includes(q));
+  document.getElementById('meta').textContent = `${course.name}　${items.length}件`;
+  if (!items.length) { list.innerHTML = `<div class="empty">${q ? '該当する得意先がありません。' : 'このコースにはまだ得意先が登録されていません。'}</div>`; return; }
+  list.innerHTML = items.map((cu, i) => {
+    const it = cu.items[mode];
+    return `
+    <div class="card" onclick="openSheet('${cu.id}')">
+      <div class="num">${i + 1}</div>
+      <div class="info">
+        <div class="name">${esc(cu.name)}</div>
+        <div class="badges">
+          ${cu.hasKey ? `<span class="badge key">🔑 ${esc(cu.keyNumber || '鍵あり')}</span>` : `<span class="badge nokey">鍵なし</span>`}
+          ${it.days && it.days.length ? `<span class="badge days">${it.days.join('')}</span>` : ''}
+          ${customerTypeBadges(cu, mode)}
+        </div>
+      </div>
+      ${cu.address ? `<a class="maplink" href="${mapsUrl(cu.address)}" target="_blank" onclick="event.stopPropagation()">📍</a>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function openSheet(custId) {
+  const cu = customers.find(c => c.id === custId);
+  document.getElementById('sheetName').textContent = cu.name;
+  const photoHtml = `<img class="photo" src="${photoUrl(cu.id)}" alt="回収場所" onerror="this.outerHTML='<div class=photo-ph>写真なし</div>'">`;
+  const typeBlocks = WASTE_TYPES.filter(w => cu.items && cu.items[w.key]).map(w => {
+    const it = cu.items[w.key];
+    const course = courses.find(c => c.id === it.courseId);
+    return `<div class="typeblock">
+      <div class="th">${w.icon} ${w.label}</div>
+      <div class="tv">${course ? esc(course.name) : '未設定'}${it.days && it.days.length ? '　回収曜日: ' + it.days.join('・') : ''}</div>
+    </div>`;
+  }).join('') || `<p style="color:var(--sub);font-size:13px">登録されている品目がありません。</p>`;
+  document.getElementById('sheetBody').innerHTML = `
+    ${photoHtml}
+    ${typeBlocks}
+    <div class="row"><span class="label">鍵</span><span class="val">${cu.hasKey ? '🔑 ' + esc(cu.keyNumber || 'あり') : 'なし／不要'}</span></div>
+    ${cu.address ? `<div class="row"><span class="label">住所</span><span class="val">${esc(cu.address)}</span></div>` : ''}
+    ${cu.memo ? `<div class="row"><span class="label">メモ</span><span class="val">${esc(cu.memo)}</span></div>` : ''}
+    ${cu.address ? `<a class="bigmap" href="${mapsUrl(cu.address)}" target="_blank">📍 Googleマップで開く</a>` : ''}
+  `;
+  document.getElementById('overlay').classList.add('show');
+}
+function closeSheet() { document.getElementById('overlay').classList.remove('show'); }
+document.getElementById('overlay').addEventListener('click', e => { if (e.target.id === 'overlay') closeSheet(); });
+document.getElementById('search').addEventListener('input', renderList);
+
+load();
+</script>
+</body>
+</html>
