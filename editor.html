@@ -733,6 +733,37 @@ document.getElementById('csvBtn').onclick = () => {
   };
 };
 
+/* ==== テストデータ ==== */
+document.getElementById('seedBtn').onclick = async () => {
+  if (!confirm('確認用のサンプルコース・得意先を追加します。よろしいですか？（既存データは消えません）')) return;
+  const btn = document.getElementById('seedBtn'); btn.disabled = true; btn.textContent = '追加中…';
+  try {
+    const c1 = { id: uid(), name: '可燃1号', wasteType: 'combustible', typicalDays: ['月','火','水','木','金','土'], color: COLORS[0], order: 0 };
+    const c2 = { id: uid(), name: '可燃2号', wasteType: 'combustible', typicalDays: ['月'], color: COLORS[1], order: 1 };
+    const c3 = { id: uid(), name: 'ダンボールAコース', wasteType: 'cardboard', typicalDays: ['月','水','金'], color: COLORS[2], order: 0 };
+    const c4 = { id: uid(), name: '飲料容器Bコース', wasteType: 'beverage', typicalDays: ['火','木','土'], color: COLORS[3], order: 0 };
+    for (const c of [c1, c2, c3, c4]) await saveCourseDoc(c);
+
+    const cust = [
+      { name: '〇〇マンション', address: '大阪府堺市堺区市之町1-1', hasKey: true, keyNumber: 'No.3（管理室隣フック）', memo: '裏口の駐輪場横にゴミ庫あり',
+        items: { combustible: { courseId: c1.id, order: 0, days: c1.typicalDays }, cardboard: { courseId: c3.id, order: 0, days: c3.typicalDays } } },
+      { name: '△△ビル', address: '大阪府堺市堺区中瓦町2-2', hasKey: false, keyNumber: '', memo: '常時開放、鍵不要',
+        items: { combustible: { courseId: c1.id, order: 1, days: c1.typicalDays } } },
+      { name: '株式会社サンプル商事', address: '大阪府堺市北区新金岡町3-3', hasKey: true, keyNumber: '事務所内保管（受付で借用）', memo: '',
+        items: { combustible: { courseId: c2.id, order: 0, days: ['月'] }, beverage: { courseId: c4.id, order: 0, days: c4.typicalDays } } },
+      { name: '□□アパート', address: '大阪府堺市西区鳳北町4-4', hasKey: false, keyNumber: '', memo: '道路沿いに直置き、午前中回収希望',
+        items: { cardboard: { courseId: c3.id, order: 1, days: c3.typicalDays } } },
+      { name: 'サンプル工場', address: '大阪府堺市東区日置荘原寺町5-5', hasKey: true, keyNumber: 'No.7', memo: '正門守衛所で鍵を借りる',
+        items: { combustible: { courseId: c1.id, order: 2, days: c1.typicalDays }, beverage: { courseId: c4.id, order: 1, days: c4.typicalDays } } },
+    ];
+    for (const cu of cust) await saveCustomerDoc({ id: uid(), hasPhoto: false, ...cu });
+
+    await refresh(true);
+    toast('テストデータを追加しました');
+  } catch (e) { toast('追加に失敗しました'); console.error(e); }
+  btn.disabled = false; btn.textContent = 'テストデータ追加';
+};
+
 /* ==== init ==== */
 refresh(true);
 </script>
