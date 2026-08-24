@@ -33,6 +33,7 @@
   .search{width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--border);background:rgba(0,0,0,.25);color:#fff;font-size:15px;margin-bottom:10px}
   .card{display:flex;align-items:center;gap:10px;border:1px solid var(--border);background:var(--card);border-radius:14px;padding:12px;margin-bottom:8px}
   .num{flex:0 0 auto;width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+  .posinput{flex:0 0 auto;width:44px;height:30px;padding:0;text-align:center;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.3);color:#fff;font-size:13px;font-weight:800}
   .updown{display:flex;flex-direction:column;flex:0 0 auto}
   .updown button{background:none;border:none;color:var(--sub);font-size:13px;padding:1px 4px;cursor:pointer}
   .updown button:disabled{opacity:.2}
@@ -327,7 +328,7 @@ function renderCourseList(course) {
         <button data-move="-1" data-id="${cu.id}" ${i===0?'disabled':''}>▲</button>
         <button data-move="1" data-id="${cu.id}" ${i===items.length-1?'disabled':''}>▼</button>
       </div>
-      <div class="num">${i+1}</div>
+      <input type="number" class="posinput" data-pos="${cu.id}" value="${i+1}" min="1" max="${items.length}">
       <div class="info" data-edit="${cu.id}">
         <div class="name">${esc(cu.name)}</div>
         <div class="badges">
@@ -341,6 +342,39 @@ function renderCourseList(course) {
   }).join('');
   list.querySelectorAll('[data-edit]').forEach(el => el.onclick = () => openCustomerModal(customers.find(c => c.id === el.dataset.edit), mode, course.id));
   list.querySelectorAll('[data-move]').forEach(btn => btn.onclick = () => moveCustomer(course, btn.dataset.id, parseInt(btn.dataset.move, 10), items));
+  list.querySelectorAll('[data-pos]').forEach(inp => {
+    inp.addEventListener('click', e => e.stopPropagation());
+    inp.addEventListener('change', () => moveToPosition(course, inp.dataset.pos, parseInt(inp.value, 10), items));
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
+  });
+}
+
+async function reorderCourse(newOrderItems) {
+  const batch = db.batch();
+  newOrderItems.forEach((cu, idx) => {
+    if (cu.items[mode].order !== idx) {
+      cu.items[mode].order = idx;
+      batch.set(db.collection('cm_customers').doc(cu.id), { ...cu, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    }
+  });
+  await batch.commit();
+}
+
+async function moveToPosition(course, custId, newPos, items) {
+  if (busy || !newPos || isNaN(newPos)) { renderCourseList(course); return; }
+  const idx = items.findIndex(c => c.id === custId);
+  if (idx === -1) return;
+  const newIndex = Math.min(Math.max(newPos - 1, 0), items.length - 1);
+  if (newIndex === idx) return;
+  busy = true;
+  try {
+    const copy = [...items];
+    const [moved] = copy.splice(idx, 1);
+    copy.splice(newIndex, 0, moved);
+    await reorderCourse(copy);
+    await refresh(false);
+  } catch (e) { toast('並び替えに失敗しました'); console.error(e); }
+  busy = false;
 }
 
 async function moveCustomer(course, id, dir, items) {
@@ -350,9 +384,9 @@ async function moveCustomer(course, id, dir, items) {
   if (j < 0 || j >= items.length) return;
   busy = true;
   try {
-    const a = items[i], b = items[j];
-    const tmp = a.items[mode].order; a.items[mode].order = b.items[mode].order; b.items[mode].order = tmp;
-    await saveCustomerDoc(a); await saveCustomerDoc(b);
+    const copy = [...items];
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+    await reorderCourse(copy);
     await refresh(false);
   } catch (e) { toast('並び替えに失敗しました'); console.error(e); }
   busy = false;
@@ -735,7 +769,6 @@ document.getElementById('csvBtn').onclick = () => {
 
 /* ==== テストデータ ==== */
 document.getElementById('seedBtn').onclick = async () => {
-  if (!confirm('確認用のサンプルコース・得意先を追加します。よろしいですか？（既存データは消えません）')) return;
   const btn = document.getElementById('seedBtn'); btn.disabled = true; btn.textContent = '追加中…';
   try {
     const c1 = { id: uid(), name: '可燃1号', wasteType: 'combustible', typicalDays: ['月','火','水','木','金','土'], color: COLORS[0], order: 0 };
