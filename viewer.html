@@ -22,6 +22,9 @@
   .courserow{display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px}
   .courserow button{flex:0 0 auto;display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:7px 12px;font-weight:700;font-size:12.5px;color:var(--sub);background:transparent}
   .courserow button.active{border-color:var(--border2);background:rgba(255,255,255,.08);color:#fff}
+  .dayrow{display:flex;gap:6px;overflow-x:auto;padding:6px 0 2px}
+  .dayrow button{flex:0 0 auto;border:1px solid var(--border);border-radius:999px;padding:6px 11px;font-weight:800;font-size:12.5px;color:var(--sub);background:transparent}
+  .dayrow button.active{border-color:var(--orange);background:rgba(255,122,41,.18);color:#ffb37a}
   .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
   main{padding:12px 14px 50px;max-width:640px;margin:0 auto}
   .search{width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--border);background:rgba(0,0,0,.25);color:#fff;font-size:15px;margin-bottom:10px}
@@ -65,6 +68,7 @@
   <h1>🚚 コース表</h1>
   <div class="toprow" id="topTabs"></div>
   <div class="courserow" id="courseTabs"></div>
+  <div class="dayrow" id="dayTabs"></div>
 </header>
 <main>
   <input class="search" id="search" placeholder="得意先名・住所で検索">
@@ -111,6 +115,8 @@ let courses = [];
 let customers = [];
 let mode = 'search'; // 'search' | wasteType key
 let activeCourseId = null;
+let dayFilter = 'all'; // 'all' | '日'..'土'
+function todayChar() { return ['日','月','火','水','木','金','土'][new Date().getDay()]; }
 
 async function load() {
   try {
@@ -126,6 +132,7 @@ async function load() {
   }
   renderTopTabs();
   renderCourseTabs();
+  renderDayTabs();
   renderList();
   const latest = customers.reduce((m, c) => c.updatedAt && c.updatedAt.toMillis && c.updatedAt.toMillis() > m ? c.updatedAt.toMillis() : m, 0);
   if (latest) document.getElementById('updatedAt').textContent = '最終更新: ' + new Date(latest).toLocaleString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
@@ -137,13 +144,27 @@ function renderTopTabs() {
     WASTE_TYPES.map(w => `<button data-m="${w.key}" class="${mode === w.key ? 'active' : ''}">${w.icon} ${w.label}</button>`).join('');
   box.querySelectorAll('button').forEach(b => b.onclick = () => {
     mode = b.dataset.m;
+    dayFilter = 'all';
     if (mode !== 'search') {
       const first = courses.filter(c => c.wasteType === mode).sort((a,b)=>(a.order??0)-(b.order??0))[0];
       activeCourseId = first ? first.id : null;
     }
     document.getElementById('search').value = '';
-    renderTopTabs(); renderCourseTabs(); renderList();
+    renderTopTabs(); renderCourseTabs(); renderDayTabs(); renderList();
   });
+}
+
+function renderDayTabs() {
+  const box = document.getElementById('dayTabs');
+  if (mode === 'search') { box.innerHTML = ''; return; }
+  const today = todayChar();
+  const chips = [
+    { key: 'all', label: '全て' },
+    { key: today, label: `今日（${today}）` },
+    ...['日','月','火','水','木','金','土'].filter(d => d !== today).map(d => ({ key: d, label: d })),
+  ];
+  box.innerHTML = chips.map(c => `<button data-d="${c.key}" class="${dayFilter === c.key ? 'active' : ''}">${c.label}</button>`).join('');
+  box.querySelectorAll('button').forEach(b => b.onclick = () => { dayFilter = b.dataset.d; renderDayTabs(); renderList(); });
 }
 
 function renderCourseTabs() {
@@ -153,7 +174,7 @@ function renderCourseTabs() {
   box.innerHTML = list.map(c => `
     <button data-c="${c.id}" class="${c.id === activeCourseId ? 'active' : ''}"><span class="dot" style="background:${c.color}"></span>${esc(c.name)}</button>
   `).join('');
-  box.querySelectorAll('button').forEach(b => b.onclick = () => { activeCourseId = b.dataset.c; renderCourseTabs(); renderList(); });
+  box.querySelectorAll('button').forEach(b => b.onclick = () => { activeCourseId = b.dataset.c; dayFilter = 'all'; renderCourseTabs(); renderDayTabs(); renderList(); });
 }
 
 function customerTypeBadges(cu, excludeType) {
@@ -192,9 +213,10 @@ function renderList() {
   if (!course) { document.getElementById('meta').textContent = ''; list.innerHTML = `<div class="empty">この品目にはまだコースが登録されていません。</div>`; return; }
   let items = customers.filter(c => c.items && c.items[mode] && c.items[mode].courseId === course.id);
   items.sort((a, b) => (a.items[mode].order ?? 0) - (b.items[mode].order ?? 0));
+  if (dayFilter !== 'all') items = items.filter(c => c.items[mode].days && c.items[mode].days.includes(dayFilter));
   if (q) items = items.filter(c => (c.name || '').toLowerCase().includes(q) || (c.address || '').toLowerCase().includes(q));
-  document.getElementById('meta').textContent = `${course.name}　${items.length}件`;
-  if (!items.length) { list.innerHTML = `<div class="empty">${q ? '該当する得意先がありません。' : 'このコースにはまだ得意先が登録されていません。'}</div>`; return; }
+  document.getElementById('meta').textContent = `${course.name}${dayFilter !== 'all' ? '　' + dayFilter + '曜日のみ' : ''}　${items.length}件`;
+  if (!items.length) { list.innerHTML = `<div class="empty">${dayFilter !== 'all' ? `${dayFilter}曜日の得意先はありません。` : (q ? '該当する得意先がありません。' : 'このコースにはまだ得意先が登録されていません。')}</div>`; return; }
   list.innerHTML = items.map((cu, i) => {
     const it = cu.items[mode];
     return `
