@@ -21,6 +21,9 @@
   .courserow button{flex:0 0 auto;display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:7px 12px;font-weight:700;font-size:12.5px;color:var(--sub);background:transparent}
   .courserow button.active{border-color:var(--border2);background:rgba(255,255,255,.08);color:#fff}
   .courserow button.add{border-style:dashed}
+  .dayrow{display:flex;gap:6px;overflow-x:auto;padding:6px 0 2px}
+  .dayrow button{flex:0 0 auto;border:1px solid var(--border);border-radius:999px;padding:6px 11px;font-weight:800;font-size:12.5px;color:var(--sub);background:transparent}
+  .dayrow button.active{border-color:var(--orange);background:rgba(255,122,41,.18);color:#ffb37a}
   .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
   main{padding:12px 14px 60px;max-width:640px;margin:0 auto}
   .btn{display:inline-flex;align-items:center;gap:6px;border-radius:10px;padding:9px 13px;font-weight:800;font-size:13px;border:1px solid var(--border2);background:transparent;color:var(--text);cursor:pointer}
@@ -215,7 +218,9 @@ async function deletePhotoObj(id) { try { await storage.ref('course-photos/' + i
 let courses = [], customers = [];
 let mode = 'search'; // 'search' | wasteType key
 let activeCourseId = null;
+let dayFilter = 'all'; // 'all' | '日'..'土'
 let busy = false;
+function todayChar() { return ['日','月','火','水','木','金','土'][new Date().getDay()]; }
 
 async function refresh(showLoading) {
   if (showLoading) document.getElementById('content').innerHTML = `<div class="empty"><span class="spin"></span> 読み込み中…</div>`;
@@ -230,6 +235,7 @@ function renderTopTabs() {
     WASTE_TYPES.map(w => `<button data-m="${w.key}" class="${mode === w.key ? 'active' : ''}">${w.icon} ${w.label}</button>`).join('');
   box.querySelectorAll('button').forEach(b => b.onclick = () => {
     mode = b.dataset.m;
+    dayFilter = 'all';
     if (mode !== 'search') {
       const first = courses.filter(c => c.wasteType === mode).sort((a,b)=>(a.order??0)-(b.order??0))[0];
       activeCourseId = first ? first.id : null;
@@ -243,7 +249,7 @@ function renderCourseTabs() {
   const list = courses.filter(c => c.wasteType === mode).sort((a,b)=>(a.order??0)-(b.order??0));
   box.innerHTML = list.map(c => `<button data-c="${c.id}" class="${c.id === activeCourseId ? 'active' : ''}"><span class="dot" style="background:${c.color}"></span>${esc(c.name)}</button>`).join('')
     + `<button class="add" id="addCourseBtn">＋ コース追加</button>`;
-  box.querySelectorAll('[data-c]').forEach(b => b.onclick = () => { activeCourseId = b.dataset.c; renderCourseTabs(); renderContent(); });
+  box.querySelectorAll('[data-c]').forEach(b => b.onclick = () => { activeCourseId = b.dataset.c; dayFilter = 'all'; renderCourseTabs(); renderContent(); });
   document.getElementById('addCourseBtn').onclick = () => openCourseModal(null, mode);
 }
 
@@ -278,6 +284,7 @@ function renderContent() {
       </h2>
       ${course ? `<button class="btn ghost sm" id="editCourseBtn">編集</button>` : ''}
     </div>
+    ${course ? `<div class="dayrow" id="dayTabs"></div>` : ''}
     <div id="list"></div>
     ${course ? `<div style="display:flex;gap:8px;margin-top:12px">
       <button class="btn block ghost" id="addExistingBtn" style="border-style:dashed">既存から選んで追加</button>
@@ -288,7 +295,20 @@ function renderContent() {
   document.getElementById('editCourseBtn').onclick = () => openCourseModal(course, mode);
   document.getElementById('addExistingBtn').onclick = () => openPickExisting(course);
   document.getElementById('addNewInCourseBtn').onclick = () => openCustomerModal(null, mode, course.id);
+  renderDayTabs(course);
   renderCourseList(course);
+}
+
+function renderDayTabs(course) {
+  const box = document.getElementById('dayTabs');
+  const today = todayChar();
+  const chips = [
+    { key: 'all', label: '全て（並び替え可）' },
+    { key: today, label: `今日（${today}）` },
+    ...['日','月','火','水','木','金','土'].filter(d => d !== today).map(d => ({ key: d, label: d })),
+  ];
+  box.innerHTML = chips.map(c => `<button data-d="${c.key}" class="${dayFilter === c.key ? 'active' : ''}">${c.label}</button>`).join('');
+  box.querySelectorAll('button').forEach(b => b.onclick = () => { dayFilter = b.dataset.d; renderDayTabs(course); renderCourseList(course); });
 }
 
 function renderSearchList() {
@@ -317,18 +337,21 @@ function renderSearchList() {
 function renderCourseList(course) {
   let items = customers.filter(c => c.items && c.items[mode] && c.items[mode].courseId === course.id);
   items.sort((a, b) => (a.items[mode].order ?? 0) - (b.items[mode].order ?? 0));
-  document.getElementById('cnt').textContent = `${items.length}件`;
+  const filtered = dayFilter !== 'all' ? items.filter(c => c.items[mode].days && c.items[mode].days.includes(dayFilter)) : items;
+  document.getElementById('cnt').textContent = `${filtered.length}件${dayFilter !== 'all' ? '（' + dayFilter + '曜日のみ）' : ''}`;
   const list = document.getElementById('list');
-  if (!items.length) { list.innerHTML = `<div class="empty">まだ得意先が登録されていません。</div>`; return; }
-  list.innerHTML = items.map((cu, i) => {
+  if (!filtered.length) { list.innerHTML = `<div class="empty">${dayFilter !== 'all' ? dayFilter + '曜日の得意先はありません。' : 'まだ得意先が登録されていません。'}</div>`; return; }
+  const readOnly = dayFilter !== 'all';
+  list.innerHTML = filtered.map((cu, i) => {
     const it = cu.items[mode];
     return `
     <div class="card">
+      ${readOnly ? `<div class="num">${i+1}</div>` : `
       <div class="updown">
         <button data-move="-1" data-id="${cu.id}" ${i===0?'disabled':''}>▲</button>
-        <button data-move="1" data-id="${cu.id}" ${i===items.length-1?'disabled':''}>▼</button>
+        <button data-move="1" data-id="${cu.id}" ${i===filtered.length-1?'disabled':''}>▼</button>
       </div>
-      <input type="number" class="posinput" data-pos="${cu.id}" value="${i+1}" min="1" max="${items.length}">
+      <input type="number" class="posinput" data-pos="${cu.id}" value="${i+1}" min="1" max="${filtered.length}">`}
       <div class="info" data-edit="${cu.id}">
         <div class="name">${esc(cu.name)}</div>
         <div class="badges">
@@ -341,10 +364,11 @@ function renderCourseList(course) {
     </div>`;
   }).join('');
   list.querySelectorAll('[data-edit]').forEach(el => el.onclick = () => openCustomerModal(customers.find(c => c.id === el.dataset.edit), mode, course.id));
-  list.querySelectorAll('[data-move]').forEach(btn => btn.onclick = () => moveCustomer(course, btn.dataset.id, parseInt(btn.dataset.move, 10), items));
+  if (readOnly) return;
+  list.querySelectorAll('[data-move]').forEach(btn => btn.onclick = () => moveCustomer(course, btn.dataset.id, parseInt(btn.dataset.move, 10), filtered));
   list.querySelectorAll('[data-pos]').forEach(inp => {
     inp.addEventListener('click', e => e.stopPropagation());
-    inp.addEventListener('change', () => moveToPosition(course, inp.dataset.pos, parseInt(inp.value, 10), items));
+    inp.addEventListener('change', () => moveToPosition(course, inp.dataset.pos, parseInt(inp.value, 10), filtered));
     inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
   });
 }
