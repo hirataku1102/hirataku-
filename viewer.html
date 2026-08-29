@@ -80,9 +80,21 @@
   .row .val{font-size:14.5px;font-weight:700;text-align:right}
   .bigmap{display:block;text-align:center;margin-top:14px;background:var(--blue);color:#fff;font-weight:900;padding:13px;border-radius:12px;text-decoration:none;font-size:15px}
   .updated{color:var(--sub);font-size:11px;text-align:center;padding:10px 0 0}
+  .lockscreen{position:fixed;inset:0;background:var(--bg);color:var(--text);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;text-align:center}
+  .lockscreen input{width:220px;text-align:center;font-size:18px;letter-spacing:2px;padding:11px 12px;border-radius:10px;border:1px solid var(--input-border);background:var(--input-bg);color:var(--text)}
+  .lockscreen button{border:none;border-radius:10px;padding:11px 22px;font-weight:800;font-size:14px;background:var(--orange);color:#fff;cursor:pointer}
 </style>
 </head>
 <body>
+
+<div class="lockscreen" id="lockscreen">
+  <div style="font-size:34px">🔒</div>
+  <div style="font-weight:800">閲覧用パスコード</div>
+  <input type="text" id="passInput" autocapitalize="off" autocorrect="off" placeholder="パスコード">
+  <button id="passBtn">開く</button>
+  <div id="passErr" style="color:#cf4335;font-size:12px;display:none">パスコードが違います</div>
+</div>
+
 <header>
   <h1>🚚 コース表 <button class="themebtn" id="themeBtn">🌙</button></h1>
   <div class="toprow" id="topTabs"></div>
@@ -116,6 +128,18 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+
+/* ==== パスコード（毎回入力を確認） ==== */
+const VIEW_PASSCODE = "daybreak2026"; // ← パスコードを変えたい場合はここを編集してください
+document.getElementById('passBtn').onclick = tryUnlock;
+document.getElementById('passInput').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
+function tryUnlock() {
+  if (document.getElementById('passInput').value === VIEW_PASSCODE) {
+    document.getElementById('lockscreen').style.display = 'none';
+  } else {
+    document.getElementById('passErr').style.display = 'block';
+  }
+}
 
 function applyTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
