@@ -6,52 +6,71 @@
 <title>コース表</title>
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
-<meta name="theme-color" content="#181b16">
+<meta name="theme-color" content="#f6f6f3">
 <style>
-  :root{
+  :root, :root[data-theme="light"]{
+    --bg:#f6f6f3; --card:#ffffff; --border:rgba(0,0,0,.1); --border2:rgba(0,0,0,.25);
+    --text:#1b1f19; --sub:#6b6f68; --orange:#e8630f; --teal:#2f8a6f; --red:#cf4335; --blue:#2f6fe0;
+    --surface1:rgba(0,0,0,.06); --surface2:rgba(0,0,0,.045); --surface3:rgba(0,0,0,.03);
+    --input-bg:rgba(0,0,0,.035); --input-border:rgba(0,0,0,.16); --overlay-bg:rgba(0,0,0,.45);
+    --key-bg:rgba(47,138,111,.13); --key-fg:#1f6b53;
+    --nokey-bg:rgba(207,67,53,.13); --nokey-fg:#a3392b;
+    --type-bg:rgba(0,0,0,.05); --type-fg:#50544c;
+    --days-bg:rgba(47,111,224,.12); --days-fg:#1f4fb0;
+    --orangechip-bg:rgba(232,99,15,.14); --orangechip-fg:#a3480c;
+  }
+  :root[data-theme="dark"]{
     --bg:#181b16; --card:#20241f; --border:rgba(255,255,255,.1); --border2:rgba(255,255,255,.2);
     --text:#f4f2ec; --sub:#9a9a92; --orange:#FF7A29; --teal:#4FA88D; --red:#E85D4E; --blue:#4C8DFF;
+    --surface1:rgba(255,255,255,.1); --surface2:rgba(255,255,255,.08); --surface3:rgba(255,255,255,.05);
+    --input-bg:rgba(0,0,0,.25); --input-border:rgba(255,255,255,.18); --overlay-bg:rgba(0,0,0,.75);
+    --key-bg:rgba(79,168,141,.2); --key-fg:#8fd8c2;
+    --nokey-bg:rgba(232,93,78,.2); --nokey-fg:#f2a89e;
+    --type-bg:rgba(255,255,255,.08); --type-fg:#cfcfc7;
+    --days-bg:rgba(76,141,255,.15); --days-fg:#9dbdfb;
+    --orangechip-bg:rgba(255,122,41,.18); --orangechip-fg:#ffb37a;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;-webkit-tap-highlight-color:transparent}
   header{position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--border);padding:12px 14px 8px;z-index:10}
-  h1{margin:0 0 8px;font-size:17px;font-weight:900;display:flex;align-items:center;gap:8px}
+  h1{margin:0 0 8px;font-size:17px;font-weight:900;display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .themebtn{border:1px solid var(--border2);background:transparent;border-radius:999px;width:30px;height:30px;font-size:14px;color:var(--text);cursor:pointer;flex:0 0 auto}
   .toprow{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
   .toprow button{flex:0 0 auto;border:1px solid var(--border);border-radius:999px;padding:8px 13px;font-weight:800;font-size:13px;color:var(--sub);background:transparent;display:flex;align-items:center;gap:5px}
-  .toprow button.active{border-color:var(--border2);background:rgba(255,255,255,.1);color:#fff}
+  .toprow button.active{border-color:var(--border2);background:var(--surface1);color:var(--text)}
   .courserow{display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px}
   .courserow button{flex:0 0 auto;display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:7px 12px;font-weight:700;font-size:12.5px;color:var(--sub);background:transparent}
-  .courserow button.active{border-color:var(--border2);background:rgba(255,255,255,.08);color:#fff}
+  .courserow button.active{border-color:var(--border2);background:var(--surface2);color:var(--text)}
   .dayrow{display:flex;gap:6px;overflow-x:auto;padding:6px 0 2px}
   .dayrow button{flex:0 0 auto;border:1px solid var(--border);border-radius:999px;padding:6px 11px;font-weight:800;font-size:12.5px;color:var(--sub);background:transparent}
-  .dayrow button.active{border-color:var(--orange);background:rgba(255,122,41,.18);color:#ffb37a}
+  .dayrow button.active{border-color:var(--orange);background:var(--orangechip-bg);color:var(--orangechip-fg)}
   .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
   main{padding:12px 14px 50px;max-width:640px;margin:0 auto}
-  .search{width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--border);background:rgba(0,0,0,.25);color:#fff;font-size:15px;margin-bottom:10px}
+  .search{width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--input-border);background:var(--input-bg);color:var(--text);font-size:15px;margin-bottom:10px}
   .search::placeholder{color:var(--sub)}
   .meta{font-size:12px;color:var(--sub);margin-bottom:8px}
   .card{display:flex;align-items:center;gap:10px;border:1px solid var(--border);background:var(--card);border-radius:14px;padding:11px;margin-bottom:7px}
-  .num{flex:0 0 auto;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;color:#ddd}
+  .num{flex:0 0 auto;width:26px;height:26px;border-radius:50%;background:var(--surface1);display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;color:var(--text)}
   .info{flex:1;min-width:0}
   .name{font-weight:800;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .addr{font-size:11.5px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
   .badges{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
   .badge{display:inline-flex;align-items:center;gap:3px;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap}
-  .badge.key{background:rgba(79,168,141,.2);color:#8fd8c2}
-  .badge.nokey{background:rgba(232,93,78,.2);color:#f2a89e}
-  .badge.type{background:rgba(255,255,255,.08);color:#cfcfc7}
-  .badge.days{background:rgba(76,141,255,.15);color:#9dbdfb}
-  .maplink{flex:0 0 auto;width:40px;height:40px;border-radius:10px;background:rgba(76,141,255,.15);color:var(--blue);display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:17px}
+  .badge.key{background:var(--key-bg);color:var(--key-fg)}
+  .badge.nokey{background:var(--nokey-bg);color:var(--nokey-fg)}
+  .badge.type{background:var(--type-bg);color:var(--type-fg)}
+  .badge.days{background:var(--days-bg);color:var(--days-fg)}
+  .maplink{flex:0 0 auto;width:40px;height:40px;border-radius:10px;background:var(--days-bg);color:var(--blue);display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:17px}
   .empty{text-align:center;color:var(--sub);padding:50px 20px;font-size:14px;line-height:1.7}
-  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:flex-end;justify-content:center;z-index:50}
+  .overlay{position:fixed;inset:0;background:var(--overlay-bg);display:none;align-items:flex-end;justify-content:center;z-index:50}
   .overlay.show{display:flex}
   .sheet{width:100%;max-height:88vh;overflow-y:auto;background:var(--card);border-radius:20px 20px 0 0;border-top:1px solid var(--border)}
   .sheet-head{position:sticky;top:0;background:var(--card);display:flex;justify-content:space-between;align-items:center;padding:16px;border-bottom:1px solid var(--border)}
   .sheet-head h2{margin:0;font-size:17px;font-weight:900}
-  .closebtn{background:rgba(255,255,255,.1);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:18px}
+  .closebtn{background:var(--surface1);border:none;color:var(--text);width:32px;height:32px;border-radius:50%;font-size:18px}
   .sheet-body{padding:16px}
-  .photo{width:100%;border-radius:12px;display:block;margin-bottom:14px;background:#0d0f0c;object-fit:cover;max-height:280px}
-  .photo-ph{width:100%;border-radius:12px;background:rgba(255,255,255,.05);color:var(--sub);display:flex;align-items:center;justify-content:center;height:100px;font-size:12px;margin-bottom:14px}
+  .photo{width:100%;border-radius:12px;display:block;margin-bottom:14px;background:var(--surface3);object-fit:cover;max-height:280px}
+  .photo-ph{width:100%;border-radius:12px;background:var(--surface3);color:var(--sub);display:flex;align-items:center;justify-content:center;height:100px;font-size:12px;margin-bottom:14px}
   .typeblock{border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px}
   .typeblock .th{font-weight:800;font-size:13.5px;display:flex;align-items:center;gap:6px;margin-bottom:6px}
   .typeblock .tv{font-size:13px;color:var(--sub)}
@@ -59,13 +78,13 @@
   .row:last-child{border-bottom:none}
   .row .label{font-size:12px;color:var(--sub);font-weight:700}
   .row .val{font-size:14.5px;font-weight:700;text-align:right}
-  .bigmap{display:block;text-align:center;margin-top:14px;background:var(--blue);color:#0b1220;font-weight:900;padding:13px;border-radius:12px;text-decoration:none;font-size:15px}
+  .bigmap{display:block;text-align:center;margin-top:14px;background:var(--blue);color:#fff;font-weight:900;padding:13px;border-radius:12px;text-decoration:none;font-size:15px}
   .updated{color:var(--sub);font-size:11px;text-align:center;padding:10px 0 0}
 </style>
 </head>
 <body>
 <header>
-  <h1>🚚 コース表</h1>
+  <h1>🚚 コース表 <button class="themebtn" id="themeBtn">🌙</button></h1>
   <div class="toprow" id="topTabs"></div>
   <div class="courserow" id="courseTabs"></div>
   <div class="dayrow" id="dayTabs"></div>
@@ -97,6 +116,16 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('themeBtn').textContent = t === 'dark' ? '☀️' : '🌙';
+  try { localStorage.setItem('cm_theme', t); } catch (e) {}
+}
+let savedTheme = 'light';
+try { savedTheme = localStorage.getItem('cm_theme') || 'light'; } catch (e) {}
+applyTheme(savedTheme);
+document.getElementById('themeBtn').onclick = () => applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
 
 const WASTE_TYPES = [
   { key: 'combustible', label: '可燃ゴミ', icon: '🔥' },

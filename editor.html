@@ -5,38 +5,61 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>コース表 編集ツール（管理用）</title>
 <style>
-  :root{
+  :root, :root[data-theme="light"]{
+    --bg:#f6f6f3; --card:#ffffff; --border:rgba(0,0,0,.1); --border2:rgba(0,0,0,.28);
+    --text:#1b1f19; --sub:#6b6f68; --orange:#e8630f; --teal:#2f8a6f; --red:#cf4335; --blue:#2f6fe0;
+    --surface1:rgba(0,0,0,.06); --surface2:rgba(0,0,0,.045); --surface3:rgba(0,0,0,.03);
+    --input-bg:rgba(0,0,0,.035); --input-border:rgba(0,0,0,.16); --overlay-bg:rgba(0,0,0,.45);
+    --key-bg:rgba(47,138,111,.13); --key-border:rgba(47,138,111,.4); --key-fg:#1f6b53;
+    --nokey-bg:rgba(207,67,53,.13); --nokey-fg:#a3392b;
+    --type-bg:rgba(0,0,0,.05); --type-fg:#50544c;
+    --days-bg:rgba(47,111,224,.12); --days-fg:#1f4fb0;
+    --danger-bg:rgba(207,67,53,.1); --danger-border:rgba(207,67,53,.4); --danger-fg:#a3392b;
+    --orangechip-bg:rgba(232,99,15,.14); --orangechip-fg:#a3480c;
+    --chip-fg:#fff;
+  }
+  :root[data-theme="dark"]{
     --bg:#181b16; --card:#20241f; --border:rgba(255,255,255,.1); --border2:rgba(255,255,255,.25);
     --text:#f4f2ec; --sub:#9a9a92; --orange:#FF7A29; --teal:#4FA88D; --red:#E85D4E; --blue:#4C8DFF;
+    --surface1:rgba(255,255,255,.1); --surface2:rgba(255,255,255,.08); --surface3:rgba(255,255,255,.05);
+    --input-bg:rgba(0,0,0,.3); --input-border:rgba(255,255,255,.18); --overlay-bg:rgba(0,0,0,.75);
+    --key-bg:rgba(79,168,141,.2); --key-border:rgba(79,168,141,.4); --key-fg:#8fd8c2;
+    --nokey-bg:rgba(232,93,78,.2); --nokey-fg:#f2a89e;
+    --type-bg:rgba(255,255,255,.08); --type-fg:#cfcfc7;
+    --days-bg:rgba(76,141,255,.18); --days-fg:#9dbdfb;
+    --danger-bg:rgba(232,93,78,.15); --danger-border:rgba(232,93,78,.5); --danger-fg:#f2a89e;
+    --orangechip-bg:rgba(255,122,41,.18); --orangechip-fg:#ffb37a;
+    --chip-fg:#fff;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif}
   header{position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--border);padding:12px 14px 8px;z-index:10}
   h1{margin:0 0 8px;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:space-between;gap:8px}
   h1 .btns{display:flex;gap:6px}
+  .themebtn{border:1px solid var(--border2);background:transparent;border-radius:999px;width:32px;height:32px;font-size:15px;color:var(--text);cursor:pointer;flex:0 0 auto}
   .toprow{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
   .toprow button{flex:0 0 auto;border:1px solid var(--border);border-radius:999px;padding:8px 13px;font-weight:800;font-size:13px;color:var(--sub);background:transparent}
-  .toprow button.active{border-color:var(--border2);background:rgba(255,255,255,.1);color:#fff}
+  .toprow button.active{border-color:var(--border2);background:var(--surface1);color:var(--text)}
   .courserow{display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px}
   .courserow button{flex:0 0 auto;display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:7px 12px;font-weight:700;font-size:12.5px;color:var(--sub);background:transparent}
-  .courserow button.active{border-color:var(--border2);background:rgba(255,255,255,.08);color:#fff}
+  .courserow button.active{border-color:var(--border2);background:var(--surface2);color:var(--text)}
   .courserow button.add{border-style:dashed}
   .dayrow{display:flex;gap:6px;overflow-x:auto;padding:6px 0 2px}
   .dayrow button{flex:0 0 auto;border:1px solid var(--border);border-radius:999px;padding:6px 11px;font-weight:800;font-size:12.5px;color:var(--sub);background:transparent}
-  .dayrow button.active{border-color:var(--orange);background:rgba(255,122,41,.18);color:#ffb37a}
+  .dayrow button.active{border-color:var(--orange);background:var(--orangechip-bg);color:var(--orangechip-fg)}
   .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
   main{padding:12px 14px 60px;max-width:640px;margin:0 auto}
   .btn{display:inline-flex;align-items:center;gap:6px;border-radius:10px;padding:9px 13px;font-weight:800;font-size:13px;border:1px solid var(--border2);background:transparent;color:var(--text);cursor:pointer}
-  .btn.primary{background:var(--orange);color:#1a1a1a;border-color:var(--orange)}
-  .btn.danger{background:rgba(232,93,78,.15);border-color:rgba(232,93,78,.5);color:#f2a89e}
+  .btn.primary{background:var(--orange);color:#fff;border-color:var(--orange)}
+  .btn.danger{background:var(--danger-bg);border-color:var(--danger-border);color:var(--danger-fg)}
   .btn.ghost{background:transparent}
   .btn.block{width:100%;justify-content:center;padding:13px}
   .btn:disabled{opacity:.4;cursor:not-allowed}
   .btn.sm{padding:6px 10px;font-size:12px}
-  .search{width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--border);background:rgba(0,0,0,.25);color:#fff;font-size:15px;margin-bottom:10px}
+  .search{width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--input-border);background:var(--input-bg);color:var(--text);font-size:15px;margin-bottom:10px}
   .card{display:flex;align-items:center;gap:10px;border:1px solid var(--border);background:var(--card);border-radius:14px;padding:12px;margin-bottom:8px}
-  .num{flex:0 0 auto;width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
-  .posinput{flex:0 0 auto;width:44px;height:30px;padding:0;text-align:center;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.3);color:#fff;font-size:13px;font-weight:800}
+  .num{flex:0 0 auto;width:28px;height:28px;border-radius:50%;background:var(--surface1);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+  .posinput{flex:0 0 auto;width:44px;height:30px;padding:0;text-align:center;border-radius:8px;border:1px solid var(--input-border);background:var(--input-bg);color:var(--text);font-size:13px;font-weight:800}
   .updown{display:flex;flex-direction:column;flex:0 0 auto}
   .updown button{background:none;border:none;color:var(--sub);font-size:13px;padding:1px 4px;cursor:pointer}
   .updown button:disabled{opacity:.2}
@@ -45,58 +68,58 @@
   .addr{font-size:11px;color:var(--sub);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}
   .badge{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700}
-  .badge.key{background:rgba(79,168,141,.2);color:#8fd8c2}
-  .badge.nokey{background:rgba(232,93,78,.2);color:#f2a89e}
-  .badge.type{background:rgba(255,255,255,.08);color:#cfcfc7}
-  .badge.days{background:rgba(76,141,255,.15);color:#9dbdfb}
-  .maplink{flex:0 0 auto;width:36px;height:36px;border-radius:10px;background:rgba(76,141,255,.15);color:var(--blue);display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:15px}
+  .badge.key{background:var(--key-bg);color:var(--key-fg)}
+  .badge.nokey{background:var(--nokey-bg);color:var(--nokey-fg)}
+  .badge.type{background:var(--type-bg);color:var(--type-fg)}
+  .badge.days{background:var(--days-bg);color:var(--days-fg)}
+  .maplink{flex:0 0 auto;width:36px;height:36px;border-radius:10px;background:var(--days-bg);color:var(--blue);display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:15px}
   .empty{text-align:center;color:var(--sub);padding:50px 20px;font-size:14px;line-height:1.7}
   .section-head{display:flex;justify-content:space-between;align-items:center;margin:6px 0 10px}
   .section-head h2{margin:0;font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px}
   .count{font-size:12px;color:var(--sub);font-weight:600}
-  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:flex-end;justify-content:center;z-index:50}
+  .overlay{position:fixed;inset:0;background:var(--overlay-bg);display:none;align-items:flex-end;justify-content:center;z-index:50}
   .overlay.show{display:flex}
   .modal{width:100%;max-height:92vh;overflow-y:auto;background:var(--card);border-radius:20px 20px 0 0;border-top:1px solid var(--border)}
   .modal-head{position:sticky;top:0;background:var(--card);display:flex;justify-content:space-between;align-items:center;padding:16px;border-bottom:1px solid var(--border)}
   .modal-head h2{margin:0;font-size:16px;font-weight:900}
-  .closebtn{background:rgba(255,255,255,.1);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:18px}
+  .closebtn{background:var(--surface1);border:none;color:var(--text);width:32px;height:32px;border-radius:50%;font-size:18px}
   .modal-body{padding:16px}
   .field{display:block;margin-bottom:16px}
   .field .lb{display:block;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;color:var(--sub);margin-bottom:6px}
-  input[type=text], input[type=search], textarea, select{width:100%;padding:11px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.3);color:#fff;font-size:15px}
+  input[type=text], input[type=search], input[type=number], textarea, select{width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--input-border);background:var(--input-bg);color:var(--text);font-size:15px}
   textarea{resize:vertical}
   .colorrow{display:flex;gap:8px;flex-wrap:wrap}
   .colorrow button{width:34px;height:34px;border-radius:50%;border:2px solid transparent;cursor:pointer}
-  .colorrow button.active{border-color:#fff}
+  .colorrow button.active{border-color:var(--text)}
   .keyrow{display:flex;gap:8px}
-  .keyrow button{flex:1;padding:11px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:transparent;color:var(--sub);font-weight:700;font-size:14px;cursor:pointer}
-  .keyrow button.active.yes{border-color:var(--teal);background:rgba(79,168,141,.2);color:#8fd8c2}
-  .keyrow button.active.no{border-color:var(--red);background:rgba(232,93,78,.2);color:#f2a89e}
+  .keyrow button{flex:1;padding:11px;border-radius:10px;border:1px solid var(--input-border);background:transparent;color:var(--sub);font-weight:700;font-size:14px;cursor:pointer}
+  .keyrow button.active.yes{border-color:var(--teal);background:var(--key-bg);color:var(--key-fg)}
+  .keyrow button.active.no{border-color:var(--red);background:var(--nokey-bg);color:var(--nokey-fg)}
   .daysrow{display:flex;gap:6px;flex-wrap:wrap}
-  .daysrow button{width:38px;height:38px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:transparent;color:var(--sub);font-weight:800;font-size:13px}
-  .daysrow button.active{border-color:var(--blue);background:rgba(76,141,255,.2);color:#9dbdfb}
+  .daysrow button{width:38px;height:38px;border-radius:10px;border:1px solid var(--input-border);background:transparent;color:var(--sub);font-weight:800;font-size:13px}
+  .daysrow button.active{border-color:var(--blue);background:var(--days-bg);color:var(--days-fg)}
   .photobox{position:relative}
   .photobox img{width:100%;height:190px;object-fit:cover;border-radius:10px;border:1px solid var(--border)}
   .photobox .rm{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.7);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:15px}
-  .uploadbox{height:130px;width:100%;border:2px dashed rgba(255,255,255,.2);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--sub);cursor:pointer;background:none}
+  .uploadbox{height:130px;width:100%;border:2px dashed var(--input-border);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--sub);cursor:pointer;background:none}
   .modal-actions{display:flex;justify-content:space-between;gap:8px;margin-top:6px;align-items:center}
   .modal-actions .right{display:flex;gap:8px}
-  .confirmbox{border:1px solid rgba(232,93,78,.4);background:rgba(232,93,78,.1);border-radius:10px;padding:14px;margin-top:10px}
-  .confirmbox p{margin:0 0 10px;font-size:13.5px;color:#f2a89e}
+  .confirmbox{border:1px solid var(--danger-border);background:var(--danger-bg);border-radius:10px;padding:14px;margin-top:10px}
+  .confirmbox p{margin:0 0 10px;font-size:13.5px;color:var(--danger-fg)}
   .confirm-actions{display:flex;justify-content:flex-end;gap:8px}
   .hint{font-size:12px;color:var(--sub);line-height:1.7;margin-bottom:12px}
-  .hint code{background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px}
-  .preview{margin-top:10px;border:1px solid rgba(79,168,141,.4);background:rgba(79,168,141,.1);border-radius:10px;padding:10px;font-size:12.5px;color:#8fd8c2}
-  .toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#2a2f27;border:1px solid var(--border2);color:#fff;padding:10px 18px;border-radius:999px;font-size:13px;font-weight:700;z-index:100;display:none;box-shadow:0 6px 20px rgba(0,0,0,.4)}
+  .hint code{background:var(--surface2);padding:1px 5px;border-radius:4px}
+  .preview{margin-top:10px;border:1px solid var(--key-border);background:var(--key-bg);border-radius:10px;padding:10px;font-size:12.5px;color:var(--key-fg)}
+  .toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#2a2f27;border:1px solid rgba(255,255,255,.25);color:#fff;padding:10px 18px;border-radius:999px;font-size:13px;font-weight:700;z-index:100;display:none;box-shadow:0 6px 20px rgba(0,0,0,.4)}
   a.maplink-inline{color:var(--blue);font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:5px;margin-top:6px}
   .typebox{border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px}
   .typebox .th{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
   .typebox .th strong{font-size:13.5px;font-weight:800}
-  .togglechip{border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:5px 11px;font-size:12px;font-weight:700;color:var(--sub);background:transparent}
-  .togglechip.on{border-color:var(--teal);background:rgba(79,168,141,.2);color:#8fd8c2}
-  .lockscreen{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;text-align:center}
+  .togglechip{border:1px solid var(--input-border);border-radius:999px;padding:5px 11px;font-size:12px;font-weight:700;color:var(--sub);background:transparent}
+  .togglechip.on{border-color:var(--teal);background:var(--key-bg);color:var(--key-fg)}
+  .lockscreen{position:fixed;inset:0;background:var(--bg);color:var(--text);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;text-align:center}
   .lockscreen input{width:220px;text-align:center;font-size:18px;letter-spacing:2px}
-  .spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
+  .spin{display:inline-block;width:16px;height:16px;border:2px solid var(--surface1);border-top-color:var(--text);border-radius:50%;animation:sp .7s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
 </style>
 </head>
@@ -113,6 +136,7 @@
 <header>
   <h1>🚚 コース表 編集
     <span class="btns">
+      <button class="themebtn" id="themeBtn">🌙</button>
       <button class="btn ghost sm" id="seedBtn">テストデータ追加</button>
       <button class="btn ghost sm" id="csvBtn">CSV登録</button>
     </span>
@@ -133,7 +157,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 <script>
 /* ==== 設定 ==== */
-const EDIT_PASSCODE = "sakai2026"; // ← ここを好きなパスコードに変更してください
+const EDIT_PASSCODE = "day9000"; // ← ここを好きなパスコードに変更してください
 const firebaseConfig = {
   apiKey: "AIzaSyD8JW9526h0TKa9_hEaGrmlpVG8NeW4c3Q",
   authDomain: "hirataku1102.firebaseapp.com",
@@ -146,6 +170,17 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const storage = firebase.storage();
 
+/* ==== テーマ ==== */
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('themeBtn').textContent = t === 'dark' ? '☀️' : '🌙';
+  try { localStorage.setItem('cm_theme', t); } catch (e) {}
+}
+let savedTheme = 'light';
+try { savedTheme = localStorage.getItem('cm_theme') || 'light'; } catch (e) {}
+applyTheme(savedTheme);
+document.getElementById('themeBtn').onclick = () => applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+
 const WASTE_TYPES = [
   { key: 'combustible', label: '可燃ゴミ', icon: '🔥' },
   { key: 'cardboard', label: 'ダンボール', icon: '📦' },
@@ -157,14 +192,12 @@ const WT = Object.fromEntries(WASTE_TYPES.map(w => [w.key, w]));
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 const COLORS = ['#FF7A29', '#4FA88D', '#4C8DFF', '#E8B84B', '#E85D4E', '#9B7EDE'];
 
-/* ==== ロック画面 ==== */
-try { if (sessionStorage.getItem('cm_unlocked') === '1') document.getElementById('lockscreen').style.display = 'none'; } catch (e) {}
+/* ==== ロック画面（毎回パスコードを確認） ==== */
 document.getElementById('passBtn').onclick = tryUnlock;
 document.getElementById('passInput').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
 function tryUnlock() {
   const v = document.getElementById('passInput').value;
   if (v === EDIT_PASSCODE) {
-    try { sessionStorage.setItem('cm_unlocked', '1'); } catch (e) {}
     document.getElementById('lockscreen').style.display = 'none';
   } else {
     document.getElementById('passErr').style.display = 'block';
