@@ -587,7 +587,7 @@ async function openCustomerModal(cu, presetType, presetCourseId) {
         <span class="lb">鍵の番号</span><input type="text" id="uKeyNumber" value="${cu ? esc(cu.keyNumber||''):''}" placeholder="例：No.12 / 事務所保管">
       </div>
       <div class="field"><span class="lb">品目・コースの割り当て</span><div id="typeBoxes"></div></div>
-      <div class="field"><span class="lb">ゴミ庫・回収場所の写真</span><div id="uPhotoBox"></div><input type="file" accept="image/*" capture="environment" id="uPhotoFile" style="display:none"></div>
+      <div class="field"><span class="lb">ゴミ庫・回収場所の写真</span><div id="uPhotoBox"></div><input type="file" accept="image/*" id="uPhotoFile" style="display:none"></div>
       <div class="field"><span class="lb">メモ</span><textarea id="uMemo" rows="3" placeholder="回収漏れ注意点など">${cu ? esc(cu.memo||''):''}</textarea></div>
       <div id="uActions"></div>
     </div>
