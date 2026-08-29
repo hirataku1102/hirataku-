@@ -354,7 +354,7 @@ function renderSearchList() {
   list.innerHTML = results.map(cu => `
     <div class="card">
       <div class="info" data-edit="${cu.id}">
-        <div class="name">${esc(cu.name)}</div>
+        <div class="name">${esc(cu.name)}${cu.mgmtNo ? ` <span style="color:var(--sub);font-weight:600">#${esc(cu.mgmtNo)}</span>` : ''}</div>
         ${cu.address ? `<div class="addr">${esc(cu.address)}</div>` : ''}
         <div class="badges">
           ${cu.hasKey ? `<span class="badge key">🔑 ${esc(cu.keyNumber||'鍵あり')}</span>` : `<span class="badge nokey">鍵なし</span>`}
@@ -572,6 +572,7 @@ async function openCustomerModal(cu, presetType, presetCourseId) {
     <div class="modal-head"><h2>${cu ? '得意先を編集' : '得意先を追加'}</h2><button class="closebtn" onclick="closeModal()">✕</button></div>
     <div class="modal-body">
       <div class="field"><span class="lb">得意先名</span><input type="text" id="uName" value="${cu ? esc(cu.name) : ''}" placeholder="例：〇〇マンション"></div>
+      <div class="field"><span class="lb">管理番号（エクセルの管理番号と合わせると、他品目のコースと自動で紐づきます）</span><input type="text" id="uMgmtNo" value="${cu ? esc(cu.mgmtNo||'') : ''}" placeholder="例：10234"></div>
       <div class="field"><span class="lb">住所</span>
         <input type="text" id="uAddress" value="${cu ? esc(cu.address||'') : ''}" placeholder="住所を入力（Googleマップで検索されます）">
         <div id="uMapLink"></div>
@@ -696,7 +697,7 @@ async function openCustomerModal(cu, presetType, presetCourseId) {
         else { await uploadPhoto(id, photoBlob); hasPhoto = true; }
       }
       await saveCustomerDoc({
-        id, name, address: document.getElementById('uAddress').value.trim(),
+        id, name, mgmtNo: document.getElementById('uMgmtNo').value.trim(), address: document.getElementById('uAddress').value.trim(),
         hasKey, keyNumber: hasKey ? document.getElementById('uKeyNumber').value.trim() : '',
         memo: document.getElementById('uMemo').value.trim(), items, hasPhoto,
       });
@@ -738,8 +739,8 @@ document.getElementById('csvBtn').onclick = () => {
   openModal(`
     <div class="modal-head"><h2>CSVで一括登録</h2><button class="closebtn" onclick="closeModal()">✕</button></div>
     <div class="modal-body">
-      <div class="hint">この取り込みは<b>新規の得意先</b>として登録されます（既存得意先への品目追加は「既存から選んで追加」を使ってください）。<br>
-        1行目を見出しにして次の列を用意してください：<br><code>得意先名, 住所, 鍵有無, 鍵番号, 曜日, メモ</code><br>
+      <div class="hint"><b>「管理番号」列を含めることを強くおすすめします。</b>他品目のCSVと管理番号が一致する行は、名前や住所の表記が多少違っても自動で同じ得意先として紐付けられます（管理番号がない場合は新規の得意先として登録されます）。<br>
+        1行目を見出しにして次の列を用意してください：<br><code>管理番号, 得意先名, 住所, 鍵有無, 鍵番号, 曜日, メモ</code><br>
         曜日は「月水金」のように詰めて書いてください（空欄ならコースの基本曜日が使われます）。</div>
       <div class="field"><span class="lb">登録先の品目</span>
         <select id="csvType">${WASTE_TYPES.map(w=>`<option value="${w.key}" ${w.key===targetType?'selected':''}>${w.icon} ${w.label}</option>`).join('')}</select>
@@ -768,6 +769,7 @@ document.getElementById('csvBtn').onclick = () => {
       const header = rows[0].map(h=>h.trim());
       const idx = {
         name: header.findIndex(h=>/得意先|名称|名前/.test(h)),
+        mgmt: header.findIndex(h=>/管理番号|管理No|管理no/i.test(h)),
         address: header.findIndex(h=>/住所/.test(h)),
         key: header.findIndex(h=>/鍵.*(有無|状態)|鍵$/.test(h)),
         keyNum: header.findIndex(h=>/鍵.*(番号|no)/i.test(h)),
@@ -782,15 +784,17 @@ document.getElementById('csvBtn').onclick = () => {
         const keyRaw = idx.key!==-1 ? (r[idx.key]||'').trim() : '';
         const daysRaw = idx.days!==-1 ? (r[idx.days]||'').trim() : '';
         list.push({
-          name: custName, address: idx.address!==-1 ? (r[idx.address]||'').trim() : '',
+          name: custName, mgmtNo: idx.mgmt!==-1 ? (r[idx.mgmt]||'').trim() : '',
+          address: idx.address!==-1 ? (r[idx.address]||'').trim() : '',
           hasKey: /あり|有|yes|y|○/i.test(keyRaw), keyNumber: idx.keyNum!==-1 ? (r[idx.keyNum]||'').trim() : '',
           days: WEEKDAYS.filter(d => daysRaw.includes(d)),
           memo: idx.memo!==-1 ? (r[idx.memo]||'').trim() : '',
         });
       }
       if (!list.length) { prevBox.innerHTML = `<p style="color:#f2a89e;font-size:13px">有効なデータ行がありません。</p>`; importBtn.disabled=true; preview=null; return; }
+      const withMgmt = list.filter(r => r.mgmtNo).length;
       preview = list;
-      prevBox.innerHTML = `<div class="preview">${list.length}件を取り込みます。</div>`;
+      prevBox.innerHTML = `<div class="preview">${list.length}件を取り込みます（うち管理番号あり: ${withMgmt}件）。</div>`;
       importBtn.disabled = false;
     } catch { prevBox.innerHTML = `<p style="color:#f2a89e;font-size:13px">CSVの読み込みに失敗しました。</p>`; importBtn.disabled=true; preview=null; }
   }
@@ -809,17 +813,42 @@ document.getElementById('csvBtn').onclick = () => {
     const btn = document.getElementById('csvImportBtn'); btn.disabled = true; btn.textContent = '取り込み中…';
     try {
       const course = courses.find(c => c.id === courseId);
-      const existingCount = customers.filter(c => c.items && c.items[type] && c.items[type].courseId === courseId).length;
-      let order = existingCount;
+      let order = customers.filter(c => c.items && c.items[type] && c.items[type].courseId === courseId).length;
+      const seenThisBatch = {}; // mgmtNo -> id、同じCSV内での重複対策
+      let mergedCount = 0, newCount = 0;
       for (const r of preview) {
-        const id = uid();
-        await saveCustomerDoc({
-          id, name: r.name, address: r.address, hasKey: r.hasKey, keyNumber: r.keyNumber, memo: r.memo, hasPhoto: false,
-          items: { [type]: { courseId, order: order++, days: r.days.length ? r.days : (course?.typicalDays || []) } },
-        });
+        const days = r.days.length ? r.days : (course?.typicalDays || []);
+        let existing = null;
+        if (r.mgmtNo) {
+          existing = customers.find(c => c.mgmtNo && c.mgmtNo === r.mgmtNo) || null;
+          if (!existing && seenThisBatch[r.mgmtNo]) existing = customers.find(c => c.id === seenThisBatch[r.mgmtNo]) || null;
+        }
+        if (existing) {
+          const merged = {
+            ...existing,
+            name: existing.name || r.name,
+            address: existing.address || r.address,
+            hasKey: existing.hasKey || r.hasKey,
+            keyNumber: existing.keyNumber || r.keyNumber,
+            memo: existing.memo || r.memo,
+            items: { ...existing.items, [type]: { courseId, order: order++, days } },
+          };
+          await saveCustomerDoc(merged);
+          seenThisBatch[r.mgmtNo] = existing.id;
+          const i = customers.findIndex(c => c.id === existing.id); if (i !== -1) customers[i] = merged;
+          mergedCount++;
+        } else {
+          const id = uid();
+          const created = { id, name: r.name, mgmtNo: r.mgmtNo, address: r.address, hasKey: r.hasKey, keyNumber: r.keyNumber, memo: r.memo, hasPhoto: false,
+            items: { [type]: { courseId, order: order++, days } } };
+          await saveCustomerDoc(created);
+          customers.push(created);
+          if (r.mgmtNo) seenThisBatch[r.mgmtNo] = id;
+          newCount++;
+        }
       }
       closeModal(); mode = type; activeCourseId = courseId; await refresh(true);
-      toast('取り込みました');
+      toast(`取り込みました（新規${newCount}件・紐付け${mergedCount}件）`);
     } catch (e) { toast('取り込みに失敗しました'); console.error(e); btn.disabled=false; btn.textContent='取り込む'; }
   };
 };
