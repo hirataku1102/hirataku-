@@ -73,6 +73,10 @@
   .badge.type{background:var(--type-bg);color:var(--type-fg)}
   .badge.days{background:var(--days-bg);color:var(--days-fg)}
   .maplink{flex:0 0 auto;width:36px;height:36px;border-radius:10px;background:var(--days-bg);color:var(--blue);display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:15px}
+  .thumb{flex:0 0 auto;width:40px;height:40px;border-radius:9px;object-fit:cover;border:1px solid var(--border);cursor:pointer}
+  .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);display:none;align-items:center;justify-content:center;z-index:80;padding:20px}
+  .lightbox.show{display:flex}
+  .lightbox img{max-width:100%;max-height:100%;border-radius:10px}
   .empty{text-align:center;color:var(--sub);padding:50px 20px;font-size:14px;line-height:1.7}
   .section-head{display:flex;justify-content:space-between;align-items:center;margin:6px 0 10px}
   .section-head h2{margin:0;font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px}
@@ -150,6 +154,7 @@
 </main>
 
 <div class="overlay" id="overlay"><div class="modal" id="modalRoot"></div></div>
+<div class="lightbox" id="lightbox"><img id="lightboxImg" src=""></div>
 <div class="toast" id="toast"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -210,6 +215,8 @@ function mapsUrl(addr) { return 'https://www.google.com/maps/search/?api=1&query
 function esc(s) { return (s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast._h); toast._h = setTimeout(() => t.style.display = 'none', 2200); }
 function photoUrl(id) { return `https://firebasestorage.googleapis.com/v0/b/${firebaseConfig.storageBucket}/o/${encodeURIComponent('course-photos/' + id + '.jpg')}?alt=media&t=${Date.now()}`; }
+function openLightbox(id) { document.getElementById('lightboxImg').src = photoUrl(id); document.getElementById('lightbox').classList.add('show'); }
+document.getElementById('lightbox').addEventListener('click', () => document.getElementById('lightbox').classList.remove('show'));
 function compressImage(file, maxDim = 900, quality = 0.72) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -291,7 +298,8 @@ function customerTypeBadges(cu, excludeType) {
   return WASTE_TYPES.filter(w => w.key !== excludeType && cu.items && cu.items[w.key]).map(w => {
     const it = cu.items[w.key];
     const c = courses.find(c => c.id === it.courseId);
-    return `<span class="badge type">${w.icon} ${c ? esc(c.name) : '未設定'}</span>`;
+    const daysStr = it.days && it.days.length ? it.days.join('') : '';
+    return `<span class="badge type">${w.icon} ${c ? esc(c.name) : '未設定'}</span>` + (daysStr ? `<span class="badge days">${daysStr}</span>` : '');
   }).join('');
 }
 
@@ -353,6 +361,7 @@ function renderSearchList() {
   if (!results.length) { list.innerHTML = `<div class="empty">見つかりませんでした。</div>`; return; }
   list.innerHTML = results.map(cu => `
     <div class="card">
+      ${cu.hasPhoto ? `<img class="thumb" src="${photoUrl(cu.id)}" onclick="event.stopPropagation();openLightbox('${cu.id}')" onerror="this.remove()">` : ''}
       <div class="info" data-edit="${cu.id}">
         <div class="name">${esc(cu.name)}${cu.mgmtNo ? ` <span style="color:var(--sub);font-weight:600">#${esc(cu.mgmtNo)}</span>` : ''}</div>
         ${cu.address ? `<div class="addr">${esc(cu.address)}</div>` : ''}
@@ -385,6 +394,7 @@ function renderCourseList(course) {
         <button data-move="1" data-id="${cu.id}" ${i===filtered.length-1?'disabled':''}>▼</button>
       </div>
       <input type="number" class="posinput" data-pos="${cu.id}" value="${i+1}" min="1" max="${filtered.length}">`}
+      ${cu.hasPhoto ? `<img class="thumb" src="${photoUrl(cu.id)}" onclick="event.stopPropagation();openLightbox('${cu.id}')" onerror="this.remove()">` : ''}
       <div class="info" data-edit="${cu.id}">
         <div class="name">${esc(cu.name)}</div>
         <div class="badges">
