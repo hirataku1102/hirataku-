@@ -65,7 +65,13 @@
   .thumb{flex:0 0 auto;width:40px;height:40px;border-radius:9px;object-fit:cover;border:1px solid var(--border);cursor:pointer}
   .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);display:none;align-items:center;justify-content:center;z-index:80;padding:20px}
   .lightbox.show{display:flex}
-  .lightbox img{max-width:100%;max-height:100%;border-radius:10px}
+  .lightbox-strip{display:flex;gap:12px;overflow-x:auto;max-width:100%;max-height:100%;scroll-snap-type:x mandatory}
+  .lightbox-strip img{max-width:88vw;max-height:80vh;border-radius:10px;scroll-snap-align:center}
+  .lightbox-close{position:fixed;top:16px;right:16px;background:rgba(255,255,255,.15);color:#fff;border:none;width:36px;height:36px;border-radius:50%;font-size:18px;z-index:81}
+  .thumbwrap{position:relative;flex:0 0 auto}
+  .thumbcount{position:absolute;bottom:-4px;right:-4px;background:var(--orange);color:#fff;font-size:9px;font-weight:800;border-radius:999px;padding:1px 5px;line-height:1.3}
+  .photostrip{display:flex;gap:8px;overflow-x:auto;margin-bottom:14px}
+  .photostrip img{flex:0 0 auto;width:120px;height:120px;object-fit:cover;border-radius:10px;border:1px solid var(--border);cursor:pointer}
   .empty{text-align:center;color:var(--sub);padding:50px 20px;font-size:14px;line-height:1.7}
   .overlay{position:fixed;inset:0;background:var(--overlay-bg);display:none;align-items:flex-end;justify-content:center;z-index:50}
   .overlay.show{display:flex}
@@ -119,7 +125,7 @@
   </div>
 </div>
 <p class="updated" id="updatedAt"></p>
-<div class="lightbox" id="lightbox"><img id="lightboxImg" src=""></div>
+<div class="lightbox" id="lightbox"><button class="lightbox-close" id="lightboxClose">✕</button><div class="lightbox-strip" id="lightboxStrip"></div></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -164,11 +170,16 @@ const WASTE_TYPES = [
   { key: 'styrofoam', label: '発泡スチロール', icon: '🧊' },
   { key: 'vinyl', label: 'ビニール', icon: '🛍️' },
 ];
-function photoUrl(id) {
-  return `https://firebasestorage.googleapis.com/v0/b/${firebaseConfig.storageBucket}/o/${encodeURIComponent('course-photos/' + id + '.jpg')}?alt=media`;
+function storagePath(custId, photoId) { return photoId === '__legacy__' ? `course-photos/${custId}.jpg` : `course-photos/${custId}__${photoId}.jpg`; }
+function photoUrlFor(custId, photoId) { return `https://firebasestorage.googleapis.com/v0/b/${firebaseConfig.storageBucket}/o/${encodeURIComponent(storagePath(custId, photoId))}?alt=media`; }
+function customerPhotoIds(cu) { if (cu.photos && cu.photos.length) return cu.photos; if (cu.hasPhoto) return ['__legacy__']; return []; }
+function openLightbox(custId) {
+  const cu = customers.find(c => c.id === custId);
+  const ids = cu ? customerPhotoIds(cu) : [];
+  document.getElementById('lightboxStrip').innerHTML = ids.map(id => `<img src="${photoUrlFor(custId, id)}">`).join('');
+  document.getElementById('lightbox').classList.add('show');
 }
-function openLightbox(id) { document.getElementById('lightboxImg').src = photoUrl(id); document.getElementById('lightbox').classList.add('show'); }
-document.getElementById('lightbox').addEventListener('click', () => document.getElementById('lightbox').classList.remove('show'));
+document.getElementById('lightboxClose').onclick = () => document.getElementById('lightbox').classList.remove('show');
 function mapsUrl(addr) { return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addr); }
 function esc(s) { return (s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
@@ -260,7 +271,7 @@ function renderList() {
     if (!results.length) { list.innerHTML = `<div class="empty">該当する得意先が見つかりません。</div>`; return; }
     list.innerHTML = results.map(cu => `
       <div class="card" onclick="openSheet('${cu.id}')">
-        ${cu.hasPhoto ? `<img class="thumb" src="${photoUrl(cu.id)}" onclick="event.stopPropagation();openLightbox('${cu.id}')" onerror="this.remove()">` : ''}
+        ${cu.hasPhoto || (cu.photos && cu.photos.length) ? `<div class="thumbwrap"><img class="thumb" src="${photoUrlFor(cu.id, customerPhotoIds(cu)[0])}" onclick="event.stopPropagation();openLightbox('${cu.id}')" onerror="this.parentElement.remove()">${customerPhotoIds(cu).length>1?`<span class="thumbcount">${customerPhotoIds(cu).length}</span>`:''}</div>` : ''}
         <div class="info">
           <div class="name">${esc(cu.name)}</div>
           ${cu.address ? `<div class="addr">${esc(cu.address)}</div>` : ''}
@@ -285,7 +296,7 @@ function renderList() {
     return `
     <div class="card" onclick="openSheet('${cu.id}')">
       <div class="num">${i + 1}</div>
-      ${cu.hasPhoto ? `<img class="thumb" src="${photoUrl(cu.id)}" onclick="event.stopPropagation();openLightbox('${cu.id}')" onerror="this.remove()">` : ''}
+      ${cu.hasPhoto || (cu.photos && cu.photos.length) ? `<div class="thumbwrap"><img class="thumb" src="${photoUrlFor(cu.id, customerPhotoIds(cu)[0])}" onclick="event.stopPropagation();openLightbox('${cu.id}')" onerror="this.parentElement.remove()">${customerPhotoIds(cu).length>1?`<span class="thumbcount">${customerPhotoIds(cu).length}</span>`:''}</div>` : ''}
       <div class="info">
         <div class="name">${esc(cu.name)}</div>
         <div class="badges">
@@ -302,7 +313,10 @@ function renderList() {
 function openSheet(custId) {
   const cu = customers.find(c => c.id === custId);
   document.getElementById('sheetName').textContent = cu.name;
-  const photoHtml = `<img class="photo" src="${photoUrl(cu.id)}" alt="回収場所" onerror="this.outerHTML='<div class=photo-ph>写真なし</div>'">`;
+  const photoIds = customerPhotoIds(cu);
+  const photoHtml = photoIds.length
+    ? `<div class="photostrip">${photoIds.map(pid => `<img src="${photoUrlFor(cu.id, pid)}" onclick="openLightbox('${cu.id}')" onerror="this.style.display='none'">`).join('')}</div>`
+    : `<div class="photo-ph">写真なし</div>`;
   const typeBlocks = WASTE_TYPES.filter(w => cu.items && cu.items[w.key]).map(w => {
     const it = cu.items[w.key];
     const course = courses.find(c => c.id === it.courseId);

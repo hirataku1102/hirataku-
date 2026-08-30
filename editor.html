@@ -75,9 +75,18 @@
   .badgeline{display:flex;gap:6px;margin-top:4px}
   .maplink{flex:0 0 auto;width:36px;height:36px;border-radius:10px;background:var(--days-bg);color:var(--blue);display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:15px}
   .thumb{flex:0 0 auto;width:40px;height:40px;border-radius:9px;object-fit:cover;border:1px solid var(--border);cursor:pointer}
+  .thumbwrap{position:relative;flex:0 0 auto}
+  .thumbcount{position:absolute;bottom:-4px;right:-4px;background:var(--orange);color:#fff;font-size:9px;font-weight:800;border-radius:999px;padding:1px 5px;line-height:1.3}
+  .photogrid{display:flex;flex-wrap:wrap;gap:8px}
+  .phototile{position:relative;width:84px;height:84px}
+  .phototile img{width:100%;height:100%;object-fit:cover;border-radius:10px;border:1px solid var(--border)}
+  .phototile .rm{position:absolute;top:-6px;right:-6px;background:rgba(0,0,0,.7);color:#fff;border:none;width:22px;height:22px;border-radius:50%;font-size:12px;line-height:1;cursor:pointer}
+  .phototile.addtile{display:flex;align-items:center;justify-content:center;border:2px dashed var(--input-border);border-radius:10px;color:var(--sub);font-size:26px;background:none;cursor:pointer}
   .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);display:none;align-items:center;justify-content:center;z-index:80;padding:20px}
   .lightbox.show{display:flex}
-  .lightbox img{max-width:100%;max-height:100%;border-radius:10px}
+  .lightbox-strip{display:flex;gap:12px;overflow-x:auto;max-width:100%;max-height:100%;scroll-snap-type:x mandatory}
+  .lightbox-strip img{max-width:88vw;max-height:80vh;border-radius:10px;scroll-snap-align:center}
+  .lightbox-close{position:fixed;top:16px;right:16px;background:rgba(255,255,255,.15);color:#fff;border:none;width:36px;height:36px;border-radius:50%;font-size:18px;z-index:81}
   .empty{text-align:center;color:var(--sub);padding:50px 20px;font-size:14px;line-height:1.7}
   .section-head{display:flex;justify-content:space-between;align-items:center;margin:6px 0 10px}
   .section-head h2{margin:0;font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px}
@@ -155,7 +164,7 @@
 </main>
 
 <div class="overlay" id="overlay"><div class="modal" id="modalRoot"></div></div>
-<div class="lightbox" id="lightbox"><img id="lightboxImg" src=""></div>
+<div class="lightbox" id="lightbox"><button class="lightbox-close" id="lightboxClose">✕</button><div class="lightbox-strip" id="lightboxStrip"></div></div>
 <div class="toast" id="toast"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -226,9 +235,18 @@ const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(
 function mapsUrl(addr) { return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addr); }
 function esc(s) { return (s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast._h); toast._h = setTimeout(() => t.style.display = 'none', 2200); }
-function photoUrl(id) { return `https://firebasestorage.googleapis.com/v0/b/${firebaseConfig.storageBucket}/o/${encodeURIComponent('course-photos/' + id + '.jpg')}?alt=media&t=${Date.now()}`; }
-function openLightbox(id) { document.getElementById('lightboxImg').src = photoUrl(id); document.getElementById('lightbox').classList.add('show'); }
-document.getElementById('lightbox').addEventListener('click', () => document.getElementById('lightbox').classList.remove('show'));
+function storagePath(custId, photoId) { return photoId === '__legacy__' ? `course-photos/${custId}.jpg` : `course-photos/${custId}__${photoId}.jpg`; }
+function photoUrlFor(custId, photoId) { return `https://firebasestorage.googleapis.com/v0/b/${firebaseConfig.storageBucket}/o/${encodeURIComponent(storagePath(custId, photoId))}?alt=media&t=${Date.now()}`; }
+function customerPhotoIds(cu) { if (cu.photos && cu.photos.length) return cu.photos; if (cu.hasPhoto) return ['__legacy__']; return []; }
+async function uploadPhotoAt(custId, photoId, blob) { await storage.ref(storagePath(custId, photoId)).put(blob, { contentType: 'image/jpeg' }); }
+async function deletePhotoAt(custId, photoId) { try { await storage.ref(storagePath(custId, photoId)).delete(); } catch (e) {} }
+function openLightbox(custId) {
+  const cu = customers.find(c => c.id === custId);
+  const ids = cu ? customerPhotoIds(cu) : [];
+  document.getElementById('lightboxStrip').innerHTML = ids.map(id => `<img src="${photoUrlFor(custId, id)}">`).join('');
+  document.getElementById('lightbox').classList.add('show');
+}
+document.getElementById('lightboxClose').onclick = () => document.getElementById('lightbox').classList.remove('show');
 function compressImage(file, maxDim = 900, quality = 0.72) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -263,8 +281,6 @@ async function saveCourseDoc(course) { await db.collection('cm_courses').doc(cou
 async function deleteCourseDoc(id) { await db.collection('cm_courses').doc(id).delete(); }
 async function saveCustomerDoc(cu) { await db.collection('cm_customers').doc(cu.id).set({ ...cu, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }); }
 async function deleteCustomerDoc(id) { await db.collection('cm_customers').doc(id).delete(); }
-async function uploadPhoto(id, blob) { await storage.ref('course-photos/' + id + '.jpg').put(blob, { contentType: 'image/jpeg' }); }
-async function deletePhotoObj(id) { try { await storage.ref('course-photos/' + id + '.jpg').delete(); } catch (e) {} }
 
 /* ==== state ==== */
 let courses = [], customers = [];
@@ -373,7 +389,7 @@ function renderSearchList() {
   if (!results.length) { list.innerHTML = `<div class="empty">見つかりませんでした。</div>`; return; }
   list.innerHTML = results.map(cu => `
     <div class="card">
-      ${cu.hasPhoto ? `<img class="thumb" src="${photoUrl(cu.id)}" onclick="event.stopPropagation();openLightbox('${cu.id}')" onerror="this.remove()">` : ''}
+      ${cu.hasPhoto || (cu.photos && cu.photos.length) ? `<div class="thumbwrap"><img class="thumb" src="${photoUrlFor(cu.id, customerPhotoIds(cu)[0])}" onclick="event.stopPropagation();openLightbox('${cu.id}')" onerror="this.parentElement.remove()">${customerPhotoIds(cu).length>1?`<span class="thumbcount">${customerPhotoIds(cu).length}</span>`:''}</div>` : ''}
       <div class="info" data-edit="${cu.id}">
         <div class="name">${esc(cu.name)}${cu.mgmtNo ? ` <span style="color:var(--sub);font-weight:600">#${esc(cu.mgmtNo)}</span>` : ''}</div>
         ${cu.address ? `<div class="addr">${esc(cu.address)}</div>` : ''}
@@ -406,7 +422,7 @@ function renderCourseList(course) {
         <button data-move="1" data-id="${cu.id}" ${i===filtered.length-1?'disabled':''}>▼</button>
       </div>
       <input type="number" class="posinput" data-pos="${cu.id}" value="${i+1}" min="1" max="${filtered.length}">`}
-      ${cu.hasPhoto ? `<img class="thumb" src="${photoUrl(cu.id)}" onclick="event.stopPropagation();openLightbox('${cu.id}')" onerror="this.remove()">` : ''}
+      ${cu.hasPhoto || (cu.photos && cu.photos.length) ? `<div class="thumbwrap"><img class="thumb" src="${photoUrlFor(cu.id, customerPhotoIds(cu)[0])}" onclick="event.stopPropagation();openLightbox('${cu.id}')" onerror="this.parentElement.remove()">${customerPhotoIds(cu).length>1?`<span class="thumbcount">${customerPhotoIds(cu).length}</span>`:''}</div>` : ''}
       <div class="info" data-edit="${cu.id}">
         <div class="name">${esc(cu.name)}</div>
         <div class="badges">
@@ -581,8 +597,9 @@ function openPickExisting(course) {
 
 /* ==== customer modal ==== */
 async function openCustomerModal(cu, presetType, presetCourseId) {
-  let photoUrlLocal = cu?.hasPhoto ? photoUrl(cu.id) : null;
-  let photoBlob = null, photoChanged = false, photoRemoved = false;
+  let photoIds = cu ? customerPhotoIds(cu) : [];
+  let removedIds = [];
+  let newBlobs = []; // {blob, url}
   let hasKey = cu?.hasKey ?? false;
   const items = cu?.items ? JSON.parse(JSON.stringify(cu.items)) : {};
   if (presetType && !items[presetType]) {
@@ -609,7 +626,7 @@ async function openCustomerModal(cu, presetType, presetCourseId) {
         <span class="lb">鍵の番号</span><input type="text" id="uKeyNumber" value="${cu ? esc(cu.keyNumber||''):''}" placeholder="例：No.12 / 事務所保管">
       </div>
       <div class="field"><span class="lb">品目・コースの割り当て</span><div id="typeBoxes"></div></div>
-      <div class="field"><span class="lb">ゴミ庫・回収場所の写真</span><div id="uPhotoBox"></div><input type="file" accept="image/*" id="uPhotoFile" style="display:none"></div>
+      <div class="field"><span class="lb">ゴミ庫・回収場所の写真（複数枚可）</span><div id="uPhotoBox"></div><input type="file" accept="image/*" multiple id="uPhotoFile" style="display:none"></div>
       <div class="field"><span class="lb">メモ</span><textarea id="uMemo" rows="3" placeholder="回収漏れ注意点など">${cu ? esc(cu.memo||''):''}</textarea></div>
       <div id="uActions"></div>
     </div>
@@ -678,21 +695,28 @@ async function openCustomerModal(cu, presetType, presetCourseId) {
 
   function renderPhotoBox() {
     const pbox = document.getElementById('uPhotoBox');
-    if (photoUrlLocal && !photoRemoved) {
-      pbox.innerHTML = `<div class="photobox"><img src="${photoUrlLocal}" onerror="this.parentElement.parentElement.innerHTML='<button class=uploadbox id=uPhotoPick type=button>📷<span style=font-size:12px>写真を選択・撮影</span></button>'"><button class="rm" id="uPhotoRemove">✕</button></div>
-        <button class="btn ghost sm" id="uPhotoChange" style="margin-top:8px">写真を変更</button>`;
-      const rm = document.getElementById('uPhotoRemove'); if (rm) rm.onclick = () => { photoRemoved = true; photoChanged = true; photoUrlLocal = null; renderPhotoBox(); };
-      const ch = document.getElementById('uPhotoChange'); if (ch) ch.onclick = () => document.getElementById('uPhotoFile').click();
-    } else {
-      pbox.innerHTML = `<button class="uploadbox" id="uPhotoPick" type="button">📷<span style="font-size:12px">写真を選択・撮影</span></button>`;
-      document.getElementById('uPhotoPick').onclick = () => document.getElementById('uPhotoFile').click();
-    }
+    const remaining = photoIds.filter(id => !removedIds.includes(id));
+    const existingTiles = remaining.map(id => `
+      <div class="phototile"><img src="${photoUrlFor(cu.id, id)}"><button class="rm" data-rm-existing="${id}">✕</button></div>
+    `).join('');
+    const newTiles = newBlobs.map((nb, i) => `
+      <div class="phototile"><img src="${nb.url}"><button class="rm" data-rm-new="${i}">✕</button></div>
+    `).join('');
+    pbox.innerHTML = `<div class="photogrid">${existingTiles}${newTiles}<button class="phototile addtile" id="uPhotoAddTile" type="button">📷</button></div>`;
+    pbox.querySelectorAll('[data-rm-existing]').forEach(b => b.onclick = () => { removedIds.push(b.dataset.rmExisting); renderPhotoBox(); });
+    pbox.querySelectorAll('[data-rm-new]').forEach(b => b.onclick = () => { newBlobs.splice(parseInt(b.dataset.rmNew, 10), 1); renderPhotoBox(); });
+    document.getElementById('uPhotoAddTile').onclick = () => document.getElementById('uPhotoFile').click();
   }
   renderPhotoBox();
   document.getElementById('uPhotoFile').addEventListener('change', async e => {
-    const file = e.target.files?.[0]; if (!file) return;
-    try { photoBlob = await compressImage(file); photoChanged = true; photoRemoved = false; photoUrlLocal = URL.createObjectURL(photoBlob); renderPhotoBox(); }
-    catch { toast('画像の処理に失敗しました'); }
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    for (const f of files) {
+      try { const blob = await compressImage(f); newBlobs.push({ blob, url: URL.createObjectURL(blob) }); }
+      catch { toast('画像の処理に失敗しました'); }
+    }
+    e.target.value = '';
+    renderPhotoBox();
   });
 
   const box = document.getElementById('uActions');
@@ -713,15 +737,14 @@ async function openCustomerModal(cu, presetType, presetCourseId) {
           items[k].order = existing.length;
         }
       }
-      let hasPhoto = cu?.hasPhoto || false;
-      if (photoChanged) {
-        if (photoRemoved) { await deletePhotoObj(id); hasPhoto = false; }
-        else { await uploadPhoto(id, photoBlob); hasPhoto = true; }
-      }
+      let finalIds = photoIds.filter(pid => !removedIds.includes(pid));
+      for (const rid of removedIds) await deletePhotoAt(id, rid);
+      for (const nb of newBlobs) { const pid = uid(); await uploadPhotoAt(id, pid, nb.blob); finalIds.push(pid); }
+      const hasPhoto = finalIds.length > 0;
       await saveCustomerDoc({
         id, name, mgmtNo: document.getElementById('uMgmtNo').value.trim(), address: document.getElementById('uAddress').value.trim(),
         hasKey, keyNumber: hasKey ? document.getElementById('uKeyNumber').value.trim() : '',
-        memo: document.getElementById('uMemo').value.trim(), items, hasPhoto,
+        memo: document.getElementById('uMemo').value.trim(), items, hasPhoto, photos: finalIds,
       });
       closeModal(); await refresh(true); toast('保存しました');
     } catch (e) { toast('保存に失敗しました'); console.error(e); btn.disabled = false; btn.textContent = '保存'; }
@@ -734,7 +757,7 @@ async function openCustomerModal(cu, presetType, presetCourseId) {
       document.getElementById('confirmDelC').onclick = async () => {
         try {
           await deleteCustomerDoc(cu.id);
-          if (cu.hasPhoto) await deletePhotoObj(cu.id);
+          for (const pid of customerPhotoIds(cu)) await deletePhotoAt(cu.id, pid);
           closeModal(); await refresh(true); toast('削除しました');
         } catch (e) { toast('削除に失敗しました'); console.error(e); }
       };
