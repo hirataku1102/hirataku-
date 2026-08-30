@@ -60,6 +60,7 @@
   .badge.nokey{background:var(--nokey-bg);color:var(--nokey-fg)}
   .badge.type{background:var(--type-bg);color:var(--type-fg)}
   .badge.days{background:var(--days-bg);color:var(--days-fg)}
+  .badgeline{display:flex;gap:5px;margin-top:4px}
   .maplink{flex:0 0 auto;width:40px;height:40px;border-radius:10px;background:var(--days-bg);color:var(--blue);display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:17px}
   .thumb{flex:0 0 auto;width:40px;height:40px;border-radius:9px;object-fit:cover;border:1px solid var(--border);cursor:pointer}
   .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);display:none;align-items:center;justify-content:center;z-index:80;padding:20px}
@@ -242,7 +243,7 @@ function customerTypeBadges(cu, excludeType) {
     const it = cu.items[w.key];
     const course = courses.find(c => c.id === it.courseId);
     const daysStr = it.days && it.days.length ? it.days.join('') : '';
-    return `<span class="badge type">${w.icon} ${course ? esc(course.name) : '未設定'}</span>` + (daysStr ? `<span class="badge days">${daysStr}</span>` : '');
+    return `<div class="badgeline"><span class="badge type">${w.icon} ${course ? esc(course.name) : '未設定'}</span>${daysStr ? `<span class="badge days">${daysStr}</span>` : ''}</div>`;
   }).join('');
 }
 
@@ -263,7 +264,7 @@ function renderList() {
         <div class="info">
           <div class="name">${esc(cu.name)}</div>
           ${cu.address ? `<div class="addr">${esc(cu.address)}</div>` : ''}
-          <div class="badges">${customerTypeBadges(cu)}</div>
+          ${customerTypeBadges(cu)}
         </div>
         ${cu.address ? `<a class="maplink" href="${mapsUrl(cu.address)}" target="_blank" onclick="event.stopPropagation()">📍</a>` : ''}
       </div>
@@ -290,8 +291,8 @@ function renderList() {
         <div class="badges">
           ${cu.hasKey ? `<span class="badge key">🔑 ${esc(cu.keyNumber || '鍵あり')}</span>` : `<span class="badge nokey">鍵なし</span>`}
           ${it.days && it.days.length ? `<span class="badge days">${it.days.join('')}</span>` : ''}
-          ${customerTypeBadges(cu, mode)}
         </div>
+        ${customerTypeBadges(cu, mode)}
       </div>
       ${cu.address ? `<a class="maplink" href="${mapsUrl(cu.address)}" target="_blank" onclick="event.stopPropagation()">📍</a>` : ''}
     </div>`;
