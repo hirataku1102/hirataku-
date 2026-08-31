@@ -62,6 +62,9 @@
   .badge.days{background:var(--days-bg);color:var(--days-fg)}
   .badgeline{display:flex;gap:5px;margin-top:4px}
   .maplink{flex:0 0 auto;width:40px;height:40px;border-radius:10px;background:var(--days-bg);color:var(--blue);display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:17px}
+  .routecheck{flex:0 0 auto;width:22px;height:22px;accent-color:var(--orange);cursor:pointer}
+  .fab{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;display:none;align-items:center;gap:8px;background:var(--orange);color:#fff;font-weight:800;font-size:14px;padding:12px 20px;border-radius:999px;border:none;box-shadow:0 6px 18px rgba(0,0,0,.3);z-index:40}
+  .fab.show{display:flex}
   .thumb{flex:0 0 auto;width:40px;height:40px;border-radius:9px;object-fit:cover;border:1px solid var(--border);cursor:pointer}
   .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);display:none;align-items:center;justify-content:center;z-index:80;padding:20px}
   .lightbox.show{display:flex}
@@ -125,6 +128,7 @@
   </div>
 </div>
 <p class="updated" id="updatedAt"></p>
+<button class="fab" id="routeFab">📍 まとめて開く</button>
 <div class="lightbox" id="lightbox"><button class="lightbox-close" id="lightboxClose">✕</button><div class="lightbox-strip" id="lightboxStrip"></div></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -217,11 +221,13 @@ function renderTopTabs() {
   box.querySelectorAll('button').forEach(b => b.onclick = () => {
     mode = b.dataset.m;
     dayFilter = 'all';
+    selectedIds.clear();
     if (mode !== 'search') {
       const first = courses.filter(c => c.wasteType === mode).sort((a,b)=>(a.order??0)-(b.order??0))[0];
       activeCourseId = first ? first.id : null;
     }
     document.getElementById('search').value = '';
+    updateFab();
     renderTopTabs(); renderCourseTabs(); renderDayTabs(); renderList();
   });
 }
@@ -246,7 +252,7 @@ function renderCourseTabs() {
   box.innerHTML = list.map(c => `
     <button data-c="${c.id}" class="${c.id === activeCourseId ? 'active' : ''}"><span class="dot" style="background:${c.color}"></span>${esc(c.name)}</button>
   `).join('');
-  box.querySelectorAll('button').forEach(b => b.onclick = () => { activeCourseId = b.dataset.c; dayFilter = 'all'; renderCourseTabs(); renderDayTabs(); renderList(); });
+  box.querySelectorAll('button').forEach(b => b.onclick = () => { activeCourseId = b.dataset.c; dayFilter = 'all'; selectedIds.clear(); updateFab(); renderCourseTabs(); renderDayTabs(); renderList(); });
 }
 
 function itemMeta(cu, key) {
@@ -316,10 +322,36 @@ function renderList() {
         ${it.memo ? `<div class="addr">📝 ${esc(it.memo)}</div>` : ''}
         ${customerTypeBadges(cu, mode)}
       </div>
+      ${cu.address ? `<input type="checkbox" class="routecheck" data-route="${cu.id}" ${selectedIds.has(cu.id) ? 'checked' : ''}>` : ''}
       ${cu.address ? `<a class="maplink" href="${mapsUrl(cu.address)}" target="_blank" onclick="event.stopPropagation()">📍</a>` : ''}
     </div>`;
   }).join('');
+  list.querySelectorAll('[data-route]').forEach(cb => cb.addEventListener('click', e => {
+    e.stopPropagation();
+    if (cb.checked) selectedIds.add(cb.dataset.route); else selectedIds.delete(cb.dataset.route);
+    updateFab();
+  }));
 }
+
+let selectedIds = new Set();
+function updateFab() {
+  const fab = document.getElementById('routeFab');
+  if (selectedIds.size >= 1) { fab.classList.add('show'); fab.textContent = `📍 選択した${selectedIds.size}件をまとめて開く`; }
+  else fab.classList.remove('show');
+}
+document.getElementById('routeFab').onclick = () => {
+  const course = courses.find(c => c.id === activeCourseId);
+  if (!course) return;
+  const items = customers.filter(c => c.items && c.items[mode] && c.items[mode].courseId === course.id && selectedIds.has(c.id));
+  items.sort((a, b) => (a.items[mode].order ?? 0) - (b.items[mode].order ?? 0));
+  const addrs = items.map(c => c.address).filter(Boolean);
+  if (!addrs.length) return;
+  if (addrs.length === 1) { window.open(mapsUrl(addrs[0]), '_blank'); return; }
+  const destination = addrs[addrs.length - 1];
+  const waypoints = addrs.slice(0, -1);
+  const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&waypoints=${waypoints.map(encodeURIComponent).join('|')}&travelmode=driving`;
+  window.open(url, '_blank');
+};
 
 function openSheet(custId) {
   const cu = customers.find(c => c.id === custId);
