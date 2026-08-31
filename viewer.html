@@ -145,12 +145,23 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-/* ==== パスコード（毎回入力を確認） ==== */
+/* ==== パスコード（8時間以上操作がない時だけ再確認） ==== */
 const VIEW_PASSCODE = "daybreak2026"; // ← パスコードを変えたい場合はここを編集してください
+const IDLE_LIMIT_MS = 8 * 60 * 60 * 1000; // 8時間
+function markActive() { try { localStorage.setItem('cm_view_unlocked_at', String(Date.now())); } catch (e) {} }
+function recentlyUnlocked() {
+  try {
+    const t = localStorage.getItem('cm_view_unlocked_at');
+    return !!t && (Date.now() - parseInt(t, 10)) < IDLE_LIMIT_MS;
+  } catch (e) { return false; }
+}
+if (recentlyUnlocked()) { document.getElementById('lockscreen').style.display = 'none'; markActive(); }
+document.addEventListener('click', () => { if (document.getElementById('lockscreen').style.display === 'none') markActive(); });
 document.getElementById('passBtn').onclick = tryUnlock;
 document.getElementById('passInput').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
 function tryUnlock() {
   if (document.getElementById('passInput').value === VIEW_PASSCODE) {
+    markActive();
     document.getElementById('lockscreen').style.display = 'none';
   } else {
     document.getElementById('passErr').style.display = 'block';
