@@ -207,12 +207,12 @@ const WT = Object.fromEntries(WASTE_TYPES.map(w => [w.key, w]));
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 const COLORS = ['#FF7A29', '#4FA88D', '#4C8DFF', '#E8B84B', '#E85D4E', '#9B7EDE'];
 
-/* ==== ロック画面（ブラウザを閉じる/8時間以上操作がないと再確認） ==== */
+/* ==== ロック画面（ブラウザ/アプリを再度開いても、8時間以上操作がない時だけ再確認） ==== */
 const IDLE_LIMIT_MS = 8 * 60 * 60 * 1000; // 8時間
-function markActive() { try { sessionStorage.setItem('cm_unlocked_at', String(Date.now())); } catch (e) {} }
+function markActive() { try { localStorage.setItem('cm_unlocked_at', String(Date.now())); } catch (e) {} }
 function recentlyUnlocked() {
   try {
-    const t = sessionStorage.getItem('cm_unlocked_at');
+    const t = localStorage.getItem('cm_unlocked_at');
     return !!t && (Date.now() - parseInt(t, 10)) < IDLE_LIMIT_MS;
   } catch (e) { return false; }
 }
