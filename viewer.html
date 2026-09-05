@@ -261,28 +261,38 @@ function renderCourseTabs() {
   if (mode === 'search') { box.innerHTML = ''; return; }
   const list = courses.filter(c => c.wasteType === mode).sort((a,b)=>(a.order??0)-(b.order??0));
   box.innerHTML = list.map(c => `
-    <button data-c="${c.id}" class="${c.id === activeCourseId ? 'active' : ''}"><span class="dot" style="background:${c.color}"></span>${esc(c.name)}</button>
+    <button data-c="${c.id}" class="${c.id === activeCourseId ? 'active' : ''}"><span class="dot" style="background:${c.color}"></span>${esc(courseLabel(c))}</button>
   `).join('');
   box.querySelectorAll('button').forEach(b => b.onclick = () => { activeCourseId = b.dataset.c; dayFilter = 'all'; selectedIds.clear(); updateFab(); renderCourseTabs(); renderDayTabs(); renderList(); });
 }
 
-function itemMeta(cu, key) {
-  const it = cu.items && cu.items[key];
-  if (!it) return null;
+function courseLabel(c) { return c ? (c.group ? `${c.group}（${c.name}）` : c.name) : '未設定'; }
+function getAssignments(cu, type) {
+  const it = cu.items && cu.items[type];
+  if (!it) return [];
+  return Array.isArray(it) ? it : [it];
+}
+function findAssignment(cu, type, courseId) {
+  return getAssignments(cu, type).find(a => a.courseId === courseId) || null;
+}
+function withLegacyFallback(cu, a) {
+  if (!a) return null;
   return {
-    ...it,
-    hasKey: it.hasKey !== undefined ? it.hasKey : (cu.hasKey || false),
-    keyNumber: it.keyNumber !== undefined ? it.keyNumber : (cu.keyNumber || ''),
-    memo: it.memo !== undefined ? it.memo : (cu.memo || ''),
+    ...a,
+    hasKey: a.hasKey !== undefined ? a.hasKey : (cu.hasKey || false),
+    keyNumber: a.keyNumber !== undefined ? a.keyNumber : (cu.keyNumber || ''),
+    memo: a.memo !== undefined ? a.memo : (cu.memo || ''),
   };
 }
 function customerTypeBadges(cu, excludeType) {
-  return WASTE_TYPES.filter(w => w.key !== excludeType && cu.items && cu.items[w.key]).map(w => {
-    const it = itemMeta(cu, w.key);
-    const course = courses.find(c => c.id === it.courseId);
-    const daysStr = it.days && it.days.length ? it.days.join('') : '';
-    return `<div class="badgeline"><span class="badge type">${w.icon} ${course ? esc(course.name) : '未設定'}</span>${daysStr ? `<span class="badge days">${daysStr}</span>` : ''}</div>`;
-  }).join('');
+  return WASTE_TYPES.filter(w => w.key !== excludeType).flatMap(w =>
+    getAssignments(cu, w.key).map(raw => {
+      const a = withLegacyFallback(cu, raw);
+      const course = courses.find(c => c.id === a.courseId);
+      const daysStr = a.days && a.days.length ? a.days.join('') : '';
+      return `<div class="badgeline"><span class="badge type">${w.icon} ${esc(courseLabel(course))}</span>${daysStr ? `<span class="badge days">${daysStr}</span>` : ''}</div>`;
+    })
+  ).join('');
 }
 
 function renderList() {
@@ -312,14 +322,14 @@ function renderList() {
 
   const course = courses.find(c => c.id === activeCourseId);
   if (!course) { document.getElementById('meta').textContent = ''; list.innerHTML = `<div class="empty">この品目にはまだコースが登録されていません。</div>`; return; }
-  let items = customers.filter(c => c.items && c.items[mode] && c.items[mode].courseId === course.id);
-  items.sort((a, b) => (a.items[mode].order ?? 0) - (b.items[mode].order ?? 0));
-  if (dayFilter !== 'all') items = items.filter(c => c.items[mode].days && c.items[mode].days.includes(dayFilter));
+  let items = customers.filter(c => findAssignment(c, mode, course.id));
+  items.sort((a, b) => (findAssignment(a, mode, course.id).order ?? 0) - (findAssignment(b, mode, course.id).order ?? 0));
+  if (dayFilter !== 'all') items = items.filter(c => { const a = findAssignment(c, mode, course.id); return a.days && a.days.includes(dayFilter); });
   if (q) items = items.filter(c => (c.name || '').toLowerCase().includes(q) || (c.address || '').toLowerCase().includes(q));
-  document.getElementById('meta').textContent = `${course.name}${dayFilter !== 'all' ? '　' + dayFilter + '曜日のみ' : ''}　${items.length}件`;
+  document.getElementById('meta').textContent = `${courseLabel(course)}${dayFilter !== 'all' ? '　' + dayFilter + '曜日のみ' : ''}　${items.length}件`;
   if (!items.length) { list.innerHTML = `<div class="empty">${dayFilter !== 'all' ? `${dayFilter}曜日の得意先はありません。` : (q ? '該当する得意先がありません。' : 'このコースにはまだ得意先が登録されていません。')}</div>`; return; }
   list.innerHTML = items.map((cu, i) => {
-    const it = itemMeta(cu, mode);
+    const it = withLegacyFallback(cu, findAssignment(cu, mode, course.id));
     return `
     <div class="card" onclick="openSheet('${cu.id}')">
       <div class="num">${i + 1}</div>
@@ -353,8 +363,8 @@ function updateFab() {
 document.getElementById('routeFab').onclick = () => {
   const course = courses.find(c => c.id === activeCourseId);
   if (!course) return;
-  const items = customers.filter(c => c.items && c.items[mode] && c.items[mode].courseId === course.id && selectedIds.has(c.id));
-  items.sort((a, b) => (a.items[mode].order ?? 0) - (b.items[mode].order ?? 0));
+  const items = customers.filter(c => findAssignment(c, mode, course.id) && selectedIds.has(c.id));
+  items.sort((a, b) => (findAssignment(a, mode, course.id).order ?? 0) - (findAssignment(b, mode, course.id).order ?? 0));
   const addrs = items.map(c => c.address).filter(Boolean);
   if (!addrs.length) return;
   if (addrs.length === 1) { window.open(mapsUrl(addrs[0]), '_blank'); return; }
@@ -371,16 +381,18 @@ function openSheet(custId) {
   const photoHtml = photoIds.length
     ? `<div class="photostrip">${photoIds.map(pid => `<img src="${photoUrlFor(cu.id, pid)}" onclick="openLightbox('${cu.id}')" onerror="this.style.display='none'">`).join('')}</div>`
     : `<div class="photo-ph">写真なし</div>`;
-  const typeBlocks = WASTE_TYPES.filter(w => cu.items && cu.items[w.key]).map(w => {
-    const it = itemMeta(cu, w.key);
-    const course = courses.find(c => c.id === it.courseId);
-    return `<div class="typeblock">
-      <div class="th">${w.icon} ${w.label}</div>
-      <div class="tv">${course ? esc(course.name) : '未設定'}${it.days && it.days.length ? '　回収曜日: ' + it.days.join('・') : ''}</div>
-      <div class="tv">${it.hasKey ? '🔑 ' + esc(it.keyNumber || '鍵あり') : '鍵なし／不要'}</div>
-      ${it.memo ? `<div class="tv">📝 ${esc(it.memo)}</div>` : ''}
-    </div>`;
-  }).join('') || `<p style="color:var(--sub);font-size:13px">登録されている品目がありません。</p>`;
+  const typeBlocks = WASTE_TYPES.flatMap(w =>
+    getAssignments(cu, w.key).map(raw => {
+      const it = withLegacyFallback(cu, raw);
+      const course = courses.find(c => c.id === it.courseId);
+      return `<div class="typeblock">
+        <div class="th">${w.icon} ${w.label}</div>
+        <div class="tv">${esc(courseLabel(course))}${it.days && it.days.length ? '　回収曜日: ' + it.days.join('・') : ''}</div>
+        <div class="tv">${it.hasKey ? '🔑 ' + esc(it.keyNumber || '鍵あり') : '鍵なし／不要'}</div>
+        ${it.memo ? `<div class="tv">📝 ${esc(it.memo)}</div>` : ''}
+      </div>`;
+    })
+  ).join('') || `<p style="color:var(--sub);font-size:13px">登録されている品目がありません。</p>`;
   document.getElementById('sheetBody').innerHTML = `
     ${photoHtml}
     ${typeBlocks}

@@ -315,30 +315,40 @@ function renderCourseTabs() {
   const box = document.getElementById('courseTabs');
   if (mode === 'search') { box.innerHTML = ''; return; }
   const list = courses.filter(c => c.wasteType === mode).sort((a,b)=>(a.order??0)-(b.order??0));
-  box.innerHTML = list.map(c => `<button data-c="${c.id}" class="${c.id === activeCourseId ? 'active' : ''}"><span class="dot" style="background:${c.color}"></span>${esc(c.name)}</button>`).join('')
+  box.innerHTML = list.map(c => `<button data-c="${c.id}" class="${c.id === activeCourseId ? 'active' : ''}"><span class="dot" style="background:${c.color}"></span>${esc(courseLabel(c))}</button>`).join('')
     + `<button class="add" id="addCourseBtn">＋ コース追加</button>`;
   box.querySelectorAll('[data-c]').forEach(b => b.onclick = () => { activeCourseId = b.dataset.c; dayFilter = 'all'; renderCourseTabs(); renderContent(); });
   document.getElementById('addCourseBtn').onclick = () => openCourseModal(null, mode);
 }
 
 /* ==== main content ==== */
-function itemMeta(cu, key) {
-  const it = cu.items && cu.items[key];
-  if (!it) return null;
+function courseLabel(c) { return c ? (c.group ? `${c.group}（${c.name}）` : c.name) : '未設定'; }
+function getAssignments(cu, type) {
+  const it = cu.items && cu.items[type];
+  if (!it) return [];
+  return Array.isArray(it) ? it : [it];
+}
+function findAssignment(cu, type, courseId) {
+  return getAssignments(cu, type).find(a => a.courseId === courseId) || null;
+}
+function withLegacyFallback(cu, a) {
+  if (!a) return null;
   return {
-    ...it,
-    hasKey: it.hasKey !== undefined ? it.hasKey : (cu.hasKey || false),
-    keyNumber: it.keyNumber !== undefined ? it.keyNumber : (cu.keyNumber || ''),
-    memo: it.memo !== undefined ? it.memo : (cu.memo || ''),
+    ...a,
+    hasKey: a.hasKey !== undefined ? a.hasKey : (cu.hasKey || false),
+    keyNumber: a.keyNumber !== undefined ? a.keyNumber : (cu.keyNumber || ''),
+    memo: a.memo !== undefined ? a.memo : (cu.memo || ''),
   };
 }
 function customerTypeBadges(cu, excludeType) {
-  return WASTE_TYPES.filter(w => w.key !== excludeType && cu.items && cu.items[w.key]).map(w => {
-    const it = itemMeta(cu, w.key);
-    const c = courses.find(c => c.id === it.courseId);
-    const daysStr = it.days && it.days.length ? it.days.join('') : '';
-    return `<div class="badgeline"><span class="badge type">${w.icon} ${c ? esc(c.name) : '未設定'}</span>${daysStr ? `<span class="badge days">${daysStr}</span>` : ''}</div>`;
-  }).join('');
+  return WASTE_TYPES.filter(w => w.key !== excludeType).flatMap(w =>
+    getAssignments(cu, w.key).map(raw => {
+      const a = withLegacyFallback(cu, raw);
+      const c = courses.find(c => c.id === a.courseId);
+      const daysStr = a.days && a.days.length ? a.days.join('') : '';
+      return `<div class="badgeline"><span class="badge type">${w.icon} ${esc(courseLabel(c))}</span>${daysStr ? `<span class="badge days">${daysStr}</span>` : ''}</div>`;
+    })
+  ).join('');
 }
 
 function renderContent() {
@@ -358,7 +368,7 @@ function renderContent() {
   const course = courses.find(c => c.id === activeCourseId);
   box.innerHTML = `
     <div class="section-head">
-      <h2>${course ? `<span class="dot" style="background:${course.color};display:inline-block"></span> ${esc(course.name)}` : WT[mode].label}
+      <h2>${course ? `<span class="dot" style="background:${course.color};display:inline-block"></span> ${esc(courseLabel(course))}` : WT[mode].label}
         ${course ? `<span class="count" id="cnt"></span>` : ''}
       </h2>
       ${course ? `<button class="btn ghost sm" id="editCourseBtn">編集</button>` : ''}
@@ -412,15 +422,15 @@ function renderSearchList() {
 }
 
 function renderCourseList(course) {
-  let items = customers.filter(c => c.items && c.items[mode] && c.items[mode].courseId === course.id);
-  items.sort((a, b) => (a.items[mode].order ?? 0) - (b.items[mode].order ?? 0));
-  const filtered = dayFilter !== 'all' ? items.filter(c => c.items[mode].days && c.items[mode].days.includes(dayFilter)) : items;
+  let items = customers.filter(c => findAssignment(c, mode, course.id));
+  items.sort((a, b) => (findAssignment(a, mode, course.id).order ?? 0) - (findAssignment(b, mode, course.id).order ?? 0));
+  const filtered = dayFilter !== 'all' ? items.filter(c => { const a = findAssignment(c, mode, course.id); return a.days && a.days.includes(dayFilter); }) : items;
   document.getElementById('cnt').textContent = `${filtered.length}件${dayFilter !== 'all' ? '（' + dayFilter + '曜日のみ）' : ''}`;
   const list = document.getElementById('list');
   if (!filtered.length) { list.innerHTML = `<div class="empty">${dayFilter !== 'all' ? dayFilter + '曜日の得意先はありません。' : 'まだ得意先が登録されていません。'}</div>`; return; }
   const readOnly = dayFilter !== 'all';
   list.innerHTML = filtered.map((cu, i) => {
-    const it = itemMeta(cu, mode);
+    const it = withLegacyFallback(cu, findAssignment(cu, mode, course.id));
     return `
     <div class="card">
       ${readOnly ? `<div class="num">${i+1}</div>` : `
@@ -452,12 +462,15 @@ function renderCourseList(course) {
   });
 }
 
-async function reorderCourse(newOrderItems) {
+async function reorderCourse(courseId, newOrderItems) {
   const batch = db.batch();
   newOrderItems.forEach((cu, idx) => {
-    if (cu.items[mode].order !== idx) {
-      cu.items[mode].order = idx;
-      batch.set(db.collection('cm_customers').doc(cu.id), { ...cu, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    const arr = getAssignments(cu, mode).map(a => ({ ...a }));
+    const a = arr.find(x => x.courseId === courseId);
+    if (a && a.order !== idx) {
+      a.order = idx;
+      const newItems = { ...cu.items, [mode]: arr };
+      batch.set(db.collection('cm_customers').doc(cu.id), { ...cu, items: newItems, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
     }
   });
   await batch.commit();
@@ -474,7 +487,7 @@ async function moveToPosition(course, custId, newPos, items) {
     const copy = [...items];
     const [moved] = copy.splice(idx, 1);
     copy.splice(newIndex, 0, moved);
-    await reorderCourse(copy);
+    await reorderCourse(course.id, copy);
     await refresh(false);
   } catch (e) { toast('並び替えに失敗しました'); console.error(e); }
   busy = false;
@@ -489,7 +502,7 @@ async function moveCustomer(course, id, dir, items) {
   try {
     const copy = [...items];
     [copy[i], copy[j]] = [copy[j], copy[i]];
-    await reorderCourse(copy);
+    await reorderCourse(course.id, copy);
     await refresh(false);
   } catch (e) { toast('並び替えに失敗しました'); console.error(e); }
   busy = false;
@@ -505,6 +518,7 @@ function openCourseModal(course, presetType) {
   let wasteType = course?.wasteType || presetType || WASTE_TYPES[0].key;
   let color = course?.color || COLORS[courses.length % COLORS.length];
   let typicalDays = course?.typicalDays ? [...course.typicalDays] : [];
+  const groupOptions = [...new Set(courses.filter(c => c.group).map(c => c.group))];
   openModal(`
     <div class="modal-head"><h2>${course ? 'コースを編集' : 'コースを追加'}</h2><button class="closebtn" onclick="closeModal()">✕</button></div>
     <div class="modal-body">
@@ -513,7 +527,11 @@ function openCourseModal(course, presetType) {
           ${WASTE_TYPES.map(w => `<button data-wt="${w.key}" class="togglechip ${w.key===wasteType?'on':''}" style="border-radius:8px">${w.icon} ${w.label}</button>`).join('')}
         </div>
       </div>
-      <div class="field"><span class="lb">コース名</span><input type="text" id="cName" value="${course ? esc(course.name) : ''}" placeholder="例：可燃1号"></div>
+      <div class="field"><span class="lb">グループ名（任意・例：Aコース。同じグループのコースをまとめて表示します）</span>
+        <input type="text" id="cGroup" value="${course ? esc(course.group||'') : ''}" placeholder="例：Aコース" list="cGroupList">
+        <datalist id="cGroupList">${groupOptions.map(g => `<option value="${esc(g)}">`).join('')}</datalist>
+      </div>
+      <div class="field"><span class="lb">コース名（例：月水金、火木土 など）</span><input type="text" id="cName" value="${course ? esc(course.name) : ''}" placeholder="例：月水金"></div>
       <div class="field"><span class="lb">基本の回収曜日（新規登録時の初期値として使われます）</span>
         <div class="daysrow" id="cDays">${WEEKDAYS.map(d => `<button data-d="${d}" class="${typicalDays.includes(d)?'active':''}">${d}</button>`).join('')}</div>
       </div>
@@ -533,6 +551,11 @@ function openCourseModal(course, presetType) {
   const colorRow = document.getElementById('cColors');
   colorRow.innerHTML = COLORS.map(hex => `<button data-hex="${hex}" style="background:${hex}" class="${hex===color?'active':''}"></button>`).join('');
   colorRow.querySelectorAll('button').forEach(b => b.onclick = () => { color = b.dataset.hex; colorRow.querySelectorAll('button').forEach(x => x.classList.toggle('active', x===b)); });
+  document.getElementById('cGroup').addEventListener('change', () => {
+    const g = document.getElementById('cGroup').value.trim();
+    const sibling = courses.find(c => c.group === g && c.wasteType === wasteType);
+    if (sibling) { color = sibling.color; colorRow.querySelectorAll('button').forEach(x => x.classList.toggle('active', x.dataset.hex === color)); }
+  });
 
   renderCourseActions();
   document.getElementById('cName').focus();
@@ -549,20 +572,26 @@ function openCourseModal(course, presetType) {
       if (!name) { toast('コース名を入力してください'); return; }
       try {
         const sameTypeCount = courses.filter(c => c.wasteType === wasteType && c.id !== course?.id).length;
-        await saveCourseDoc({ id: course ? course.id : uid(), name, wasteType, color, typicalDays, order: course ? (course.order ?? sameTypeCount) : sameTypeCount });
+        const group = document.getElementById('cGroup').value.trim();
+        await saveCourseDoc({ id: course ? course.id : uid(), name, group, wasteType, color, typicalDays, order: course ? (course.order ?? sameTypeCount) : sameTypeCount });
         closeModal(); mode = wasteType; await refresh(true);
         toast('保存しました');
       } catch (e) { toast('保存に失敗しました'); console.error(e); }
     };
     if (course) {
       document.getElementById('delCourseBtn').onclick = () => {
-        box.innerHTML = `<div class="confirmbox"><p>⚠️ このコースを削除します。ここに登録されている得意先の「${WT[wasteType].label}」の割り当ても解除されます（得意先自体や他品目の情報は残ります）。よろしいですか？</p>
+        box.innerHTML = `<div class="confirmbox"><p>⚠️ このコースを削除します。ここに登録されている得意先の「${WT[wasteType].label}」の割り当ても解除されます（得意先自体や他品目・他コースの情報は残ります）。よろしいですか？</p>
           <div class="confirm-actions"><button class="btn ghost" id="cancelDel">やめる</button><button class="btn danger" id="confirmDel">完全に削除</button></div></div>`;
         document.getElementById('cancelDel').onclick = renderCourseActions;
         document.getElementById('confirmDel').onclick = async () => {
           try {
-            const affected = customers.filter(c => c.items && c.items[wasteType] && c.items[wasteType].courseId === course.id);
-            for (const cu of affected) { const items = { ...cu.items }; delete items[wasteType]; await saveCustomerDoc({ ...cu, items }); }
+            const affected = customers.filter(c => findAssignment(c, wasteType, course.id));
+            for (const cu of affected) {
+              const arr = getAssignments(cu, wasteType).filter(a => a.courseId !== course.id);
+              const items = { ...cu.items };
+              if (arr.length) items[wasteType] = arr; else delete items[wasteType];
+              await saveCustomerDoc({ ...cu, items });
+            }
             await deleteCourseDoc(course.id);
             if (activeCourseId === course.id) activeCourseId = null;
             closeModal(); await refresh(true);
@@ -588,13 +617,13 @@ function openPickExisting(course) {
     const box = document.getElementById('pickList');
     if (!q) { box.innerHTML = `<div class="empty">検索してください。</div>`; return; }
     const results = customers.filter(c => ((c.name||'').toLowerCase().includes(q) || (c.address||'').toLowerCase().includes(q))
-      && !(c.items && c.items[mode] && c.items[mode].courseId === course.id));
+      && !findAssignment(c, mode, course.id));
     if (!results.length) { box.innerHTML = `<div class="empty">見つかりません（すでにこのコースにいる場合も表示されません）。</div>`; return; }
     box.innerHTML = results.slice(0, 30).map(cu => `
       <div class="card"><div class="info" data-pick="${cu.id}">
         <div class="name">${esc(cu.name)}</div>
         ${cu.address ? `<div class="addr">${esc(cu.address)}</div>` : ''}
-        <div class="badges">${customerTypeBadges(cu)}</div>
+        ${customerTypeBadges(cu)}
       </div></div>
     `).join('');
     box.querySelectorAll('[data-pick]').forEach(el => el.onclick = () => { closeModal(); openCustomerModal(customers.find(c => c.id === el.dataset.pick), mode, course.id); });
@@ -608,16 +637,23 @@ async function openCustomerModal(cu, presetType, presetCourseId) {
   let photoIds = cu ? customerPhotoIds(cu) : [];
   let removedIds = [];
   let newBlobs = []; // {blob, url}
-  const items = cu?.items ? JSON.parse(JSON.stringify(cu.items)) : {};
-  // 旧バージョン（品目共通の鍵・メモ）からの引き継ぎ
-  for (const k of Object.keys(items)) {
-    if (items[k].hasKey === undefined) items[k].hasKey = cu?.hasKey ?? false;
-    if (items[k].keyNumber === undefined) items[k].keyNumber = cu?.keyNumber ?? '';
-    if (items[k].memo === undefined) items[k].memo = cu?.memo ?? '';
+  const items = {};
+  for (const w of WASTE_TYPES) {
+    if (cu?.items && cu.items[w.key]) {
+      items[w.key] = getAssignments(cu, w.key).map(a => ({
+        ...a,
+        hasKey: a.hasKey !== undefined ? a.hasKey : (cu.hasKey ?? false),
+        keyNumber: a.keyNumber !== undefined ? a.keyNumber : (cu.keyNumber ?? ''),
+        memo: a.memo !== undefined ? a.memo : (cu.memo ?? ''),
+      }));
+    }
   }
-  if (presetType && !items[presetType]) {
-    const c = courses.find(x => x.id === presetCourseId);
-    items[presetType] = { courseId: presetCourseId, order: 9999, days: c?.typicalDays ? [...c.typicalDays] : [], hasKey: false, keyNumber: '', memo: '' };
+  if (presetType) {
+    if (!items[presetType]) items[presetType] = [];
+    if (!items[presetType].some(a => a.courseId === presetCourseId)) {
+      const c = courses.find(x => x.id === presetCourseId);
+      items[presetType].push({ courseId: presetCourseId, order: 9999, days: c?.typicalDays ? [...c.typicalDays] : [], hasKey: false, keyNumber: '', memo: '' });
+    }
   }
 
   openModal(`
@@ -644,67 +680,94 @@ async function openCustomerModal(cu, presetType, presetCourseId) {
   function renderTypeBoxes() {
     const box = document.getElementById('typeBoxes');
     box.innerHTML = WASTE_TYPES.map(w => {
-      const on = !!items[w.key];
+      const arr = items[w.key] || [];
+      const on = arr.length > 0;
       const coursesOfType = courses.filter(c => c.wasteType === w.key);
-      const cur = items[w.key];
-      return `<div class="typebox">
-        <div class="th"><strong>${w.icon} ${w.label}</strong><button class="togglechip ${on?'on':''}" data-toggle="${w.key}">${on?'登録中':'未登録'}</button></div>
-        ${on ? `
-          <div class="field" style="margin-bottom:8px">
-            <select data-course="${w.key}">
-              <option value="">コースを選択</option>
-              ${coursesOfType.map(c => `<option value="${c.id}" ${cur.courseId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}
-            </select>
+      const usedCourseIds = arr.map(a => a.courseId);
+      const canAddMore = coursesOfType.some(c => !usedCourseIds.includes(c.id));
+      const assignBlocks = arr.map((cur, ai) => `
+        <div class="assignblock" data-ablock="${w.key}:${ai}" style="border-top:1px solid var(--border);padding-top:10px;margin-top:10px">
+          <div class="field" style="margin-bottom:8px;display:flex;gap:6px;align-items:flex-end">
+            <div style="flex:1">
+              <select data-course="${w.key}" data-ai="${ai}">
+                ${coursesOfType.map(c => `<option value="${c.id}" ${cur.courseId===c.id?'selected':''}>${esc(courseLabel(c))}</option>`).join('')}
+              </select>
+            </div>
+            ${arr.length > 1 ? `<button class="btn danger sm" data-removeassign="${w.key}:${ai}" type="button">✕</button>` : ''}
           </div>
-          <div class="daysrow" data-days="${w.key}" style="margin-bottom:10px">${WEEKDAYS.map(d => `<button data-d="${d}" class="${cur.days && cur.days.includes(d)?'active':''}">${d}</button>`).join('')}</div>
-          <div class="keyrow" data-keyrow="${w.key}" style="margin-bottom:8px">
+          <div class="daysrow" data-days="${w.key}:${ai}" style="margin-bottom:10px">${WEEKDAYS.map(d => `<button data-d="${d}" class="${cur.days && cur.days.includes(d)?'active':''}">${d}</button>`).join('')}</div>
+          <div class="keyrow" data-keyrow="${w.key}:${ai}" style="margin-bottom:8px">
             <button data-v="1" class="${cur.hasKey?'active yes':''}">🔑 鍵あり</button>
             <button data-v="0" class="${!cur.hasKey?'active no':''}">鍵なし／不要</button>
           </div>
-          <div class="field" data-keynumfield="${w.key}" style="display:${cur.hasKey?'':'none'};margin-bottom:8px">
-            <input type="text" data-keynum="${w.key}" value="${esc(cur.keyNumber||'')}" placeholder="鍵の番号（例：No.12 / 事務所保管）">
+          <div class="field" data-keynumfield="${w.key}:${ai}" style="display:${cur.hasKey?'':'none'};margin-bottom:8px">
+            <input type="text" data-keynum="${w.key}:${ai}" value="${esc(cur.keyNumber||'')}" placeholder="鍵の番号（例：No.12 / 事務所保管）">
           </div>
-          <textarea data-memo="${w.key}" rows="2" placeholder="この品目のメモ（回収漏れ注意点など）">${esc(cur.memo||'')}</textarea>
-        ` : ''}
+          <textarea data-memo="${w.key}:${ai}" rows="2" placeholder="この割り当てのメモ（回収漏れ注意点など）">${esc(cur.memo||'')}</textarea>
+        </div>
+      `).join('');
+      return `<div class="typebox">
+        <div class="th"><strong>${w.icon} ${w.label}</strong><button class="togglechip ${on?'on':''}" data-toggle="${w.key}">${on?'登録中':'未登録'}</button></div>
+        ${assignBlocks}
+        ${on && canAddMore ? `<button class="btn ghost sm" data-addassign="${w.key}" type="button" style="margin-top:10px">＋ 別のコースにも登録（例：毎日回収・水土だけ回収 等）</button>` : ''}
       </div>`;
     }).join('');
     box.querySelectorAll('[data-toggle]').forEach(b => b.onclick = () => {
       const k = b.dataset.toggle;
-      if (items[k]) { delete items[k]; }
+      if (items[k] && items[k].length) { delete items[k]; }
       else {
         const first = courses.find(c => c.wasteType === k);
-        items[k] = { courseId: first ? first.id : '', order: 9999, days: first?.typicalDays ? [...first.typicalDays] : [], hasKey: false, keyNumber: '', memo: '' };
+        items[k] = [{ courseId: first ? first.id : '', order: 9999, days: first?.typicalDays ? [...first.typicalDays] : [], hasKey: false, keyNumber: '', memo: '' }];
       }
       renderTypeBoxes();
     });
+    box.querySelectorAll('[data-addassign]').forEach(b => b.onclick = () => {
+      const k = b.dataset.addassign;
+      const used = items[k].map(a => a.courseId);
+      const next = courses.find(c => c.wasteType === k && !used.includes(c.id));
+      if (!next) return;
+      items[k].push({ courseId: next.id, order: 9999, days: next.typicalDays ? [...next.typicalDays] : [], hasKey: false, keyNumber: '', memo: '' });
+      renderTypeBoxes();
+    });
+    box.querySelectorAll('[data-removeassign]').forEach(b => b.onclick = () => {
+      const [k, ai] = b.dataset.removeassign.split(':');
+      items[k].splice(parseInt(ai, 10), 1);
+      if (!items[k].length) delete items[k];
+      renderTypeBoxes();
+    });
     box.querySelectorAll('[data-course]').forEach(sel => sel.onchange = () => {
-      const k = sel.dataset.course;
-      items[k].courseId = sel.value;
+      const k = sel.dataset.course, ai = parseInt(sel.dataset.ai, 10);
+      items[k][ai].courseId = sel.value;
       const c = courses.find(c => c.id === sel.value);
-      if (c?.typicalDays) items[k].days = [...c.typicalDays];
+      if (c?.typicalDays) items[k][ai].days = [...c.typicalDays];
       renderTypeBoxes();
     });
     box.querySelectorAll('[data-days]').forEach(row => {
-      const k = row.dataset.days;
+      const [k, ai] = row.dataset.days.split(':');
       row.querySelectorAll('[data-d]').forEach(b => b.onclick = () => {
         const d = b.dataset.d;
-        if (!items[k].days) items[k].days = [];
-        if (items[k].days.includes(d)) items[k].days = items[k].days.filter(x => x !== d);
-        else items[k].days.push(d);
+        const a = items[k][ai];
+        if (!a.days) a.days = [];
+        if (a.days.includes(d)) a.days = a.days.filter(x => x !== d); else a.days.push(d);
+        items[k][ai].days = a.days;
         b.classList.toggle('active');
       });
     });
     box.querySelectorAll('[data-keyrow]').forEach(row => {
-      const k = row.dataset.keyrow;
+      const [k, ai] = row.dataset.keyrow.split(':');
       row.querySelectorAll('button').forEach(b => b.onclick = () => {
-        items[k].hasKey = b.dataset.v === '1';
+        items[k][ai].hasKey = b.dataset.v === '1';
         row.querySelectorAll('button').forEach(x => x.className = '');
-        b.className = items[k].hasKey ? 'active yes' : 'active no';
-        box.querySelector(`[data-keynumfield="${k}"]`).style.display = items[k].hasKey ? '' : 'none';
+        b.className = items[k][ai].hasKey ? 'active yes' : 'active no';
+        box.querySelector(`[data-keynumfield="${k}:${ai}"]`).style.display = items[k][ai].hasKey ? '' : 'none';
       });
     });
-    box.querySelectorAll('[data-keynum]').forEach(inp => inp.addEventListener('input', () => { items[inp.dataset.keynum].keyNumber = inp.value.trim(); }));
-    box.querySelectorAll('[data-memo]').forEach(ta => ta.addEventListener('input', () => { items[ta.dataset.memo].memo = ta.value.trim(); }));
+    box.querySelectorAll('[data-keynum]').forEach(inp => inp.addEventListener('input', () => {
+      const [k, ai] = inp.dataset.keynum.split(':'); items[k][ai].keyNumber = inp.value.trim();
+    }));
+    box.querySelectorAll('[data-memo]').forEach(ta => ta.addEventListener('input', () => {
+      const [k, ai] = ta.dataset.memo.split(':'); items[k][ai].memo = ta.value.trim();
+    }));
   }
   renderTypeBoxes();
 
@@ -742,14 +805,16 @@ async function openCustomerModal(cu, presetType, presetCourseId) {
   document.getElementById('saveCustBtn').onclick = async () => {
     const name = document.getElementById('uName').value.trim();
     if (!name) { toast('得意先名を入力してください'); return; }
-    for (const k of Object.keys(items)) if (!items[k].courseId) { toast(`${WT[k].label}のコースを選択してください`); return; }
+    for (const k of Object.keys(items)) for (const a of items[k]) if (!a.courseId) { toast(`${WT[k].label}のコースを選択してください`); return; }
     const btn = document.getElementById('saveCustBtn'); btn.disabled = true; btn.textContent = '保存中…';
     try {
       const id = cu ? cu.id : uid();
       for (const k of Object.keys(items)) {
-        if (items[k].order === 9999) {
-          const existing = customers.filter(c => c.id !== id && c.items && c.items[k] && c.items[k].courseId === items[k].courseId);
-          items[k].order = existing.length;
+        for (const a of items[k]) {
+          if (a.order === 9999) {
+            const existing = customers.filter(c => c.id !== id && findAssignment(c, k, a.courseId));
+            a.order = existing.length;
+          }
         }
       }
       let finalIds = photoIds.filter(pid => !removedIds.includes(pid));
@@ -814,7 +879,7 @@ document.getElementById('csvBtn').onclick = () => {
   function refreshCourseSelect() {
     const sel = document.getElementById('csvCourse');
     const list = courses.filter(c => c.wasteType === document.getElementById('csvType').value);
-    sel.innerHTML = list.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('') || `<option value="">（先にコースを作成してください）</option>`;
+    sel.innerHTML = list.map(c => `<option value="${c.id}">${esc(courseLabel(c))}</option>`).join('') || `<option value="">（先にコースを作成してください）</option>`;
     if (targetCourseId && list.some(c=>c.id===targetCourseId)) sel.value = targetCourseId;
   }
   document.getElementById('csvType').addEventListener('change', refreshCourseSelect);
@@ -872,7 +937,7 @@ document.getElementById('csvBtn').onclick = () => {
     const btn = document.getElementById('csvImportBtn'); btn.disabled = true; btn.textContent = '取り込み中…';
     try {
       const course = courses.find(c => c.id === courseId);
-      let order = customers.filter(c => c.items && c.items[type] && c.items[type].courseId === courseId).length;
+      let order = customers.filter(c => findAssignment(c, type, courseId)).length;
       const seenThisBatch = {}; // mgmtNo -> id、同じCSV内での重複対策
       let mergedCount = 0, newCount = 0;
       for (const r of preview) {
@@ -882,12 +947,15 @@ document.getElementById('csvBtn').onclick = () => {
           existing = customers.find(c => c.mgmtNo && c.mgmtNo === r.mgmtNo) || null;
           if (!existing && seenThisBatch[r.mgmtNo]) existing = customers.find(c => c.id === seenThisBatch[r.mgmtNo]) || null;
         }
+        const assignment = { courseId, order: order++, days, hasKey: r.hasKey, keyNumber: r.keyNumber, memo: r.memo };
         if (existing) {
+          const arr = getAssignments(existing, type).filter(a => a.courseId !== courseId);
+          arr.push(assignment);
           const merged = {
             ...existing,
             name: existing.name || r.name,
             address: existing.address || r.address,
-            items: { ...existing.items, [type]: { courseId, order: order++, days, hasKey: r.hasKey, keyNumber: r.keyNumber, memo: r.memo } },
+            items: { ...existing.items, [type]: arr },
           };
           await saveCustomerDoc(merged);
           seenThisBatch[r.mgmtNo] = existing.id;
@@ -896,7 +964,7 @@ document.getElementById('csvBtn').onclick = () => {
         } else {
           const id = uid();
           const created = { id, name: r.name, mgmtNo: r.mgmtNo, address: r.address, hasPhoto: false,
-            items: { [type]: { courseId, order: order++, days, hasKey: r.hasKey, keyNumber: r.keyNumber, memo: r.memo } } };
+            items: { [type]: [assignment] } };
           await saveCustomerDoc(created);
           customers.push(created);
           if (r.mgmtNo) seenThisBatch[r.mgmtNo] = id;
@@ -915,24 +983,28 @@ document.getElementById('seedBtn').onclick = async () => {
   try {
     const c1 = { id: uid(), name: '可燃1号', wasteType: 'combustible', typicalDays: ['月','火','水','木','金','土'], color: COLORS[0], order: 0 };
     const c2 = { id: uid(), name: '可燃2号', wasteType: 'combustible', typicalDays: ['月'], color: COLORS[1], order: 1 };
-    const c3 = { id: uid(), name: 'ダンボールAコース', wasteType: 'cardboard', typicalDays: ['月','水','金'], color: COLORS[2], order: 0 };
+    const c3 = { id: uid(), name: '月水金', group: 'ダンボールAコース', wasteType: 'cardboard', typicalDays: ['月','水','金'], color: COLORS[2], order: 0 };
+    const c3b = { id: uid(), name: '火木土', group: 'ダンボールAコース', wasteType: 'cardboard', typicalDays: ['火','木','土'], color: COLORS[2], order: 1 };
     const c4 = { id: uid(), name: '飲料容器Bコース', wasteType: 'beverage', typicalDays: ['火','木','土'], color: COLORS[3], order: 0 };
-    for (const c of [c1, c2, c3, c4]) await saveCourseDoc(c);
+    for (const c of [c1, c2, c3, c3b, c4]) await saveCourseDoc(c);
 
     const cust = [
       { name: '〇〇マンション', address: '大阪府堺市堺区市之町1-1',
-        items: { combustible: { courseId: c1.id, order: 0, days: c1.typicalDays, hasKey: false, keyNumber: '', memo: '' },
-                 cardboard: { courseId: c3.id, order: 0, days: c3.typicalDays, hasKey: true, keyNumber: 'No.3（管理室隣フック）', memo: '裏口の駐輪場横にゴミ庫あり' } } },
+        items: { combustible: [{ courseId: c1.id, order: 0, days: c1.typicalDays, hasKey: false, keyNumber: '', memo: '' }],
+                 cardboard: [{ courseId: c3.id, order: 0, days: c3.typicalDays, hasKey: true, keyNumber: 'No.3（管理室隣フック）', memo: '裏口の駐輪場横にゴミ庫あり' }] } },
       { name: '△△ビル', address: '大阪府堺市堺区中瓦町2-2',
-        items: { combustible: { courseId: c1.id, order: 1, days: c1.typicalDays, hasKey: false, keyNumber: '', memo: '常時開放、鍵不要' } } },
+        items: { combustible: [{ courseId: c1.id, order: 1, days: c1.typicalDays, hasKey: false, keyNumber: '', memo: '常時開放、鍵不要' }] } },
       { name: '株式会社サンプル商事', address: '大阪府堺市北区新金岡町3-3',
-        items: { combustible: { courseId: c2.id, order: 0, days: ['月'], hasKey: true, keyNumber: '事務所内保管（受付で借用）', memo: '' },
-                 beverage: { courseId: c4.id, order: 0, days: c4.typicalDays, hasKey: false, keyNumber: '', memo: '' } } },
-      { name: '□□アパート', address: '大阪府堺市西区鳳北町4-4',
-        items: { cardboard: { courseId: c3.id, order: 1, days: c3.typicalDays, hasKey: false, keyNumber: '', memo: '道路沿いに直置き、午前中回収希望' } } },
+        items: { combustible: [{ courseId: c2.id, order: 0, days: ['月'], hasKey: true, keyNumber: '事務所内保管（受付で借用）', memo: '' }],
+                 beverage: [{ courseId: c4.id, order: 0, days: c4.typicalDays, hasKey: false, keyNumber: '', memo: '' }] } },
+      { name: '□□アパート（毎日回収）', address: '大阪府堺市西区鳳北町4-4',
+        items: { cardboard: [
+          { courseId: c3.id, order: 1, days: c3.typicalDays, hasKey: false, keyNumber: '', memo: '道路沿いに直置き、午前中回収希望（月水金分）' },
+          { courseId: c3b.id, order: 0, days: c3b.typicalDays, hasKey: false, keyNumber: '', memo: '道路沿いに直置き、午前中回収希望（火木土分）' },
+        ] } },
       { name: 'サンプル工場', address: '大阪府堺市東区日置荘原寺町5-5',
-        items: { combustible: { courseId: c1.id, order: 2, days: c1.typicalDays, hasKey: true, keyNumber: 'No.7', memo: '正門守衛所で鍵を借りる' },
-                 beverage: { courseId: c4.id, order: 1, days: c4.typicalDays, hasKey: false, keyNumber: '', memo: '' } } },
+        items: { combustible: [{ courseId: c1.id, order: 2, days: c1.typicalDays, hasKey: true, keyNumber: 'No.7', memo: '正門守衛所で鍵を借りる' }],
+                 beverage: [{ courseId: c4.id, order: 1, days: c4.typicalDays, hasKey: false, keyNumber: '', memo: '' }] } },
     ];
     for (const cu of cust) await saveCustomerDoc({ id: uid(), hasPhoto: false, ...cu });
 
