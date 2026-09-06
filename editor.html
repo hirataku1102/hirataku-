@@ -514,6 +514,19 @@ document.getElementById('overlay').addEventListener('click', e => { if (e.target
 function openModal(html) { document.getElementById('modalRoot').innerHTML = html; document.getElementById('overlay').classList.add('show'); }
 
 /* ==== course modal ==== */
+async function clearCourseAssignments(courseId, type) {
+  const affected = customers.filter(c => findAssignment(c, type, courseId));
+  for (const cu of affected) {
+    const arr = getAssignments(cu, type).filter(a => a.courseId !== courseId);
+    const items = { ...cu.items };
+    if (arr.length) items[type] = arr; else delete items[type];
+    const updated = { ...cu, items };
+    await saveCustomerDoc(updated);
+    const i = customers.findIndex(c => c.id === cu.id); if (i !== -1) customers[i] = updated;
+  }
+  return affected.length;
+}
+
 function openCourseModal(course, presetType) {
   let wasteType = course?.wasteType || presetType || WASTE_TYPES[0].key;
   let color = course?.color || COLORS[courses.length % COLORS.length];
@@ -564,7 +577,7 @@ function openCourseModal(course, presetType) {
     const box = document.getElementById('cActions');
     box.innerHTML = `
       <div class="modal-actions">
-        ${course ? `<button class="btn danger" id="delCourseBtn">削除</button>` : '<span></span>'}
+        ${course ? `<div style="display:flex;gap:6px"><button class="btn danger" id="clearCourseBtn">登録をクリア</button><button class="btn danger" id="delCourseBtn">削除</button></div>` : '<span></span>'}
         <div class="right"><button class="btn ghost" onclick="closeModal()">キャンセル</button><button class="btn primary" id="saveCourseBtn">保存</button></div>
       </div>`;
     document.getElementById('saveCourseBtn').onclick = async () => {
@@ -579,19 +592,25 @@ function openCourseModal(course, presetType) {
       } catch (e) { toast('保存に失敗しました'); console.error(e); }
     };
     if (course) {
+      document.getElementById('clearCourseBtn').onclick = () => {
+        box.innerHTML = `<div class="confirmbox"><p>⚠️ このコースに登録されている得意先を全員、このコースから外します（コース自体・得意先自体・他品目や他コースの登録は残ります）。CSVで新しい回り方を登録し直す前などにお使いください。よろしいですか？</p>
+          <div class="confirm-actions"><button class="btn ghost" id="cancelClear">やめる</button><button class="btn danger" id="confirmClear">クリアする</button></div></div>`;
+        document.getElementById('cancelClear').onclick = renderCourseActions;
+        document.getElementById('confirmClear').onclick = async () => {
+          try {
+            const n = await clearCourseAssignments(course.id, wasteType);
+            closeModal(); await refresh(true);
+            toast(`${n}件の登録をクリアしました`);
+          } catch (e) { toast('クリアに失敗しました'); console.error(e); }
+        };
+      };
       document.getElementById('delCourseBtn').onclick = () => {
         box.innerHTML = `<div class="confirmbox"><p>⚠️ このコースを削除します。ここに登録されている得意先の「${WT[wasteType].label}」の割り当ても解除されます（得意先自体や他品目・他コースの情報は残ります）。よろしいですか？</p>
           <div class="confirm-actions"><button class="btn ghost" id="cancelDel">やめる</button><button class="btn danger" id="confirmDel">完全に削除</button></div></div>`;
         document.getElementById('cancelDel').onclick = renderCourseActions;
         document.getElementById('confirmDel').onclick = async () => {
           try {
-            const affected = customers.filter(c => findAssignment(c, wasteType, course.id));
-            for (const cu of affected) {
-              const arr = getAssignments(cu, wasteType).filter(a => a.courseId !== course.id);
-              const items = { ...cu.items };
-              if (arr.length) items[wasteType] = arr; else delete items[wasteType];
-              await saveCustomerDoc({ ...cu, items });
-            }
+            await clearCourseAssignments(course.id, wasteType);
             await deleteCourseDoc(course.id);
             if (activeCourseId === course.id) activeCourseId = null;
             closeModal(); await refresh(true);
@@ -870,6 +889,10 @@ document.getElementById('csvBtn').onclick = () => {
         <select id="csvType">${WASTE_TYPES.map(w=>`<option value="${w.key}" ${w.key===targetType?'selected':''}>${w.icon} ${w.label}</option>`).join('')}</select>
       </div>
       <div class="field"><span class="lb">登録先のコース</span><select id="csvCourse"></select></div>
+      <div class="field" style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="csvOverwrite" style="width:20px;height:20px">
+        <label for="csvOverwrite" style="font-size:13px;color:var(--danger-fg);font-weight:700">取り込み前に、このコースの現在の登録をクリアする（上書き）</label>
+      </div>
       <div class="field"><button class="btn ghost" id="csvPick">CSVファイルを選択</button><input type="file" accept=".csv,text/csv" id="csvFile" style="display:none"></div>
       <div class="field"><textarea id="csvText" rows="6" placeholder="またはここに直接貼り付け" style="font-family:monospace;font-size:12px"></textarea></div>
       <div id="csvPreview"></div>
@@ -936,6 +959,9 @@ document.getElementById('csvBtn').onclick = () => {
     if (!preview || !courseId) { toast('登録先コースを選択してください'); return; }
     const btn = document.getElementById('csvImportBtn'); btn.disabled = true; btn.textContent = '取り込み中…';
     try {
+      if (document.getElementById('csvOverwrite').checked) {
+        await clearCourseAssignments(courseId, type);
+      }
       const course = courses.find(c => c.id === courseId);
       let order = customers.filter(c => findAssignment(c, type, courseId)).length;
       const seenThisBatch = {}; // mgmtNo -> id、同じCSV内での重複対策
