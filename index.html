@@ -414,13 +414,13 @@ function tokenize(q){
 function matches(group, tokens){
   if(!tokens.length) return true;
   const hay = norm(group.k1 + ' ' + group.k2 + ' ' + group.kaddr + ' ' +
-    group.sites.map(s => s.t1+' '+s.t2+' '+s.taddr+' '+s.shohin).join(' '));
+    group.sites.map(s => s.t1+' '+s.t2+' '+s.taddr+' '+s.shohin+' '+s.code).join(' '));
   return tokens.every(t => hay.includes(t));
 }
 
 function siteMatches(site, tokens){
   if(!tokens.length) return true;
-  const hay = norm(site.t1+' '+site.t2+' '+site.taddr+' '+site.shohin);
+  const hay = norm(site.t1+' '+site.t2+' '+site.taddr+' '+site.shohin+' '+site.code);
   return tokens.every(t => hay.includes(t));
 }
 
@@ -461,6 +461,7 @@ function renderSite(site){
     <div class="site-name">${escapeHtml(site.t1)}${name2}${tag}</div>
     <div class="site-addr">${mapLink(site.taddr)}</div>
     <div class="site-details">
+      ${site.code ? `<span><b>管理番号</b>${escapeHtml(site.code)}</span>` : ''}
       ${site.shohin ? `<span><b>商品</b>${escapeHtml(site.shohin)}</span>` : ''}
       <span><b>単価</b><span class="price">${fmtPrice(site.tanka)}</span>${site.taniname ? '/'+escapeHtml(site.taniname):''}${site.tekiyou ? ` <span style="color:var(--sub);font-weight:400;">(適用開始日: ${escapeHtml(site.tekiyou)})</span>`:''}</span>
       ${site.keiyaku ? `<span><b>契約日</b>${escapeHtml(site.keiyaku)}</span>` : ''}
