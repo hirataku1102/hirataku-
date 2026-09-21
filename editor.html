@@ -151,6 +151,7 @@
   <h1>🚚 コース表 編集
     <span class="btns">
       <button class="themebtn" id="themeBtn">🌙</button>
+      <button class="btn danger sm" id="wipeBtn">全消去</button>
       <button class="btn ghost sm" id="seedBtn">テストデータ追加</button>
       <button class="btn ghost sm" id="csvBtn">CSV登録</button>
     </span>
@@ -403,7 +404,8 @@ function renderDayTabs(course) {
 function renderSearchList() {
   const q = (document.getElementById('search').value || '').trim().toLowerCase();
   const list = document.getElementById('list');
-  document.getElementById('meta').textContent = q ? '検索結果' : `全${customers.length}件`;
+  const orphans = customers.filter(cu => !WASTE_TYPES.some(w => getAssignments(cu, w.key).length)).length;
+  document.getElementById('meta').textContent = q ? '検索結果' : `全${customers.length}件${orphans ? `（うちコース未登録 ${orphans}件）` : ''}`;
   const results = q ? customers.filter(c => (c.name||'').toLowerCase().includes(q) || (c.address||'').toLowerCase().includes(q)) : [];
   if (!q) { list.innerHTML = `<div class="empty">得意先名または住所で検索してください。</div>`; return; }
   if (!results.length) { list.innerHTML = `<div class="empty">見つかりませんでした。</div>`; return; }
@@ -1000,6 +1002,61 @@ document.getElementById('csvBtn').onclick = () => {
       closeModal(); mode = type; activeCourseId = courseId; await refresh(true);
       toast(`取り込みました（新規${newCount}件・紐付け${mergedCount}件）`);
     } catch (e) { toast('取り込みに失敗しました'); console.error(e); btn.disabled=false; btn.textContent='取り込む'; }
+  };
+};
+
+/* ==== 全データ削除 ==== */
+document.getElementById('wipeBtn').onclick = () => {
+  const orphans = customers.filter(cu => !WASTE_TYPES.some(w => getAssignments(cu, w.key).length)).length;
+  openModal(`
+    <div class="modal-head"><h2>全データを消去</h2><button class="closebtn" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="confirmbox">
+        <p>⚠️ 登録されている<b>コース ${courses.length}件</b>と<b>得意先 ${customers.length}件</b>（うちどのコースにも属していない得意先 ${orphans}件）、および<b>すべての写真</b>を完全に削除します。元に戻せません。</p>
+        <p>CSVで最初から登録し直す場合にお使いください。</p>
+      </div>
+      <div class="field" style="margin-top:14px">
+        <span class="lb">実行するには下に <b>DELETE</b> と入力してください</span>
+        <input type="text" id="wipeConfirm" autocapitalize="characters" autocorrect="off" placeholder="DELETE">
+      </div>
+      <div class="modal-actions"><span></span>
+        <div class="right"><button class="btn ghost" onclick="closeModal()">キャンセル</button><button class="btn danger" id="wipeGo">完全に削除する</button></div>
+      </div>
+      <div id="wipeProgress" style="margin-top:10px;font-size:12px;color:var(--sub)"></div>
+    </div>
+  `);
+  document.getElementById('wipeGo').onclick = async () => {
+    if (document.getElementById('wipeConfirm').value.trim().toUpperCase() !== 'DELETE') { toast('DELETE と入力してください'); return; }
+    const btn = document.getElementById('wipeGo'); btn.disabled = true; btn.textContent = '削除中…';
+    const prog = document.getElementById('wipeProgress');
+    try {
+      // 写真を削除
+      let pn = 0;
+      for (const cu of customers) {
+        for (const pid of customerPhotoIds(cu)) { await deletePhotoAt(cu.id, pid); pn++; }
+      }
+      prog.textContent = `写真 ${pn}件を削除しました。得意先を削除中…`;
+      // 得意先をまとめて削除
+      const allCust = await db.collection('cm_customers').get();
+      let batch = db.batch(), n = 0, done = 0;
+      for (const d of allCust.docs) {
+        batch.delete(d.ref); n++; done++;
+        if (n >= 400) { await batch.commit(); batch = db.batch(); n = 0; prog.textContent = `得意先 ${done}/${allCust.size}件を削除中…`; }
+      }
+      if (n) await batch.commit();
+      prog.textContent = `得意先 ${done}件を削除しました。コースを削除中…`;
+      // コースを削除
+      const allCourses = await db.collection('cm_courses').get();
+      let cbatch = db.batch(), cn = 0;
+      for (const d of allCourses.docs) {
+        cbatch.delete(d.ref); cn++;
+        if (cn >= 400) { await cbatch.commit(); cbatch = db.batch(); cn = 0; }
+      }
+      if (cn) await cbatch.commit();
+      activeCourseId = null; mode = 'search'; dayFilter = 'all';
+      closeModal(); await refresh(true);
+      toast('すべて削除しました');
+    } catch (e) { toast('削除に失敗しました'); console.error(e); btn.disabled = false; btn.textContent = '完全に削除する'; }
   };
 };
 
