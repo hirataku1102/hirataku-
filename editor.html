@@ -139,6 +139,7 @@
 </head>
 <body>
 
+<div id="errBanner" style="display:none;position:fixed;top:0;left:0;right:0;background:#cf4335;color:#fff;font-size:12px;padding:10px 14px;z-index:999;white-space:pre-wrap;word-break:break-word"></div>
 <div class="lockscreen" id="lockscreen">
   <div style="font-size:34px">🔒</div>
   <div style="font-weight:800">編集用パスコード</div>
@@ -172,6 +173,18 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 <script>
+/* ==== エラーを画面に表示（デバッグ用） ==== */
+function showErr(msg) {
+  const b = document.getElementById('errBanner');
+  b.textContent = '⚠️ ' + msg;
+  b.style.display = 'block';
+}
+window.addEventListener('error', e => showErr('スクリプトエラー: ' + (e.message || e) + (e.filename ? ` (${e.filename}:${e.lineno})` : '')));
+window.addEventListener('unhandledrejection', e => showErr('通信/非同期エラー: ' + (e.reason && e.reason.message ? e.reason.message : e.reason)));
+if (typeof firebase === 'undefined') {
+  showErr('Firebaseの読み込みに失敗しました。通信環境をご確認のうえ、リロードしてください。（広告ブロッカー等が原因の場合もあります）');
+} else {
+
 /* ==== 設定 ==== */
 const EDIT_PASSCODE = "daybreak2026"; // ← ここを好きなパスコードに変更してください
 const firebaseConfig = {
@@ -961,48 +974,64 @@ document.getElementById('csvBtn').onclick = () => {
     const type = document.getElementById('csvType').value;
     if (!preview || !courseId) { toast('登録先コースを選択してください'); return; }
     const btn = document.getElementById('csvImportBtn'); btn.disabled = true; btn.textContent = '取り込み中…';
+    const prog = document.getElementById('csvProgress');
     try {
       if (document.getElementById('csvOverwrite').checked) {
+        prog.textContent = '既存の登録をクリア中…';
         await clearCourseAssignments(courseId, type);
       }
       const course = courses.find(c => c.id === courseId);
       let order = customers.filter(c => findAssignment(c, type, courseId)).length;
       const seenThisBatch = {}; // mgmtNo -> id、同じCSV内での重複対策
-      let mergedCount = 0, newCount = 0;
+      let mergedCount = 0, newCount = 0, errorCount = 0;
+      let batch = db.batch(), pending = 0, processed = 0;
       for (const r of preview) {
-        const days = r.days.length ? r.days : (course?.typicalDays || []);
-        let existing = null;
-        if (r.mgmtNo) {
-          existing = customers.find(c => c.mgmtNo && c.mgmtNo === r.mgmtNo) || null;
-          if (!existing && seenThisBatch[r.mgmtNo]) existing = customers.find(c => c.id === seenThisBatch[r.mgmtNo]) || null;
+        try {
+          const days = r.days.length ? r.days : (course?.typicalDays || []);
+          let existing = null;
+          if (r.mgmtNo) {
+            existing = customers.find(c => c.mgmtNo && c.mgmtNo === r.mgmtNo) || null;
+            if (!existing && seenThisBatch[r.mgmtNo]) existing = customers.find(c => c.id === seenThisBatch[r.mgmtNo]) || null;
+          }
+          const assignment = { courseId, order: order++, days, hasKey: r.hasKey, keyNumber: r.keyNumber, memo: r.memo };
+          let docId, finalDoc;
+          if (existing) {
+            const arr = getAssignments(existing, type).filter(a => a.courseId !== courseId);
+            arr.push(assignment);
+            finalDoc = { ...existing, name: existing.name || r.name, address: existing.address || r.address, items: { ...existing.items, [type]: arr } };
+            docId = existing.id;
+            seenThisBatch[r.mgmtNo] = docId;
+            const i = customers.findIndex(c => c.id === docId); if (i !== -1) customers[i] = finalDoc;
+            mergedCount++;
+          } else {
+            docId = uid();
+            finalDoc = { id: docId, name: r.name, mgmtNo: r.mgmtNo, address: r.address, hasPhoto: false, items: { [type]: [assignment] } };
+            customers.push(finalDoc);
+            if (r.mgmtNo) seenThisBatch[r.mgmtNo] = docId;
+            newCount++;
+          }
+          batch.set(db.collection('cm_customers').doc(docId), { ...finalDoc, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+          pending++;
+        } catch (rowErr) { errorCount++; console.error('行の処理でエラー:', r, rowErr); }
+        processed++;
+        if (pending >= 400) {
+          await batch.commit();
+          batch = db.batch(); pending = 0;
         }
-        const assignment = { courseId, order: order++, days, hasKey: r.hasKey, keyNumber: r.keyNumber, memo: r.memo };
-        if (existing) {
-          const arr = getAssignments(existing, type).filter(a => a.courseId !== courseId);
-          arr.push(assignment);
-          const merged = {
-            ...existing,
-            name: existing.name || r.name,
-            address: existing.address || r.address,
-            items: { ...existing.items, [type]: arr },
-          };
-          await saveCustomerDoc(merged);
-          seenThisBatch[r.mgmtNo] = existing.id;
-          const i = customers.findIndex(c => c.id === existing.id); if (i !== -1) customers[i] = merged;
-          mergedCount++;
-        } else {
-          const id = uid();
-          const created = { id, name: r.name, mgmtNo: r.mgmtNo, address: r.address, hasPhoto: false,
-            items: { [type]: [assignment] } };
-          await saveCustomerDoc(created);
-          customers.push(created);
-          if (r.mgmtNo) seenThisBatch[r.mgmtNo] = id;
-          newCount++;
+        if (processed % 20 === 0 || processed === preview.length) {
+          prog.textContent = `${processed}/${preview.length}件を処理中…（新規${newCount}・紐付け${mergedCount}${errorCount ? `・エラー${errorCount}` : ''}）`;
         }
       }
+      if (pending) await batch.commit();
       closeModal(); mode = type; activeCourseId = courseId; await refresh(true);
-      toast(`取り込みました（新規${newCount}件・紐付け${mergedCount}件）`);
-    } catch (e) { toast('取り込みに失敗しました'); console.error(e); btn.disabled=false; btn.textContent='取り込む'; }
+      toast(`取り込みました（新規${newCount}件・紐付け${mergedCount}件${errorCount ? `・エラー${errorCount}件` : ''}）`);
+    } catch (e) {
+      console.error(e);
+      prog.textContent = '';
+      prog.innerHTML = `<span style="color:var(--danger-fg)">取り込み中にエラーが発生しました: ${esc(String(e.message||e))}</span>`;
+      toast('取り込みに失敗しました');
+      btn.disabled = false; btn.textContent = '取り込む';
+    }
   };
 };
 
@@ -1031,10 +1060,15 @@ document.getElementById('wipeBtn').onclick = () => {
     const btn = document.getElementById('wipeGo'); btn.disabled = true; btn.textContent = '削除中…';
     const prog = document.getElementById('wipeProgress');
     try {
-      // 写真を削除
+      // 写真を削除（並列で高速化）
+      const allPhotoJobs = [];
+      for (const cu of customers) for (const pid of customerPhotoIds(cu)) allPhotoJobs.push([cu.id, pid]);
       let pn = 0;
-      for (const cu of customers) {
-        for (const pid of customerPhotoIds(cu)) { await deletePhotoAt(cu.id, pid); pn++; }
+      for (let i = 0; i < allPhotoJobs.length; i += 30) {
+        const chunk = allPhotoJobs.slice(i, i + 30);
+        await Promise.all(chunk.map(([cid, pid]) => deletePhotoAt(cid, pid)));
+        pn += chunk.length;
+        prog.textContent = `写真 ${pn}/${allPhotoJobs.length}件を削除中…`;
       }
       prog.textContent = `写真 ${pn}件を削除しました。得意先を削除中…`;
       // 得意先をまとめて削除
@@ -1099,7 +1133,10 @@ document.getElementById('seedBtn').onclick = async () => {
 };
 
 /* ==== init ==== */
-refresh(true);
+const loadTimeout = setTimeout(() => showErr('読み込みに時間がかかっています。電波の良い場所で開き直すか、しばらくしてから再度お試しください。'), 10000);
+refresh(true).finally(() => clearTimeout(loadTimeout));
+
+} // firebase未定義でなければここまで実行
 </script>
 </body>
 </html>
