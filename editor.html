@@ -898,6 +898,7 @@ document.getElementById('csvBtn').onclick = () => {
       <div class="field"><button class="btn ghost" id="csvPick">CSVファイルを選択</button><input type="file" accept=".csv,text/csv" id="csvFile" style="display:none"></div>
       <div class="field"><textarea id="csvText" rows="6" placeholder="またはここに直接貼り付け" style="font-family:monospace;font-size:12px"></textarea></div>
       <div id="csvPreview"></div>
+      <div id="csvProgress" style="margin-top:10px;font-size:12px;color:var(--sub)"></div>
       <div class="modal-actions" style="margin-top:14px"><span></span><div class="right"><button class="btn ghost" onclick="closeModal()">キャンセル</button><button class="btn primary" id="csvImportBtn" disabled>取り込む</button></div></div>
     </div>
   `);
