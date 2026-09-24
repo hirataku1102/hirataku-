@@ -135,6 +135,8 @@
   .lockscreen input{width:220px;text-align:center;font-size:18px;letter-spacing:2px}
   .spin{display:inline-block;width:16px;height:16px;border:2px solid var(--surface1);border-top-color:var(--text);border-radius:50%;animation:sp .7s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
+.wtrow { display: flex; flex-wrap: wrap; gap: 6px; }
+.wtrow button { width: auto; height: auto; min-height: 38px; padding: 8px 12px; border-radius: 8px; white-space: nowrap; writing-mode: horizontal-tb; font-size: 13px; line-height: 1.2; flex: 0 0 auto; }
 </style>
 </head>
 <body>
@@ -646,7 +648,7 @@ function openCourseModal(course, presetType) {
     <div class="modal-head"><h2>${course ? 'コースを編集' : 'コースを追加'}</h2><button class="closebtn" onclick="closeModal()">✕</button></div>
     <div class="modal-body">
       <div class="field"><span class="lb">品目</span>
-        <div class="colorrow" id="wtRow" style="gap:6px">
+        <div class="wtrow" id="wtRow">
           ${WASTE_TYPES.map(w => `<button data-wt="${w.key}" class="togglechip ${w.key===wasteType?'on':''}" style="border-radius:8px">${w.icon} ${w.label}</button>`).join('')}
         </div>
       </div>
