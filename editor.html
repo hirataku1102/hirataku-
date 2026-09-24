@@ -286,8 +286,20 @@ function compressImage(file, maxDim = 900, quality = 0.72) {
 }
 
 /* ==== Firestore layer ==== */
+async function getCollectionWithRetry(name, tries = 4) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await db.collection(name).get({ source: 'server' });
+    } catch (e) {
+      lastErr = e;
+      if (i < tries - 1) await new Promise(r => setTimeout(r, 800 * (i + 1)));
+    }
+  }
+  throw lastErr;
+}
 async function fetchAll() {
-  const [cs, us] = await Promise.all([db.collection('cm_courses').get(), db.collection('cm_customers').get()]);
+  const [cs, us] = await Promise.all([getCollectionWithRetry('cm_courses'), getCollectionWithRetry('cm_customers')]);
   courses = cs.docs.map(d => ({ id: d.id, ...d.data() }));
   customers = us.docs.map(d => ({ id: d.id, ...d.data() }));
 }
@@ -306,7 +318,13 @@ function todayChar() { return ['日','月','火','水','木','金','土'][new Da
 
 async function refresh(showLoading) {
   if (showLoading) document.getElementById('content').innerHTML = `<div class="empty"><span class="spin"></span> 読み込み中…</div>`;
-  try { await fetchAll(); } catch (e) { toast('読み込みに失敗しました'); console.error(e); }
+  try {
+    await fetchAll();
+  } catch (e) {
+    toast('読み込みに失敗しました'); console.error(e);
+    document.getElementById('content').innerHTML = `<div class="empty">データを読み込めませんでした。通信環境をご確認ください。<br><button class="btn primary" style="margin-top:12px" onclick="refresh(true)">再読み込み</button></div>`;
+    return;
+  }
   renderTopTabs(); renderCourseTabs(); renderContent();
 }
 
@@ -1133,7 +1151,7 @@ document.getElementById('seedBtn').onclick = async () => {
 };
 
 /* ==== init ==== */
-const loadTimeout = setTimeout(() => showErr('読み込みに時間がかかっています。電波の良い場所で開き直すか、しばらくしてから再度お試しください。'), 10000);
+const loadTimeout = setTimeout(() => showErr('読み込みに時間がかかっています。電波の良い場所で開き直すか、しばらくしてから再度お試しください。'), 25000);
 refresh(true).finally(() => clearTimeout(loadTimeout));
 
 } // firebase未定義でなければここまで実行

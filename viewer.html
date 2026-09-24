@@ -219,16 +219,28 @@ let activeCourseId = null;
 let dayFilter = 'all'; // 'all' | '日'..'土'
 function todayChar() { return ['日','月','火','水','木','金','土'][new Date().getDay()]; }
 
+async function getCollectionWithRetry(name, tries = 4) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await db.collection(name).get({ source: 'server' });
+    } catch (e) {
+      lastErr = e;
+      if (i < tries - 1) await new Promise(r => setTimeout(r, 800 * (i + 1)));
+    }
+  }
+  throw lastErr;
+}
 async function load() {
   try {
     const [cs, us] = await Promise.all([
-      db.collection('cm_courses').get(),
-      db.collection('cm_customers').get(),
+      getCollectionWithRetry('cm_courses'),
+      getCollectionWithRetry('cm_customers'),
     ]);
     courses = cs.docs.map(d => ({ id: d.id, ...d.data() }));
     customers = us.docs.map(d => ({ id: d.id, ...d.data() }));
   } catch (e) {
-    document.getElementById('list').innerHTML = '<div class="empty">データを読み込めませんでした。通信環境をご確認ください。</div>';
+    document.getElementById('list').innerHTML = '<div class="empty">データを読み込めませんでした。通信環境をご確認ください。<br><button class="btn primary" style="margin-top:12px;background:var(--orange);color:#fff;border:none;border-radius:10px;padding:10px 18px;font-weight:800" onclick="load()">再読み込み</button></div>';
     return;
   }
   renderTopTabs();
@@ -419,7 +431,7 @@ function closeSheet() { document.getElementById('overlay').classList.remove('sho
 document.getElementById('overlay').addEventListener('click', e => { if (e.target.id === 'overlay') closeSheet(); });
 document.getElementById('search').addEventListener('input', renderList);
 
-const loadTimeout = setTimeout(() => showErr('読み込みに時間がかかっています。電波の良い場所で開き直すか、しばらくしてから再度お試しください。'), 10000);
+const loadTimeout = setTimeout(() => showErr('読み込みに時間がかかっています。電波の良い場所で開き直すか、しばらくしてから再度お試しください。'), 25000);
 load().finally(() => clearTimeout(loadTimeout));
 
 } // firebase未定義でなければここまで実行
