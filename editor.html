@@ -151,9 +151,9 @@
 <header>
   <h1>🚚 コース表 編集
     <span class="btns">
+      <button class="themebtn" id="reloadBtn" title="最新データを読み込み">🔄</button>
       <button class="themebtn" id="themeBtn">🌙</button>
       <button class="btn danger sm" id="wipeBtn">全消去</button>
-      <button class="btn ghost sm" id="seedBtn">テストデータ追加</button>
       <button class="btn ghost sm" id="csvBtn">CSV登録</button>
     </span>
   </h1>
@@ -174,10 +174,13 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 <script>
 /* ==== エラーを画面に表示（デバッグ用） ==== */
-function showErr(msg) {
+function hideErr() { const b = document.getElementById('errBanner'); if (b && b.dataset.sticky !== '1') b.style.display = 'none'; }
+function showErr(msg, sticky = true) {
   const b = document.getElementById('errBanner');
-  b.textContent = '⚠️ ' + msg;
+  b.textContent = '⚠️ ' + msg + '（タップで閉じる）';
+  b.dataset.sticky = sticky ? '1' : '0';
   b.style.display = 'block';
+  b.onclick = () => { b.style.display = 'none'; };
 }
 window.addEventListener('error', e => showErr('スクリプトエラー: ' + (e.message || e) + (e.filename ? ` (${e.filename}:${e.lineno})` : '')));
 window.addEventListener('unhandledrejection', e => showErr('通信/非同期エラー: ' + (e.reason && e.reason.message ? e.reason.message : e.reason)));
@@ -221,8 +224,8 @@ const WT = Object.fromEntries(WASTE_TYPES.map(w => [w.key, w]));
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 const COLORS = ['#FF7A29', '#4FA88D', '#4C8DFF', '#E8B84B', '#E85D4E', '#9B7EDE'];
 
-/* ==== ロック画面（ブラウザ/アプリを再度開いても、8時間以上操作がない時だけ再確認） ==== */
-const IDLE_LIMIT_MS = 8 * 60 * 60 * 1000; // 8時間
+/* ==== ロック画面（ブラウザ/アプリを再度開いても、24時間以上操作がない時だけ再確認） ==== */
+const IDLE_LIMIT_MS = 24 * 60 * 60 * 1000; // 24時間
 function markActive() { try { localStorage.setItem('cm_unlocked_at', String(Date.now())); } catch (e) {} }
 function recentlyUnlocked() {
   try {
@@ -286,11 +289,11 @@ function compressImage(file, maxDim = 900, quality = 0.72) {
 }
 
 /* ==== Firestore layer ==== */
-async function getCollectionWithRetry(name, tries = 4) {
+async function getWithRetry(queryRef, tries = 4) {
   let lastErr;
   for (let i = 0; i < tries; i++) {
     try {
-      return await db.collection(name).get({ source: 'server' });
+      return await queryRef.get({ source: 'server' });
     } catch (e) {
       lastErr = e;
       if (i < tries - 1) await new Promise(r => setTimeout(r, 800 * (i + 1)));
@@ -298,34 +301,76 @@ async function getCollectionWithRetry(name, tries = 4) {
   }
   throw lastErr;
 }
-async function fetchAll() {
-  const [cs, us] = await Promise.all([getCollectionWithRetry('cm_courses'), getCollectionWithRetry('cm_customers')]);
-  courses = cs.docs.map(d => ({ id: d.id, ...d.data() }));
-  customers = us.docs.map(d => ({ id: d.id, ...d.data() }));
+function computeCourseIds(items) {
+  const ids = new Set();
+  for (const k of Object.keys(items || {})) {
+    const v = items[k];
+    const arr = Array.isArray(v) ? v : [v];
+    for (const a of arr) if (a && a.courseId) ids.add(a.courseId);
+  }
+  return [...ids];
+}
+function mergeCustomersInto(docs) {
+  const fetched = docs.map(d => ({ id: d.id, ...d.data() }));
+  const fetchedIds = new Set(fetched.map(c => c.id));
+  customers = customers.filter(c => !fetchedIds.has(c.id)).concat(fetched);
+}
+async function fetchCourses() {
+  const snap = await getWithRetry(db.collection('cm_courses'));
+  courses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+async function ensureCourseLoaded(courseId) {
+  if (!courseId || allCustomersLoaded || loadedCourseIds.has(courseId)) return;
+  const snap = await getWithRetry(db.collection('cm_customers').where('courseIds', 'array-contains', courseId));
+  mergeCustomersInto(snap.docs);
+  loadedCourseIds.add(courseId);
+}
+async function ensureAllCustomersLoaded() {
+  if (allCustomersLoaded) return;
+  const snap = await getWithRetry(db.collection('cm_customers'));
+  mergeCustomersInto(snap.docs);
+  allCustomersLoaded = true;
+  for (const c of courses) loadedCourseIds.add(c.id);
 }
 async function saveCourseDoc(course) { await db.collection('cm_courses').doc(course.id).set(course); }
 async function deleteCourseDoc(id) { await db.collection('cm_courses').doc(id).delete(); }
-async function saveCustomerDoc(cu) { await db.collection('cm_customers').doc(cu.id).set({ ...cu, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }); }
-async function deleteCustomerDoc(id) { await db.collection('cm_customers').doc(id).delete(); }
+async function saveCustomerDoc(cu) {
+  const courseIds = computeCourseIds(cu.items);
+  const doc = { ...cu, courseIds, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+  await db.collection('cm_customers').doc(cu.id).set(doc);
+  const i = customers.findIndex(c => c.id === cu.id);
+  const cached = { ...cu, courseIds };
+  if (i !== -1) customers[i] = cached; else customers.push(cached);
+}
+async function deleteCustomerDoc(id) {
+  await db.collection('cm_customers').doc(id).delete();
+  customers = customers.filter(c => c.id !== id);
+}
 
 /* ==== state ==== */
 let courses = [], customers = [];
+let loadedCourseIds = new Set();
+let allCustomersLoaded = false;
 let mode = 'search'; // 'search' | wasteType key
 let activeCourseId = null;
 let dayFilter = 'all'; // 'all' | '日'..'土'
 let busy = false;
 function todayChar() { return ['日','月','火','水','木','金','土'][new Date().getDay()]; }
 
-async function refresh(showLoading) {
-  if (showLoading) document.getElementById('content').innerHTML = `<div class="empty"><span class="spin"></span> 読み込み中…</div>`;
+async function initialLoad() {
+  document.getElementById('content').innerHTML = `<div class="empty"><span class="spin"></span> 読み込み中…</div>`;
   try {
-    await fetchAll();
+    await fetchCourses();
   } catch (e) {
     toast('読み込みに失敗しました'); console.error(e);
-    document.getElementById('content').innerHTML = `<div class="empty">データを読み込めませんでした。通信環境をご確認ください。<br><button class="btn primary" style="margin-top:12px" onclick="refresh(true)">再読み込み</button></div>`;
+    document.getElementById('content').innerHTML = `<div class="empty">データを読み込めませんでした。通信環境をご確認ください。<br><button class="btn primary" style="margin-top:12px" onclick="hardReload()">再読み込み</button></div>`;
     return;
   }
   renderTopTabs(); renderCourseTabs(); renderContent();
+}
+async function hardReload() {
+  loadedCourseIds = new Set(); allCustomersLoaded = false; customers = [];
+  await initialLoad();
 }
 
 /* ==== top / course tabs ==== */
@@ -333,14 +378,17 @@ function renderTopTabs() {
   const box = document.getElementById('topTabs');
   box.innerHTML = `<button data-m="search" class="${mode === 'search' ? 'active' : ''}">🔎 検索</button>` +
     WASTE_TYPES.map(w => `<button data-m="${w.key}" class="${mode === w.key ? 'active' : ''}">${w.icon} ${w.label}</button>`).join('');
-  box.querySelectorAll('button').forEach(b => b.onclick = () => {
+  box.querySelectorAll('button').forEach(b => b.onclick = async () => {
     mode = b.dataset.m;
     dayFilter = 'all';
     if (mode !== 'search') {
       const first = courses.filter(c => c.wasteType === mode).sort((a,b)=>(a.order??0)-(b.order??0))[0];
       activeCourseId = first ? first.id : null;
     }
-    renderTopTabs(); renderCourseTabs(); renderContent();
+    renderTopTabs(); renderCourseTabs();
+    document.getElementById('content').innerHTML = `<div class="empty"><span class="spin"></span> 読み込み中…</div>`;
+    if (activeCourseId) { try { await ensureCourseLoaded(activeCourseId); } catch (e) { toast('読み込みに失敗しました'); console.error(e); } }
+    renderContent();
   });
 }
 function renderCourseTabs() {
@@ -349,7 +397,12 @@ function renderCourseTabs() {
   const list = courses.filter(c => c.wasteType === mode).sort((a,b)=>(a.order??0)-(b.order??0));
   box.innerHTML = list.map(c => `<button data-c="${c.id}" class="${c.id === activeCourseId ? 'active' : ''}"><span class="dot" style="background:${c.color}"></span>${esc(courseLabel(c))}</button>`).join('')
     + `<button class="add" id="addCourseBtn">＋ コース追加</button>`;
-  box.querySelectorAll('[data-c]').forEach(b => b.onclick = () => { activeCourseId = b.dataset.c; dayFilter = 'all'; renderCourseTabs(); renderContent(); });
+  box.querySelectorAll('[data-c]').forEach(b => b.onclick = async () => {
+    activeCourseId = b.dataset.c; dayFilter = 'all'; renderCourseTabs();
+    document.getElementById('content').innerHTML = `<div class="empty"><span class="spin"></span> 読み込み中…</div>`;
+    try { await ensureCourseLoaded(activeCourseId); } catch (e) { toast('読み込みに失敗しました'); console.error(e); }
+    renderContent();
+  });
   document.getElementById('addCourseBtn').onclick = () => openCourseModal(null, mode);
 }
 
@@ -390,12 +443,12 @@ function renderContent() {
   const box = document.getElementById('content');
   if (mode === 'search') {
     box.innerHTML = `
-      <input class="search" id="search" placeholder="得意先名・住所で検索">
+      <input class="search" id="search" placeholder="得意先名・住所・管理番号で検索">
       <div class="count" id="meta" style="margin-bottom:8px"></div>
       <div id="list"></div>
       <button class="btn block ghost" id="addNewBtn" style="margin-top:12px;border-style:dashed">＋ 新規得意先を登録</button>
     `;
-    document.getElementById('search').addEventListener('input', renderSearchList);
+    document.getElementById('search').addEventListener('input', () => renderSearchList());
     document.getElementById('addNewBtn').onclick = () => openCustomerModal(null, null, null);
     renderSearchList();
     return;
@@ -435,13 +488,22 @@ function renderDayTabs(course) {
   box.querySelectorAll('button').forEach(b => b.onclick = () => { dayFilter = b.dataset.d; renderDayTabs(course); renderCourseList(course); });
 }
 
-function renderSearchList() {
+async function renderSearchList() {
   const q = (document.getElementById('search').value || '').trim().toLowerCase();
   const list = document.getElementById('list');
+  if (!q) {
+    document.getElementById('meta').textContent = allCustomersLoaded ? `全${customers.length}件` : '';
+    list.innerHTML = `<div class="empty">得意先名・住所・管理番号で検索してください。</div>`;
+    return;
+  }
+  if (!allCustomersLoaded) {
+    list.innerHTML = `<div class="empty"><span class="spin"></span> 読み込み中…</div>`;
+    try { await ensureAllCustomersLoaded(); } catch (e) { list.innerHTML = `<div class="empty">読み込みに失敗しました。通信環境をご確認ください。</div>`; return; }
+    if ((document.getElementById('search').value || '').trim().toLowerCase() !== q) return; // 入力が変わっていたら中断
+  }
   const orphans = customers.filter(cu => !WASTE_TYPES.some(w => getAssignments(cu, w.key).length)).length;
-  document.getElementById('meta').textContent = q ? '検索結果' : `全${customers.length}件${orphans ? `（うちコース未登録 ${orphans}件）` : ''}`;
-  const results = q ? customers.filter(c => matchesQuery(c, q)) : [];
-  if (!q) { list.innerHTML = `<div class="empty">得意先名または住所で検索してください。</div>`; return; }
+  document.getElementById('meta').textContent = `全${customers.length}件${orphans ? `（うちコース未登録 ${orphans}件）` : ''}`;
+  const results = customers.filter(c => matchesQuery(c, q));
   if (!results.length) { list.innerHTML = `<div class="empty">見つかりませんでした。</div>`; return; }
   list.innerHTML = results.map(cu => `
     <div class="card">
@@ -506,7 +568,9 @@ async function reorderCourse(courseId, newOrderItems) {
     if (a && a.order !== idx) {
       a.order = idx;
       const newItems = { ...cu.items, [mode]: arr };
-      batch.set(db.collection('cm_customers').doc(cu.id), { ...cu, items: newItems, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      const updated = { ...cu, items: newItems };
+      batch.set(db.collection('cm_customers').doc(cu.id), { ...updated, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      const i = customers.findIndex(c => c.id === cu.id); if (i !== -1) customers[i] = updated;
     }
   });
   await batch.commit();
@@ -524,7 +588,7 @@ async function moveToPosition(course, custId, newPos, items) {
     const [moved] = copy.splice(idx, 1);
     copy.splice(newIndex, 0, moved);
     await reorderCourse(course.id, copy);
-    await refresh(false);
+    renderCourseList(course);
   } catch (e) { toast('並び替えに失敗しました'); console.error(e); }
   busy = false;
 }
@@ -539,7 +603,7 @@ async function moveCustomer(course, id, dir, items) {
     const copy = [...items];
     [copy[i], copy[j]] = [copy[j], copy[i]];
     await reorderCourse(course.id, copy);
-    await refresh(false);
+    renderCourseList(course);
   } catch (e) { toast('並び替えに失敗しました'); console.error(e); }
   busy = false;
 }
@@ -551,6 +615,7 @@ function openModal(html) { document.getElementById('modalRoot').innerHTML = html
 
 /* ==== course modal ==== */
 async function clearCourseAssignments(courseId, type) {
+  await ensureCourseLoaded(courseId);
   const affected = customers.filter(c => findAssignment(c, type, courseId));
   for (const cu of affected) {
     const arr = getAssignments(cu, type).filter(a => a.courseId !== courseId);
@@ -561,6 +626,15 @@ async function clearCourseAssignments(courseId, type) {
     const i = customers.findIndex(c => c.id === cu.id); if (i !== -1) customers[i] = updated;
   }
   return affected.length;
+}
+
+async function refreshAfterCourseChange(targetMode) {
+  await fetchCourses();
+  if (targetMode) mode = targetMode;
+  renderTopTabs(); renderCourseTabs();
+  document.getElementById('content').innerHTML = `<div class="empty"><span class="spin"></span> 読み込み中…</div>`;
+  if (mode !== 'search' && activeCourseId) { try { await ensureCourseLoaded(activeCourseId); } catch (e) { console.error(e); } }
+  renderContent();
 }
 
 function openCourseModal(course, presetType) {
@@ -623,7 +697,7 @@ function openCourseModal(course, presetType) {
         const sameTypeCount = courses.filter(c => c.wasteType === wasteType && c.id !== course?.id).length;
         const group = document.getElementById('cGroup').value.trim();
         await saveCourseDoc({ id: course ? course.id : uid(), name, group, wasteType, color, typicalDays, order: course ? (course.order ?? sameTypeCount) : sameTypeCount });
-        closeModal(); mode = wasteType; await refresh(true);
+        closeModal(); await refreshAfterCourseChange(wasteType);
         toast('保存しました');
       } catch (e) { toast('保存に失敗しました'); console.error(e); }
     };
@@ -635,7 +709,7 @@ function openCourseModal(course, presetType) {
         document.getElementById('confirmClear').onclick = async () => {
           try {
             const n = await clearCourseAssignments(course.id, wasteType);
-            closeModal(); await refresh(true);
+            closeModal(); await refreshAfterCourseChange();
             toast(`${n}件の登録をクリアしました`);
           } catch (e) { toast('クリアに失敗しました'); console.error(e); }
         };
@@ -649,7 +723,7 @@ function openCourseModal(course, presetType) {
             await clearCourseAssignments(course.id, wasteType);
             await deleteCourseDoc(course.id);
             if (activeCourseId === course.id) activeCourseId = null;
-            closeModal(); await refresh(true);
+            closeModal(); await refreshAfterCourseChange();
             toast('削除しました');
           } catch (e) { toast('削除に失敗しました'); console.error(e); }
         };
@@ -663,14 +737,18 @@ function openPickExisting(course) {
   openModal(`
     <div class="modal-head"><h2>既存の得意先を追加</h2><button class="closebtn" onclick="closeModal()">✕</button></div>
     <div class="modal-body">
-      <input class="search" id="pickSearch" placeholder="得意先名・住所で検索">
+      <input class="search" id="pickSearch" placeholder="得意先名・住所・管理番号で検索">
       <div id="pickList"></div>
     </div>
   `);
-  function render() {
+  async function render() {
     const q = (document.getElementById('pickSearch').value || '').trim().toLowerCase();
     const box = document.getElementById('pickList');
     if (!q) { box.innerHTML = `<div class="empty">検索してください。</div>`; return; }
+    if (!allCustomersLoaded) {
+      box.innerHTML = `<div class="empty"><span class="spin"></span> 読み込み中…</div>`;
+      try { await ensureAllCustomersLoaded(); } catch (e) { box.innerHTML = `<div class="empty">読み込みに失敗しました。</div>`; return; }
+    }
     const results = customers.filter(c => matchesQuery(c, q)
       && !findAssignment(c, mode, course.id));
     if (!results.length) { box.innerHTML = `<div class="empty">見つかりません（すでにこのコースにいる場合も表示されません）。</div>`; return; }
@@ -880,7 +958,7 @@ async function openCustomerModal(cu, presetType, presetCourseId) {
         id, name, mgmtNo: document.getElementById('uMgmtNo').value.trim(), address: document.getElementById('uAddress').value.trim(),
         items, hasPhoto, photos: finalIds,
       });
-      closeModal(); await refresh(true); toast('保存しました');
+      closeModal(); renderContent(); toast('保存しました');
     } catch (e) { toast('保存に失敗しました'); console.error(e); btn.disabled = false; btn.textContent = '保存'; }
   };
   if (cu) {
@@ -892,7 +970,7 @@ async function openCustomerModal(cu, presetType, presetCourseId) {
         try {
           await deleteCustomerDoc(cu.id);
           for (const pid of customerPhotoIds(cu)) await deletePhotoAt(cu.id, pid);
-          closeModal(); await refresh(true); toast('削除しました');
+          closeModal(); renderContent(); toast('削除しました');
         } catch (e) { toast('削除に失敗しました'); console.error(e); }
       };
     };
@@ -997,6 +1075,8 @@ document.getElementById('csvBtn').onclick = () => {
     const btn = document.getElementById('csvImportBtn'); btn.disabled = true; btn.textContent = '取り込み中…';
     const prog = document.getElementById('csvProgress');
     try {
+      prog.textContent = '既存データを確認中…';
+      await ensureAllCustomersLoaded();
       if (document.getElementById('csvOverwrite').checked) {
         prog.textContent = '既存の登録をクリア中…';
         await clearCourseAssignments(courseId, type);
@@ -1031,6 +1111,7 @@ document.getElementById('csvBtn').onclick = () => {
             if (r.mgmtNo) seenThisBatch[r.mgmtNo] = docId;
             newCount++;
           }
+          finalDoc.courseIds = computeCourseIds(finalDoc.items);
           batch.set(db.collection('cm_customers').doc(docId), { ...finalDoc, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
           pending++;
         } catch (rowErr) { errorCount++; console.error('行の処理でエラー:', r, rowErr); }
@@ -1044,7 +1125,8 @@ document.getElementById('csvBtn').onclick = () => {
         }
       }
       if (pending) await batch.commit();
-      closeModal(); mode = type; activeCourseId = courseId; await refresh(true);
+      closeModal(); mode = type; activeCourseId = courseId; dayFilter = 'all';
+      renderTopTabs(); renderCourseTabs(); renderContent();
       toast(`取り込みました（新規${newCount}件・紐付け${mergedCount}件${errorCount ? `・エラー${errorCount}件` : ''}）`);
     } catch (e) {
       console.error(e);
@@ -1081,6 +1163,8 @@ document.getElementById('wipeBtn').onclick = () => {
     const btn = document.getElementById('wipeGo'); btn.disabled = true; btn.textContent = '削除中…';
     const prog = document.getElementById('wipeProgress');
     try {
+      prog.textContent = 'データを確認中…';
+      await ensureAllCustomersLoaded();
       // 写真を削除（並列で高速化）
       const allPhotoJobs = [];
       for (const cu of customers) for (const pid of customerPhotoIds(cu)) allPhotoJobs.push([cu.id, pid]);
@@ -1110,52 +1194,49 @@ document.getElementById('wipeBtn').onclick = () => {
       }
       if (cn) await cbatch.commit();
       activeCourseId = null; mode = 'search'; dayFilter = 'all';
-      closeModal(); await refresh(true);
+      closeModal(); await hardReload();
       toast('すべて削除しました');
     } catch (e) { toast('削除に失敗しました'); console.error(e); btn.disabled = false; btn.textContent = '完全に削除する'; }
   };
 };
 
-/* ==== テストデータ ==== */
-document.getElementById('seedBtn').onclick = async () => {
-  const btn = document.getElementById('seedBtn'); btn.disabled = true; btn.textContent = '追加中…';
-  try {
-    const c1 = { id: uid(), name: '可燃1号', wasteType: 'combustible', typicalDays: ['月','火','水','木','金','土'], color: COLORS[0], order: 0 };
-    const c2 = { id: uid(), name: '可燃2号', wasteType: 'combustible', typicalDays: ['月'], color: COLORS[1], order: 1 };
-    const c3 = { id: uid(), name: '月水金', group: 'ダンボールAコース', wasteType: 'cardboard', typicalDays: ['月','水','金'], color: COLORS[2], order: 0 };
-    const c3b = { id: uid(), name: '火木土', group: 'ダンボールAコース', wasteType: 'cardboard', typicalDays: ['火','木','土'], color: COLORS[2], order: 1 };
-    const c4 = { id: uid(), name: '飲料容器Bコース', wasteType: 'beverage', typicalDays: ['火','木','土'], color: COLORS[3], order: 0 };
-    for (const c of [c1, c2, c3, c3b, c4]) await saveCourseDoc(c);
+/* ==== 既存データの一回限りの最適化（コース単位の読み込みに必要な情報を付与） ==== */
+async function migrateIfNeeded() {
+  let done = false;
+  try { done = localStorage.getItem('cm_schema_v2') === '1'; } catch (e) {}
+  if (done) return;
+  document.getElementById('content').innerHTML = `<div class="empty"><span class="spin"></span> 初回のみ、データを最適化しています…<br><span id="migProg" style="font-size:12px"></span></div>`;
+  await ensureAllCustomersLoaded();
+  const targets = customers.filter(c => !Array.isArray(c.courseIds) || c.courseIds.join() !== computeCourseIds(c.items).join());
+  let batch = db.batch(), n = 0, doneCount = 0;
+  for (const c of targets) {
+    const courseIds = computeCourseIds(c.items);
+    batch.set(db.collection('cm_customers').doc(c.id), { courseIds }, { merge: true });
+    c.courseIds = courseIds;
+    n++; doneCount++;
+    if (n >= 400) { await batch.commit(); batch = db.batch(); n = 0; const el = document.getElementById('migProg'); if (el) el.textContent = `${doneCount}/${targets.length}件`; }
+  }
+  if (n) await batch.commit();
+  try { localStorage.setItem('cm_schema_v2', '1'); } catch (e) {}
+}
 
-    const cust = [
-      { name: '〇〇マンション', address: '大阪府堺市堺区市之町1-1',
-        items: { combustible: [{ courseId: c1.id, order: 0, days: c1.typicalDays, hasKey: false, keyNumber: '', memo: '' }],
-                 cardboard: [{ courseId: c3.id, order: 0, days: c3.typicalDays, hasKey: true, keyNumber: 'No.3（管理室隣フック）', memo: '裏口の駐輪場横にゴミ庫あり' }] } },
-      { name: '△△ビル', address: '大阪府堺市堺区中瓦町2-2',
-        items: { combustible: [{ courseId: c1.id, order: 1, days: c1.typicalDays, hasKey: false, keyNumber: '', memo: '常時開放、鍵不要' }] } },
-      { name: '株式会社サンプル商事', address: '大阪府堺市北区新金岡町3-3',
-        items: { combustible: [{ courseId: c2.id, order: 0, days: ['月'], hasKey: true, keyNumber: '事務所内保管（受付で借用）', memo: '' }],
-                 beverage: [{ courseId: c4.id, order: 0, days: c4.typicalDays, hasKey: false, keyNumber: '', memo: '' }] } },
-      { name: '□□アパート（毎日回収）', address: '大阪府堺市西区鳳北町4-4',
-        items: { cardboard: [
-          { courseId: c3.id, order: 1, days: c3.typicalDays, hasKey: false, keyNumber: '', memo: '道路沿いに直置き、午前中回収希望（月水金分）' },
-          { courseId: c3b.id, order: 0, days: c3b.typicalDays, hasKey: false, keyNumber: '', memo: '道路沿いに直置き、午前中回収希望（火木土分）' },
-        ] } },
-      { name: 'サンプル工場', address: '大阪府堺市東区日置荘原寺町5-5',
-        items: { combustible: [{ courseId: c1.id, order: 2, days: c1.typicalDays, hasKey: true, keyNumber: 'No.7', memo: '正門守衛所で鍵を借りる' }],
-                 beverage: [{ courseId: c4.id, order: 1, days: c4.typicalDays, hasKey: false, keyNumber: '', memo: '' }] } },
-    ];
-    for (const cu of cust) await saveCustomerDoc({ id: uid(), hasPhoto: false, ...cu });
-
-    await refresh(true);
-    toast('テストデータを追加しました');
-  } catch (e) { toast('追加に失敗しました'); console.error(e); }
-  btn.disabled = false; btn.textContent = 'テストデータ追加';
+document.getElementById('reloadBtn').onclick = async () => {
+  const keepMode = mode, keepCourse = activeCourseId;
+  loadedCourseIds = new Set(); allCustomersLoaded = false; customers = [];
+  await initialLoad();
+  mode = keepMode; activeCourseId = courses.some(c => c.id === keepCourse) ? keepCourse : null;
+  renderTopTabs(); renderCourseTabs();
+  if (mode !== 'search' && activeCourseId) { try { await ensureCourseLoaded(activeCourseId); } catch (e) { console.error(e); } }
+  renderContent();
+  toast('最新データを読み込みました');
 };
 
 /* ==== init ==== */
-const loadTimeout = setTimeout(() => showErr('読み込みに時間がかかっています。電波の良い場所で開き直すか、しばらくしてから再度お試しください。'), 25000);
-refresh(true).finally(() => clearTimeout(loadTimeout));
+const loadTimeout = setTimeout(() => showErr('読み込みに時間がかかっています。電波の良い場所で開き直すか、しばらくしてから再度お試しください。', false), 25000);
+(async () => {
+  try { await migrateIfNeeded(); } catch (e) { console.error('最適化エラー', e); }
+  await initialLoad();
+})().finally(() => { clearTimeout(loadTimeout); hideErr(); });
 
 </script>
 </body>

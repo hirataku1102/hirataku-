@@ -112,7 +112,7 @@
 </div>
 
 <header>
-  <h1>🚚 コース表 <button class="themebtn" id="themeBtn">🌙</button></h1>
+  <h1>🚚 コース表 <span style="display:flex;gap:6px"><button class="themebtn" id="reloadBtn" title="最新データを読み込み">🔄</button><button class="themebtn" id="themeBtn">🌙</button></span></h1>
   <div class="toprow" id="topTabs"></div>
   <div class="courserow" id="courseTabs"></div>
   <div class="dayrow" id="dayTabs"></div>
@@ -137,10 +137,13 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script>
 /* ==== エラーを画面に表示（デバッグ用） ==== */
-function showErr(msg) {
+function hideErr() { const b = document.getElementById('errBanner'); if (b && b.dataset.sticky !== '1') b.style.display = 'none'; }
+function showErr(msg, sticky = true) {
   const b = document.getElementById('errBanner');
-  b.textContent = '⚠️ ' + msg;
+  b.textContent = '⚠️ ' + msg + '（タップで閉じる）';
+  b.dataset.sticky = sticky ? '1' : '0';
   b.style.display = 'block';
+  b.onclick = () => { b.style.display = 'none'; };
 }
 window.addEventListener('error', e => showErr('スクリプトエラー: ' + (e.message || e) + (e.filename ? ` (${e.filename}:${e.lineno})` : '')));
 window.addEventListener('unhandledrejection', e => showErr('通信/非同期エラー: ' + (e.reason && e.reason.message ? e.reason.message : e.reason)));
@@ -159,9 +162,9 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-/* ==== パスコード（8時間以上操作がない時だけ再確認） ==== */
+/* ==== パスコード（24時間以上操作がない時だけ再確認） ==== */
 const VIEW_PASSCODE = "daybreak2026"; // ← パスコードを変えたい場合はここを編集してください
-const IDLE_LIMIT_MS = 8 * 60 * 60 * 1000; // 8時間
+const IDLE_LIMIT_MS = 24 * 60 * 60 * 1000; // 24時間
 function markActive() { try { localStorage.setItem('cm_view_unlocked_at', String(Date.now())); } catch (e) {} }
 function recentlyUnlocked() {
   try {
@@ -219,36 +222,88 @@ let activeCourseId = null;
 let dayFilter = 'all'; // 'all' | '日'..'土'
 function todayChar() { return ['日','月','火','水','木','金','土'][new Date().getDay()]; }
 
-async function getCollectionWithRetry(name, tries = 4) {
+let loadedCourseIds = new Set();
+let allCustomersLoaded = false;
+const CACHE_KEY = 'cm_view_cache_v2';
+
+function normalizeDoc(d) {
+  const data = { id: d.id, ...d.data() };
+  if (data.updatedAt && data.updatedAt.toMillis) data.updatedAt = data.updatedAt.toMillis();
+  return data;
+}
+function saveCache() {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ courses, customers, loadedCourseIds: [...loadedCourseIds], allCustomersLoaded, savedAt: Date.now() }));
+  } catch (e) { /* 容量オーバー等は無視（キャッシュなしで動作） */ }
+}
+function readCache() {
+  try { const t = localStorage.getItem(CACHE_KEY); return t ? JSON.parse(t) : null; } catch (e) { return null; }
+}
+async function getWithRetry(queryRef, tries = 4) {
   let lastErr;
   for (let i = 0; i < tries; i++) {
-    try {
-      return await db.collection(name).get({ source: 'server' });
-    } catch (e) {
-      lastErr = e;
-      if (i < tries - 1) await new Promise(r => setTimeout(r, 800 * (i + 1)));
-    }
+    try { return await queryRef.get({ source: 'server' }); }
+    catch (e) { lastErr = e; if (i < tries - 1) await new Promise(r => setTimeout(r, 800 * (i + 1))); }
   }
   throw lastErr;
 }
-async function load() {
-  try {
-    const [cs, us] = await Promise.all([
-      getCollectionWithRetry('cm_courses'),
-      getCollectionWithRetry('cm_customers'),
-    ]);
-    courses = cs.docs.map(d => ({ id: d.id, ...d.data() }));
-    customers = us.docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch (e) {
-    document.getElementById('list').innerHTML = '<div class="empty">データを読み込めませんでした。通信環境をご確認ください。<br><button class="btn primary" style="margin-top:12px;background:var(--orange);color:#fff;border:none;border-radius:10px;padding:10px 18px;font-weight:800" onclick="load()">再読み込み</button></div>';
-    return;
+function mergeCustomersInto(docs) {
+  const fetched = docs.map(normalizeDoc);
+  const ids = new Set(fetched.map(c => c.id));
+  customers = customers.filter(c => !ids.has(c.id)).concat(fetched);
+}
+async function ensureAllCustomersLoaded() {
+  if (allCustomersLoaded) return;
+  const snap = await getWithRetry(db.collection('cm_customers'));
+  mergeCustomersInto(snap.docs);
+  allCustomersLoaded = true;
+  for (const c of courses) loadedCourseIds.add(c.id);
+  saveCache();
+}
+async function ensureCourseLoaded(courseId) {
+  if (!courseId || allCustomersLoaded || loadedCourseIds.has(courseId)) return;
+  const snap = await getWithRetry(db.collection('cm_customers').where('courseIds', 'array-contains', courseId));
+  if (snap.empty) { await ensureAllCustomersLoaded(); return; } // 旧形式データへの保険
+  mergeCustomersInto(snap.docs);
+  loadedCourseIds.add(courseId);
+  saveCache();
+}
+function showUpdated(ts) {
+  document.getElementById('updatedAt').textContent = ts ? 'データ取得: ' + new Date(ts).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) + '（🔄で最新に更新）' : '';
+}
+function showListLoading() { document.getElementById('list').innerHTML = `<div class="empty">読み込み中…</div>`; }
+function showListError(retryFn) {
+  document.getElementById('list').innerHTML = '<div class="empty">データを読み込めませんでした。通信環境をご確認ください。<br><button style="margin-top:12px;background:var(--orange);color:#fff;border:none;border-radius:10px;padding:10px 18px;font-weight:800" onclick="' + retryFn + '">再読み込み</button></div>';
+}
+async function load(forceFresh = false) {
+  const cache = forceFresh ? null : readCache();
+  if (cache && cache.courses && cache.courses.length) {
+    courses = cache.courses; customers = cache.customers || [];
+    loadedCourseIds = new Set(cache.loadedCourseIds || []); allCustomersLoaded = !!cache.allCustomersLoaded;
+    showUpdated(cache.savedAt);
+  } else {
+    courses = []; customers = []; loadedCourseIds = new Set(); allCustomersLoaded = false;
+    showListLoading();
+    try {
+      const snap = await getWithRetry(db.collection('cm_courses'));
+      courses = snap.docs.map(normalizeDoc);
+      saveCache();
+      showUpdated(Date.now());
+    } catch (e) { console.error(e); showListError('load(true)'); return; }
   }
-  renderTopTabs();
-  renderCourseTabs();
-  renderDayTabs();
+  if (mode !== 'search' && !courses.some(c => c.id === activeCourseId)) {
+    const first = courses.filter(c => c.wasteType === mode).sort((a,b)=>(a.order??0)-(b.order??0))[0];
+    activeCourseId = first ? first.id : null;
+  }
+  renderTopTabs(); renderCourseTabs(); renderDayTabs();
+  await openActiveCourse();
+}
+async function openActiveCourse() {
+  if (mode !== 'search' && activeCourseId && !allCustomersLoaded && !loadedCourseIds.has(activeCourseId)) {
+    showListLoading();
+    try { await ensureCourseLoaded(activeCourseId); } catch (e) { console.error(e); showListError('openActiveCourse()'); return; }
+  }
   renderList();
-  const latest = customers.reduce((m, c) => c.updatedAt && c.updatedAt.toMillis && c.updatedAt.toMillis() > m ? c.updatedAt.toMillis() : m, 0);
-  if (latest) document.getElementById('updatedAt').textContent = '最終更新: ' + new Date(latest).toLocaleString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
 }
 
 function renderTopTabs() {
@@ -265,7 +320,7 @@ function renderTopTabs() {
     }
     document.getElementById('search').value = '';
     updateFab();
-    renderTopTabs(); renderCourseTabs(); renderDayTabs(); renderList();
+    renderTopTabs(); renderCourseTabs(); renderDayTabs(); openActiveCourse();
   });
 }
 
@@ -289,7 +344,7 @@ function renderCourseTabs() {
   box.innerHTML = list.map(c => `
     <button data-c="${c.id}" class="${c.id === activeCourseId ? 'active' : ''}"><span class="dot" style="background:${c.color}"></span>${esc(courseLabel(c))}</button>
   `).join('');
-  box.querySelectorAll('button').forEach(b => b.onclick = () => { activeCourseId = b.dataset.c; dayFilter = 'all'; selectedIds.clear(); updateFab(); renderCourseTabs(); renderDayTabs(); renderList(); });
+  box.querySelectorAll('button').forEach(b => b.onclick = () => { activeCourseId = b.dataset.c; dayFilter = 'all'; selectedIds.clear(); updateFab(); renderCourseTabs(); renderDayTabs(); openActiveCourse(); });
 }
 
 function courseLabel(c) { return c ? (c.group ? `${c.group}（${c.name}）` : c.name) : '未設定'; }
@@ -324,16 +379,19 @@ function customerTypeBadges(cu, excludeType) {
   ).join('');
 }
 
-function renderList() {
+async function renderList() {
   const q = document.getElementById('search').value.trim().toLowerCase();
   const list = document.getElementById('list');
 
   if (mode === 'search') {
-    document.getElementById('meta').textContent = q ? '検索結果' : `全${customers.length}件`;
-    const results = q
-      ? customers.filter(c => matchesQuery(c, q))
-      : [];
-    if (!q) { list.innerHTML = `<div class="empty">得意先名または住所を入力して検索してください。</div>`; return; }
+    if (!q) { document.getElementById('meta').textContent = ''; list.innerHTML = `<div class="empty">得意先名・住所・管理番号を入力して検索してください。</div>`; return; }
+    if (!allCustomersLoaded) {
+      showListLoading();
+      try { await ensureAllCustomersLoaded(); } catch (e) { console.error(e); list.innerHTML = `<div class="empty">読み込みに失敗しました。通信環境をご確認ください。</div>`; return; }
+      if (document.getElementById('search').value.trim().toLowerCase() !== q) return;
+    }
+    document.getElementById('meta').textContent = '検索結果';
+    const results = customers.filter(c => matchesQuery(c, q));
     if (!results.length) { list.innerHTML = `<div class="empty">該当する得意先が見つかりません。</div>`; return; }
     list.innerHTML = results.map(cu => `
       <div class="card" onclick="openSheet('${cu.id}')">
@@ -434,8 +492,13 @@ function closeSheet() { document.getElementById('overlay').classList.remove('sho
 document.getElementById('overlay').addEventListener('click', e => { if (e.target.id === 'overlay') closeSheet(); });
 document.getElementById('search').addEventListener('input', renderList);
 
-const loadTimeout = setTimeout(() => showErr('読み込みに時間がかかっています。電波の良い場所で開き直すか、しばらくしてから再度お試しください。'), 25000);
-load().finally(() => clearTimeout(loadTimeout));
+const loadTimeout = setTimeout(() => showErr('読み込みに時間がかかっています。電波の良い場所で開き直すか、しばらくしてから再度お試しください。', false), 25000);
+document.getElementById('reloadBtn').onclick = async () => {
+  const btn = document.getElementById('reloadBtn'); btn.disabled = true;
+  await load(true);
+  btn.disabled = false;
+};
+load().finally(() => { clearTimeout(loadTimeout); hideErr(); });
 
 </script>
 </body>
