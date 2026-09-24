@@ -146,7 +146,7 @@ window.addEventListener('error', e => showErr('スクリプトエラー: ' + (e.
 window.addEventListener('unhandledrejection', e => showErr('通信/非同期エラー: ' + (e.reason && e.reason.message ? e.reason.message : e.reason)));
 if (typeof firebase === 'undefined') {
   showErr('Firebaseの読み込みに失敗しました。通信環境をご確認のうえ、リロードしてください。（広告ブロッカー等が原因の場合もあります）');
-} else {
+}
 
 const firebaseConfig = {
   apiKey: "AIzaSyD8JW9526h0TKa9_hEaGrmlpVG8NeW4c3Q",
@@ -293,6 +293,9 @@ function renderCourseTabs() {
 }
 
 function courseLabel(c) { return c ? (c.group ? `${c.group}（${c.name}）` : c.name) : '未設定'; }
+function matchesQuery(cu, q) {
+  return (cu.name||'').toLowerCase().includes(q) || (cu.address||'').toLowerCase().includes(q) || (cu.mgmtNo||'').toLowerCase().includes(q);
+}
 function getAssignments(cu, type) {
   const it = cu.items && cu.items[type];
   if (!it) return [];
@@ -328,7 +331,7 @@ function renderList() {
   if (mode === 'search') {
     document.getElementById('meta').textContent = q ? '検索結果' : `全${customers.length}件`;
     const results = q
-      ? customers.filter(c => (c.name || '').toLowerCase().includes(q) || (c.address || '').toLowerCase().includes(q))
+      ? customers.filter(c => matchesQuery(c, q))
       : [];
     if (!q) { list.innerHTML = `<div class="empty">得意先名または住所を入力して検索してください。</div>`; return; }
     if (!results.length) { list.innerHTML = `<div class="empty">該当する得意先が見つかりません。</div>`; return; }
@@ -351,7 +354,7 @@ function renderList() {
   let items = customers.filter(c => findAssignment(c, mode, course.id));
   items.sort((a, b) => (findAssignment(a, mode, course.id).order ?? 0) - (findAssignment(b, mode, course.id).order ?? 0));
   if (dayFilter !== 'all') items = items.filter(c => { const a = findAssignment(c, mode, course.id); return a.days && a.days.includes(dayFilter); });
-  if (q) items = items.filter(c => (c.name || '').toLowerCase().includes(q) || (c.address || '').toLowerCase().includes(q));
+  if (q) items = items.filter(c => matchesQuery(c, q));
   document.getElementById('meta').textContent = `${courseLabel(course)}${dayFilter !== 'all' ? '　' + dayFilter + '曜日のみ' : ''}　${items.length}件`;
   if (!items.length) { list.innerHTML = `<div class="empty">${dayFilter !== 'all' ? `${dayFilter}曜日の得意先はありません。` : (q ? '該当する得意先がありません。' : 'このコースにはまだ得意先が登録されていません。')}</div>`; return; }
   list.innerHTML = items.map((cu, i) => {
@@ -363,7 +366,7 @@ function renderList() {
       <div class="info">
         <div class="name">${esc(cu.name)}</div>
         <div class="badges">
-          ${it.hasKey ? `<span class="badge key">🔑 ${esc(it.keyNumber || '鍵あり')}</span>` : `<span class="badge nokey">鍵なし</span>`}
+          ${it.hasKey ? `<span class="badge key">🔑 ${esc(it.keyNumber || '鍵あり')}</span>` : ''}
           ${it.days && it.days.length ? `<span class="badge days">${it.days.join('')}</span>` : ''}
         </div>
         ${it.memo ? `<div class="addr">📝 ${esc(it.memo)}</div>` : ''}
@@ -414,7 +417,7 @@ function openSheet(custId) {
       return `<div class="typeblock">
         <div class="th">${w.icon} ${w.label}</div>
         <div class="tv">${esc(courseLabel(course))}${it.days && it.days.length ? '　回収曜日: ' + it.days.join('・') : ''}</div>
-        <div class="tv">${it.hasKey ? '🔑 ' + esc(it.keyNumber || '鍵あり') : '鍵なし／不要'}</div>
+        ${it.hasKey ? `<div class="tv">🔑 ${esc(it.keyNumber || '鍵あり')}</div>` : ''}
         ${it.memo ? `<div class="tv">📝 ${esc(it.memo)}</div>` : ''}
       </div>`;
     })
@@ -434,7 +437,6 @@ document.getElementById('search').addEventListener('input', renderList);
 const loadTimeout = setTimeout(() => showErr('読み込みに時間がかかっています。電波の良い場所で開き直すか、しばらくしてから再度お試しください。'), 25000);
 load().finally(() => clearTimeout(loadTimeout));
 
-} // firebase未定義でなければここまで実行
 </script>
 </body>
 </html>

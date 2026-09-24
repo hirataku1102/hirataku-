@@ -183,7 +183,7 @@ window.addEventListener('error', e => showErr('スクリプトエラー: ' + (e.
 window.addEventListener('unhandledrejection', e => showErr('通信/非同期エラー: ' + (e.reason && e.reason.message ? e.reason.message : e.reason)));
 if (typeof firebase === 'undefined') {
   showErr('Firebaseの読み込みに失敗しました。通信環境をご確認のうえ、リロードしてください。（広告ブロッカー等が原因の場合もあります）');
-} else {
+}
 
 /* ==== 設定 ==== */
 const EDIT_PASSCODE = "daybreak2026"; // ← ここを好きなパスコードに変更してください
@@ -355,6 +355,9 @@ function renderCourseTabs() {
 
 /* ==== main content ==== */
 function courseLabel(c) { return c ? (c.group ? `${c.group}（${c.name}）` : c.name) : '未設定'; }
+function matchesQuery(cu, q) {
+  return (cu.name||'').toLowerCase().includes(q) || (cu.address||'').toLowerCase().includes(q) || (cu.mgmtNo||'').toLowerCase().includes(q);
+}
 function getAssignments(cu, type) {
   const it = cu.items && cu.items[type];
   if (!it) return [];
@@ -437,7 +440,7 @@ function renderSearchList() {
   const list = document.getElementById('list');
   const orphans = customers.filter(cu => !WASTE_TYPES.some(w => getAssignments(cu, w.key).length)).length;
   document.getElementById('meta').textContent = q ? '検索結果' : `全${customers.length}件${orphans ? `（うちコース未登録 ${orphans}件）` : ''}`;
-  const results = q ? customers.filter(c => (c.name||'').toLowerCase().includes(q) || (c.address||'').toLowerCase().includes(q)) : [];
+  const results = q ? customers.filter(c => matchesQuery(c, q)) : [];
   if (!q) { list.innerHTML = `<div class="empty">得意先名または住所で検索してください。</div>`; return; }
   if (!results.length) { list.innerHTML = `<div class="empty">見つかりませんでした。</div>`; return; }
   list.innerHTML = results.map(cu => `
@@ -476,7 +479,7 @@ function renderCourseList(course) {
       <div class="info" data-edit="${cu.id}">
         <div class="name">${esc(cu.name)}</div>
         <div class="badges">
-          ${it.hasKey ? `<span class="badge key">🔑 ${esc(it.keyNumber||'鍵あり')}</span>` : `<span class="badge nokey">鍵なし</span>`}
+          ${it.hasKey ? `<span class="badge key">🔑 ${esc(it.keyNumber||'鍵あり')}</span>` : ''}
           ${it.days && it.days.length ? `<span class="badge days">${it.days.join('')}</span>` : ''}
         </div>
         ${it.memo ? `<div class="addr">📝 ${esc(it.memo)}</div>` : ''}
@@ -668,7 +671,7 @@ function openPickExisting(course) {
     const q = (document.getElementById('pickSearch').value || '').trim().toLowerCase();
     const box = document.getElementById('pickList');
     if (!q) { box.innerHTML = `<div class="empty">検索してください。</div>`; return; }
-    const results = customers.filter(c => ((c.name||'').toLowerCase().includes(q) || (c.address||'').toLowerCase().includes(q))
+    const results = customers.filter(c => matchesQuery(c, q)
       && !findAssignment(c, mode, course.id));
     if (!results.length) { box.innerHTML = `<div class="empty">見つかりません（すでにこのコースにいる場合も表示されません）。</div>`; return; }
     box.innerHTML = results.slice(0, 30).map(cu => `
@@ -1154,7 +1157,6 @@ document.getElementById('seedBtn').onclick = async () => {
 const loadTimeout = setTimeout(() => showErr('読み込みに時間がかかっています。電波の良い場所で開き直すか、しばらくしてから再度お試しください。'), 25000);
 refresh(true).finally(() => clearTimeout(loadTimeout));
 
-} // firebase未定義でなければここまで実行
 </script>
 </body>
 </html>
