@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>得意先検索 データ取込</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --panel:#fff; --ink:#1f2937; --sub:#6b7280; --line:#e5e7eb;
+    --brand:#154266; --brand2:#1e5b8f; --ok:#15803d; --err:#c0392b;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  header{
+    background:linear-gradient(180deg,#0b1830,#2c4d78);
+    color:#fff; padding:18px 20px;
+  }
+  header h1{ margin:0 0 4px; font-size:17px; }
+  header p{ margin:0; font-size:12px; color:#c9d8e6; }
+  main{ max-width:680px; margin:0 auto; padding:18px 16px 60px; }
+  .card{
+    background:var(--panel); border:1px solid var(--line);
+    border-radius:10px; padding:18px; margin-bottom:14px;
+  }
+  .card h2{ margin:0 0 10px; font-size:14px; color:var(--brand); }
+  label{ display:block; font-size:12.5px; color:var(--sub); margin-bottom:5px; }
+  input[type=email], input[type=password]{
+    width:100%; padding:11px 13px; font-size:15px;
+    border:1px solid var(--line); border-radius:8px; outline:none; margin-bottom:10px;
+  }
+  input[type=file]{ font-size:13px; width:100%; }
+  button{
+    width:100%; padding:12px; font-size:14px; font-weight:700;
+    border:none; border-radius:8px; background:var(--brand); color:#fff; cursor:pointer;
+  }
+  button:disabled{ background:#9aa5b1; cursor:default; }
+  button.ghost{ background:#eef1f4; color:var(--brand); font-weight:600; }
+  .msg{ font-size:12.5px; margin-top:10px; line-height:1.7; white-space:pre-wrap; }
+  .msg.err{ color:var(--err); }
+  .msg.ok{ color:var(--ok); }
+  .hide{ display:none; }
+  .who{ font-size:12px; color:var(--sub); margin-bottom:10px; }
+  table{ width:100%; border-collapse:collapse; font-size:11.5px; margin-top:10px; }
+  th,td{ border:1px solid var(--line); padding:5px 7px; text-align:left; }
+  th{ background:#f7f9fb; color:var(--sub); font-weight:600; }
+  .bar{ height:6px; background:var(--line); border-radius:99px; overflow:hidden; margin-top:10px; }
+  .bar i{ display:block; height:100%; width:0; background:var(--brand2); transition:width .2s; }
+  .note{ font-size:11.5px; color:var(--sub); line-height:1.8; margin-top:8px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>得意先検索 データ取込</h1>
+  <p>CSVを読み込んでFirestoreに登録します(管理者のみ)</p>
+</header>
+
+<main>
+
+  <!-- ログイン -->
+  <div class="card" id="loginCard">
+    <h2>ログイン</h2>
+    <label for="email">メールアドレス</label>
+    <input id="email" type="email" autocomplete="username" autocapitalize="off" spellcheck="false">
+    <label for="pw">パスワード</label>
+    <input id="pw" type="password" autocomplete="current-password">
+    <button id="loginBtn">ログイン</button>
+    <div class="msg err hide" id="loginMsg"></div>
+  </div>
+
+  <!-- 取込 -->
+  <div class="card hide" id="workCard">
+    <div class="who" id="who"></div>
+    <h2>CSVを選ぶ</h2>
+    <input id="file" type="file" accept=".csv,text/csv">
+    <div class="note">
+      独自システムから書き出したCSV(Shift_JIS)をそのまま選んでください。<br>
+      1行目が項目名で、<b>収集先コード</b>の列が含まれている必要があります。
+    </div>
+    <div class="msg" id="parseMsg"></div>
+    <div id="preview"></div>
+
+    <div style="margin-top:16px">
+      <button id="uploadBtn" disabled>この内容でFirestoreに登録する</button>
+      <div class="bar hide" id="bar"><i></i></div>
+      <div class="msg" id="upMsg"></div>
+    </div>
+
+    <div style="margin-top:18px">
+      <button class="ghost" id="logoutBtn">ログアウト</button>
+    </div>
+  </div>
+
+</main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
+         setPersistence, browserLocalPersistence }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, doc, getDocs, writeBatch, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/* ▼▼▼ ここだけ書き換えてください ▼▼▼ */
+const firebaseConfig = {
+  apiKey: "AIzaSyD8JW9526h0TKa9_hEaGrmlpVG8NeW4c3Q",
+  authDomain: "hirataku1102.firebaseapp.com",
+  projectId: "hirataku1102",
+  storageBucket: "hirataku1102.firebasestorage.app",
+  messagingSenderId: "219252490669",
+  appId: "1:219252490669:web:bb3d9dc019a17a5a01e124"
+};
+/* ▲▲▲ ここまで ▲▲▲ */
+
+const COLLECTION = "ts_customers";
+const CHUNK_SIZE = 600;
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+const $ = (id) => document.getElementById(id);
+let ROWS = [];
+
+/* ---------- ログイン ---------- */
+$('loginBtn').addEventListener('click', async () => {
+  const msg = $('loginMsg');
+  msg.classList.add('hide');
+  $('loginBtn').disabled = true;
+  $('loginBtn').textContent = '確認中…';
+  try{
+    await setPersistence(auth, browserLocalPersistence);
+    await signInWithEmailAndPassword(auth, $('email').value.trim(), $('pw').value);
+  }catch(err){
+    msg.textContent = 'ログインできませんでした(' + ((err && err.code) || '') + ')';
+    msg.classList.remove('hide');
+    $('loginBtn').disabled = false;
+    $('loginBtn').textContent = 'ログイン';
+  }
+});
+$('logoutBtn').addEventListener('click', async () => { await signOut(auth); location.reload(); });
+
+onAuthStateChanged(auth, (user) => {
+  if(user){
+    $('loginCard').classList.add('hide');
+    $('workCard').classList.remove('hide');
+    $('who').textContent = 'ログイン中: ' + (user.email || '');
+  }else{
+    $('loginCard').classList.remove('hide');
+    $('workCard').classList.add('hide');
+    $('loginBtn').disabled = false;
+    $('loginBtn').textContent = 'ログイン';
+  }
+});
+
+/* ---------- CSV パース ---------- */
+function parseCSV(text){
+  const rows = [];
+  let row = [], field = '', inQ = false;
+  for(let i = 0; i < text.length; i++){
+    const c = text[i];
+    if(inQ){
+      if(c === '"'){
+        if(text[i+1] === '"'){ field += '"'; i++; }
+        else inQ = false;
+      }else field += c;
+    }else{
+      if(c === '"') inQ = true;
+      else if(c === ','){ row.push(field); field = ''; }
+      else if(c === '\n'){ row.push(field); field = ''; rows.push(row); row = []; }
+      else if(c === '\r'){ /* skip */ }
+      else field += c;
+    }
+  }
+  if(field.length || row.length){ row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(v => String(v).trim() !== ''));
+}
+
+const MONTH_SUFFIX = /[＊*]{2}月分$/;
+function padDate(s){
+  const t = String(s || '').trim();
+  const m = t.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+  if(!m) return t;
+  return m[1] + '/' + String(m[2]).padStart(2,'0') + '/' + String(m[3]).padStart(2,'0');
+}
+function joinAddr(a, b, c){
+  return [a, b, c].map(v => String(v || '').trim()).filter(Boolean).join('');
+}
+
+function buildRows(matrix){
+  const header = matrix[0].map(h => String(h).trim());
+  const idx = (name) => header.indexOf(name);
+  const need = ['収集先コード','得意先正式名１','収集先正式名１'];
+  const missing = need.filter(n => idx(n) === -1);
+  if(missing.length) throw new Error('CSVに次の列が見つかりません: ' + missing.join('、'));
+
+  const col = {
+    code: idx('収集先コード'),
+    k1: idx('得意先正式名１'), k2: idx('得意先正式名２'),
+    t1: idx('収集先正式名１'), t2: idx('収集先正式名２'),
+    ka1: idx('得意先住所１'), ka2: idx('得意先住所２'), ka3: idx('得意先住所３'),
+    ta1: idx('収集先住所１'), ta2: idx('収集先住所２'), ta3: idx('収集先住所３'),
+    shohin: idx('定額商品名'), tekiyou: idx('適用開始日'),
+    taniname: idx('単位名'), tanka: idx('単価'),
+    keiyaku: idx('契約日'), kyuushi: idx('休止日'), kaiyaku: idx('解約日')
+  };
+  const g = (r, i) => (i >= 0 && r[i] != null) ? String(r[i]).trim() : '';
+
+  const out = [];
+  for(let i = 1; i < matrix.length; i++){
+    const r = matrix[i];
+    const k1 = g(r, col.k1);
+    if(!k1) continue;
+    const shohinRaw = g(r, col.shohin);
+    const tankaRaw = g(r, col.tanka);
+    const tanka = tankaRaw === '' ? 0 : (parseFloat(tankaRaw.replace(/,/g, '')) || 0);
+    out.push({
+      code: g(r, col.code),
+      k1,
+      k2: g(r, col.k2),
+      t1: g(r, col.t1),
+      t2: g(r, col.t2),
+      kaddr: joinAddr(g(r, col.ka1), g(r, col.ka2), g(r, col.ka3)),
+      taddr: joinAddr(g(r, col.ta1), g(r, col.ta2), g(r, col.ta3)),
+      shohin: shohinRaw.replace(MONTH_SUFFIX, ''),
+      tanka,
+      taniname: g(r, col.taniname),
+      tekiyou: padDate(g(r, col.tekiyou)),
+      keiyaku: padDate(g(r, col.keiyaku)),
+      kyuushi: padDate(g(r, col.kyuushi)),
+      kaiyaku: padDate(g(r, col.kaiyaku))
+    });
+  }
+  return out;
+}
+
+/* ---------- ファイル選択 ---------- */
+$('file').addEventListener('change', async (e) => {
+  const f = e.target.files && e.target.files[0];
+  const msg = $('parseMsg');
+  const prev = $('preview');
+  $('uploadBtn').disabled = true;
+  ROWS = [];
+  prev.innerHTML = '';
+  if(!f) return;
+
+  msg.className = 'msg';
+  msg.textContent = '読み込み中…';
+  try{
+    const buf = await f.arrayBuffer();
+    let text;
+    try{
+      text = new TextDecoder('shift_jis', { fatal: false }).decode(buf);
+    }catch(err){
+      text = new TextDecoder('utf-8').decode(buf);
+    }
+    // 文字化けしていそうならUTF-8で読み直す
+    if(text.indexOf('収集先コード') === -1){
+      const alt = new TextDecoder('utf-8').decode(buf);
+      if(alt.indexOf('収集先コード') !== -1) text = alt;
+    }
+    const matrix = parseCSV(text);
+    ROWS = buildRows(matrix);
+
+    const kanri = new Set(ROWS.map(r => r.k1));
+    const shu   = new Set(ROWS.map(r => r.t1));
+    const noCode = ROWS.filter(r => !r.code).length;
+    const lens = {};
+    ROWS.forEach(r => { const L = r.code.length; lens[L] = (lens[L] || 0) + 1; });
+    const lenStr = Object.keys(lens).sort((a,b)=>a-b).map(k => k + '桁: ' + lens[k] + '件').join(' / ');
+
+    msg.className = 'msg ok';
+    msg.textContent =
+      '読み込みOK\n' +
+      '・データ件数: ' + ROWS.length + '件\n' +
+      '・管理会社: ' + kanri.size + '社 / 収集先: ' + shu.size + '件\n' +
+      '・管理番号の桁数: ' + (lenStr || '—') + (noCode ? '\n・管理番号が空: ' + noCode + '件' : '');
+
+    const head = ROWS.slice(0, 3);
+    prev.innerHTML = '<table><tr><th>管理番号</th><th>管理会社</th><th>収集先</th><th>単価</th></tr>' +
+      head.map(r => '<tr><td>' + esc(r.code) + '</td><td>' + esc(r.k1) + '</td><td>' + esc(r.t1) +
+                    '</td><td>' + r.tanka + '</td></tr>').join('') + '</table>';
+
+    $('uploadBtn').disabled = ROWS.length === 0;
+  }catch(err){
+    msg.className = 'msg err';
+    msg.textContent = '読み込めませんでした: ' + (err && err.message ? err.message : err);
+  }
+});
+
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ---------- Firestore へ登録 ---------- */
+$('uploadBtn').addEventListener('click', async () => {
+  if(!ROWS.length) return;
+  const msg = $('upMsg');
+  const bar = $('bar');
+  const fill = bar.querySelector('i');
+  if(!confirm('現在のデータを全て置き換えます。よろしいですか?\n(' + ROWS.length + '件)')) return;
+
+  $('uploadBtn').disabled = true;
+  bar.classList.remove('hide');
+  msg.className = 'msg';
+  msg.textContent = '古いデータを削除しています…';
+
+  try{
+    // 1) 既存ドキュメントを全削除
+    const existing = await getDocs(collection(db, COLLECTION));
+    const olds = [];
+    existing.forEach(d => olds.push(d.id));
+    for(let i = 0; i < olds.length; i += 400){
+      const b = writeBatch(db);
+      olds.slice(i, i + 400).forEach(id => b.delete(doc(db, COLLECTION, id)));
+      await b.commit();
+    }
+
+    // 2) 新しいデータをチャンクに分けて書き込み
+    const chunks = [];
+    for(let i = 0; i < ROWS.length; i += CHUNK_SIZE) chunks.push(ROWS.slice(i, i + CHUNK_SIZE));
+
+    for(let i = 0; i < chunks.length; i++){
+      const id = 'chunk_' + String(i).padStart(4, '0');
+      const b = writeBatch(db);
+      b.set(doc(db, COLLECTION, id), { i, rows: chunks[i] });
+      await b.commit();
+      const pct = Math.round(((i + 1) / (chunks.length + 1)) * 100);
+      fill.style.width = pct + '%';
+      msg.textContent = '登録中… ' + (i + 1) + ' / ' + chunks.length;
+    }
+
+    // 3) meta を最後に書く(これが更新の目印になる)
+    const stamp = new Date().toISOString();
+    const b = writeBatch(db);
+    b.set(doc(db, COLLECTION, 'meta'), {
+      count: ROWS.length,
+      chunks: chunks.length,
+      updatedAt: stamp,
+      updatedBy: (auth.currentUser && auth.currentUser.email) || '',
+      serverTime: serverTimestamp()
+    });
+    await b.commit();
+
+    fill.style.width = '100%';
+    msg.className = 'msg ok';
+    msg.textContent = '完了しました(' + ROWS.length + '件 / ' + chunks.length + 'ブロック)\n' +
+                      '検索アプリを開き直すと新しいデータが表示されます。';
+  }catch(err){
+    msg.className = 'msg err';
+    msg.textContent = '登録に失敗しました: ' + ((err && err.message) || err) +
+      '\n※権限エラーの場合はFirestoreのルール設定を確認してください。';
+    $('uploadBtn').disabled = false;
+  }
+});
+</script>
+</body>
+</html>
