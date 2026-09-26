@@ -126,15 +126,19 @@ function geocodeCandidates(address) {
 }
 async function geocodeAddress(address) {
   var levels = geocodeCandidates(address);
+  var lastError = "住所が見つかりません";
   for (var i = 0; i < levels.length; i++) {
     if (i > 0) await sleep(1100);
     try {
       var res = await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&q=" + encodeURIComponent(levels[i]));
+      if (!res.ok) { lastError = "通信エラー(HTTP " + res.status + ")"; continue; }
       var data = await res.json();
       if (data && data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), approx: i > 0 };
-    } catch (err) {}
+    } catch (err) {
+      lastError = "通信ブロック(" + ((err && err.message) || "fetch failed") + ")";
+    }
   }
-  return null;
+  return { error: lastError };
 }
 function emptyForm() {
   return { name: "", address: "", priority: "普通", status: "更地", statusOther: "", type: "不明", memo: "", photos: [] };
@@ -266,15 +270,23 @@ function PropertyTracker() {
     if (!toGeocode.length) { setGeoStatus(""); return; }
     var cancelled = false;
     var i = 0;
+    var okCount = 0, ngCount = 0, lastErr = "";
     function next() {
       if (cancelled) return;
-      if (i >= toGeocode.length) { setGeoStatus(""); return; }
+      if (i >= toGeocode.length) {
+        setGeoStatus(okCount + "件成功・" + ngCount + "件失敗" + (lastErr ? "（" + lastErr + "）" : ""));
+        return;
+      }
       var it = toGeocode[i];
       setGeoStatus("住所を確認中…（" + (i + 1) + "/" + toGeocode.length + "）");
-      geocodeAddress(it.address).then(function(coords) {
+      geocodeAddress(it.address).then(function(result) {
         if (cancelled) return;
-        if (coords) {
-          saveItemDoc(it.id, Object.assign({}, it, { lat: coords.lat, lng: coords.lng, approxLoc: !!coords.approx }));
+        if (result && typeof result.lat === "number") {
+          okCount++;
+          saveItemDoc(it.id, Object.assign({}, it, { lat: result.lat, lng: result.lng, approxLoc: !!result.approx }));
+        } else {
+          ngCount++;
+          if (result && result.error) lastErr = result.error;
         }
         i++;
         setTimeout(next, 1100);
