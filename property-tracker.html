@@ -7,6 +7,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
 <script crossorigin src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; }
@@ -51,7 +53,7 @@ function uploadPhotos(itemId, photos) {
 
 var e = React.createElement;
 var F = React.Fragment;
-var useState = React.useState, useEffect = React.useEffect, useMemo = React.useMemo;
+var useState = React.useState, useEffect = React.useEffect, useMemo = React.useMemo, useRef = React.useRef;
 
 function svgIcon(children, p) {
   p = p || {};
@@ -69,6 +71,7 @@ function PencilIcon(p){ return svgIcon([e('path',{key:"1",d:"M17 3a2.85 2.83 0 1
 function CameraIcon(p){ return svgIcon([e('path',{key:"1",d:"M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"}), e('circle',{key:"2",cx:12,cy:13,r:3.5})], p); }
 function TrashIcon(p){ return svgIcon([e('path',{key:"1",d:"M3 6h18"}), e('path',{key:"2",d:"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"}), e('path',{key:"3",d:"M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"})], p); }
 function FilterIcon(p){ return svgIcon([e('path',{key:"1",d:"M22 3H2l8 9.46V19l4 2v-8.54L22 3z"})], p); }
+function MapIcon(p){ return svgIcon([e('path',{key:"1",d:"M9 18 3 21V6l6-3 6 3 6-3v15l-6 3-6-3Z"}), e('path',{key:"2",d:"M9 3v15"}), e('path',{key:"3",d:"M15 6v15"})], p); }
 
 var PRIORITIES = [
   { key: "最優先", color: "#C9481F", bg: "#FBE4D8" },
@@ -95,6 +98,22 @@ function formatDate(ts) {
 function priorityMeta(key) {
   for (var i=0;i<PRIORITIES.length;i++){ if (PRIORITIES[i].key===key) return PRIORITIES[i]; }
   return PRIORITIES[2];
+}
+var SAKAI_CENTER = [34.5732, 135.4830];
+function escapeHtml(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function(c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+function geocodeAddress(address) {
+  var q = (address || "").trim();
+  if (!q) return Promise.resolve(null);
+  if (!/堺市|大阪/.test(q)) q = "堺市 " + q;
+  var url = "https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&q=" + encodeURIComponent(q);
+  return fetch(url).then(function(res){ return res.json(); }).then(function(data){
+    if (data && data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+    return null;
+  }).catch(function(){ return null; });
 }
 function emptyForm() {
   return { name: "", address: "", priority: "普通", status: "更地", statusOther: "", type: "不明", memo: "", photos: [] };
@@ -161,6 +180,11 @@ function PropertyTracker() {
   var importOpenState = useState(false); var importOpen = importOpenState[0], setImportOpen = importOpenState[1];
   var importTextState = useState(""); var importText = importTextState[0], setImportText = importTextState[1];
   var savingState = useState(false); var saving = savingState[0], setSaving = savingState[1];
+  var mapOpenState = useState(false); var mapOpen = mapOpenState[0], setMapOpen = mapOpenState[1];
+  var geoStatusState = useState(""); var geoStatus = geoStatusState[0], setGeoStatus = geoStatusState[1];
+  var mapContainerRef = useRef(null);
+  var mapInstanceRef = useRef(null);
+  var markerLayerRef = useRef(null);
 
   useEffect(function() {
     if (loadJson(AUTH_KEY) === "ok") setLocked(false);
@@ -175,6 +199,68 @@ function PropertyTracker() {
     });
     return unsub;
   }, []);
+
+  useEffect(function() {
+    if (!mapOpen) return;
+    var mapEl = mapContainerRef.current;
+    if (!mapEl || typeof L === "undefined") return;
+    var map = L.map(mapEl).setView(SAKAI_CENTER, 12);
+    mapInstanceRef.current = map;
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    var markerLayer = L.layerGroup().addTo(map);
+    markerLayerRef.current = markerLayer;
+    setTimeout(function(){ map.invalidateSize(); }, 80);
+    return function() {
+      map.remove();
+      mapInstanceRef.current = null;
+      markerLayerRef.current = null;
+    };
+  }, [mapOpen]);
+
+  useEffect(function() {
+    if (!mapOpen || !markerLayerRef.current) return;
+    var layer = markerLayerRef.current;
+    layer.clearLayers();
+    items.forEach(function(it) {
+      if (typeof it.lat === "number" && typeof it.lng === "number") {
+        var pm = priorityMeta(it.priority);
+        var marker = L.circleMarker([it.lat, it.lng], { radius: 8, color: pm.color, fillColor: pm.color, fillOpacity: 0.85, weight: 2 });
+        marker.bindPopup(
+          "<b>" + escapeHtml(it.name || "（物件名未登録）") + "</b><br>" +
+          escapeHtml(it.address) + "<br>" +
+          '<span style="color:' + pm.color + '">' + escapeHtml(it.priority) + "</span>　" + escapeHtml(it.status)
+        );
+        marker.addTo(layer);
+      }
+    });
+  }, [items, mapOpen]);
+
+  useEffect(function() {
+    if (!mapOpen) return;
+    var toGeocode = items.filter(function(it){ return typeof it.lat !== "number" || typeof it.lng !== "number"; });
+    if (!toGeocode.length) { setGeoStatus(""); return; }
+    var cancelled = false;
+    var i = 0;
+    function next() {
+      if (cancelled) return;
+      if (i >= toGeocode.length) { setGeoStatus(""); return; }
+      var it = toGeocode[i];
+      setGeoStatus("住所を確認中…（" + (i + 1) + "/" + toGeocode.length + "）");
+      geocodeAddress(it.address).then(function(coords) {
+        if (cancelled) return;
+        if (coords) {
+          saveItemDoc(it.id, Object.assign({}, it, { lat: coords.lat, lng: coords.lng }));
+        }
+        i++;
+        setTimeout(next, 1100);
+      });
+    }
+    next();
+    return function(){ cancelled = true; };
+  }, [mapOpen, items.length]);
 
   function saveItemDoc(id, data) {
     setDoc(doc(propertiesCol, id), data).catch(function(err) {
@@ -410,7 +496,8 @@ function PropertyTracker() {
       e('input', {value:query, onChange:function(ev){ setQuery(ev.target.value); }, placeholder:"物件名・住所・状態で検索（スペース区切りでAND）", style:Object.assign({border:"none", background:"transparent", flex:1, fontSize:14, color:"#232323"}, fontBody)}),
       query ? e('button', {onClick:function(){ setQuery(""); }, "aria-label":"検索をクリア"}, e(XIcon,{size:16,color:"#8a8478"})) : null,
       e('button', {onClick:function(){ setShowFilters(function(s){ return !s; }); }, style:{display:"flex", alignItems:"center", gap:4, color: (showFilters||priorityFilter.size||statusFilter.size) ? "#C9481F":"#5B5648"}, "aria-label":"絞り込み"}, e(FilterIcon,{size:18})),
-      e('button', {onClick:function(){ setImportOpen(true); }, style:{display:"flex", alignItems:"center", gap:4, color:"#5B5648"}, "aria-label":"CSV取込"}, e(UploadIcon,{size:18}))
+      e('button', {onClick:function(){ setImportOpen(true); }, style:{display:"flex", alignItems:"center", gap:4, color:"#5B5648"}, "aria-label":"CSV取込"}, e(UploadIcon,{size:18})),
+      e('button', {onClick:function(){ setMapOpen(true); }, style:{display:"flex", alignItems:"center", gap:4, color:"#5B5648"}, "aria-label":"地図で見る"}, e(MapIcon,{size:18}))
     ),
     showFilters ? e('div', {style:{marginTop:10, display:"flex", flexDirection:"column", gap:8}},
       e('div', {style:{display:"flex", gap:6, flexWrap:"wrap"}},
@@ -566,8 +653,17 @@ function PropertyTracker() {
     )
   ) : null;
 
+  var mapNode = mapOpen ? e('div', {key:"mapmodal", style:{position:"fixed", inset:0, background:"#fff", zIndex:70, display:"flex", flexDirection:"column"}},
+    e('div', {style:{display:"flex", alignItems:"center", padding:"12px 14px", background:"#1F2933", color:"#fff", gap:10}},
+      e('div', {style:Object.assign({fontSize:17, fontWeight:700}, fontDisplay)}, "物件マップ（堺市）"),
+      geoStatus ? e('span', {style:{fontSize:11, opacity:0.75}}, geoStatus) : null,
+      e('button', {onClick:function(){ setMapOpen(false); }, style:{marginLeft:"auto"}, "aria-label":"閉じる"}, e(XIcon,{size:22,color:"#fff"}))
+    ),
+    e('div', {ref: mapContainerRef, style:{flex:1, width:"100%"}})
+  ) : null;
+
   return e('div', {style:Object.assign({background:"#E7E3D8", minHeight:"100vh", color:"#232323"}, fontBody)},
-    headerNode, searchNode, listNode, fabNode, selBarNode, toastNode, viewerNode, importNode, formNode
+    headerNode, searchNode, listNode, fabNode, selBarNode, toastNode, viewerNode, importNode, formNode, mapNode
   );
 }
 
