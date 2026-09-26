@@ -105,15 +105,36 @@ function escapeHtml(s) {
     return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
   });
 }
-function geocodeAddress(address) {
-  var q = (address || "").trim();
-  if (!q) return Promise.resolve(null);
-  if (!/堺市|大阪/.test(q)) q = "堺市 " + q;
-  var url = "https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&q=" + encodeURIComponent(q);
-  return fetch(url).then(function(res){ return res.json(); }).then(function(data){
-    if (data && data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-    return null;
-  }).catch(function(){ return null; });
+function sleep(ms) { return new Promise(function(resolve){ setTimeout(resolve, ms); }); }
+function withCityPrefix(s) { return /堺市|大阪/.test(s) ? s : ("堺市 " + s); }
+function geocodeCandidates(address) {
+  // Nominatim's Japan coverage often stops at town/chome level, so build a
+  // ladder of queries from most specific (full address) to least specific
+  // (drop the building name, then drop trailing banchi/chome numbers).
+  var base = toHalfWidth((address || "").trim()).split(/\s+/)[0] || "";
+  if (!base) return [];
+  var levels = [withCityPrefix(base)];
+  var cur = base;
+  for (var i = 0; i < 4; i++) {
+    var next = cur.replace(/[0-9０-９]+[-－][0-9０-９]+$/, "").replace(/[0-9０-９]+$/, "").replace(/[丁目]+$/, "").trim();
+    if (!next || next === cur) break;
+    cur = next;
+    var q = withCityPrefix(cur);
+    if (levels.indexOf(q) === -1) levels.push(q);
+  }
+  return levels;
+}
+async function geocodeAddress(address) {
+  var levels = geocodeCandidates(address);
+  for (var i = 0; i < levels.length; i++) {
+    if (i > 0) await sleep(1100);
+    try {
+      var res = await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&q=" + encodeURIComponent(levels[i]));
+      var data = await res.json();
+      if (data && data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), approx: i > 0 };
+    } catch (err) {}
+  }
+  return null;
 }
 function emptyForm() {
   return { name: "", address: "", priority: "普通", status: "更地", statusOther: "", type: "不明", memo: "", photos: [] };
@@ -227,11 +248,12 @@ function PropertyTracker() {
     items.forEach(function(it) {
       if (typeof it.lat === "number" && typeof it.lng === "number") {
         var pm = priorityMeta(it.priority);
-        var marker = L.circleMarker([it.lat, it.lng], { radius: 8, color: pm.color, fillColor: pm.color, fillOpacity: 0.85, weight: 2 });
+        var marker = L.circleMarker([it.lat, it.lng], { radius: 8, color: pm.color, fillColor: pm.color, fillOpacity: it.approxLoc ? 0.45 : 0.85, weight: 2, dashArray: it.approxLoc ? "3,3" : null });
         marker.bindPopup(
           "<b>" + escapeHtml(it.name || "（物件名未登録）") + "</b><br>" +
           escapeHtml(it.address) + "<br>" +
-          '<span style="color:' + pm.color + '">' + escapeHtml(it.priority) + "</span>　" + escapeHtml(it.status)
+          '<span style="color:' + pm.color + '">' + escapeHtml(it.priority) + "</span>　" + escapeHtml(it.status) +
+          (it.approxLoc ? '<br><span style="color:#999;font-size:11px">※ 概算位置（丁目・地区レベル）</span>' : "")
         );
         marker.addTo(layer);
       }
@@ -252,7 +274,7 @@ function PropertyTracker() {
       geocodeAddress(it.address).then(function(coords) {
         if (cancelled) return;
         if (coords) {
-          saveItemDoc(it.id, Object.assign({}, it, { lat: coords.lat, lng: coords.lng }));
+          saveItemDoc(it.id, Object.assign({}, it, { lat: coords.lat, lng: coords.lng, approxLoc: !!coords.approx }));
         }
         i++;
         setTimeout(next, 1100);
