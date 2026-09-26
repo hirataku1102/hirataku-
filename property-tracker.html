@@ -100,6 +100,15 @@ function priorityMeta(key) {
   return PRIORITIES[2];
 }
 var SAKAI_CENTER = [34.5732, 135.4830];
+var DAWN_GRADIENT = "linear-gradient(180deg, #0d0e17 0%, #2b2140 26%, #7a3b4a 50%, #c9481f 70%, #e8874a 85%, #f7c877 100%)";
+function skylineOverlay(opacity, heightPx) {
+  return e('svg', {
+    viewBox: "0 0 400 100", preserveAspectRatio: "none",
+    style: { position: "absolute", left: 0, right: 0, bottom: 0, width: "100%", height: heightPx || 74, opacity: opacity == null ? 0.6 : opacity, pointerEvents: "none" }
+  },
+    e('path', { d: "M0,100 L0,58 L18,58 L18,38 L38,38 L38,54 L58,54 L58,18 L62,18 L62,12 L66,12 L66,18 L70,18 L70,54 L92,54 L92,44 L118,44 L118,64 L148,64 L148,28 L178,28 L178,50 L208,50 L208,8 L212,8 L212,4 L216,4 L216,8 L220,8 L220,50 L248,50 L248,40 L278,40 L278,58 L308,58 L308,22 L338,22 L338,46 L368,46 L368,60 L400,60 L400,100 Z", fill: "#050505" })
+  );
+}
 function escapeHtml(s) {
   return String(s == null ? "" : s).replace(/[&<>"']/g, function(c) {
     return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
@@ -503,29 +512,37 @@ function PropertyTracker() {
   }
 
   if (locked) {
-    return e('div', {style: Object.assign({minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, background:"#1F2933", color:"#F4F1E8"}, fontBody)},
-      e('div', {style: Object.assign({fontSize:24, fontWeight:700, marginBottom:4}, fontDisplay)}, "新規物件リスト"),
-      e('div', {style:{fontSize:12, opacity:0.7, marginBottom:20}}, "パスワードを入力してください"),
-      e('input', {type:"password", value:pwInput, onChange:function(ev){ setPwInput(ev.target.value); setPwError(false); }, onKeyDown:function(ev){ if (ev.key==="Enter") submitPassword(); }, style:Object.assign({}, inputStyle, {maxWidth:260, textAlign:"center", letterSpacing:2, color:"#232323"}), placeholder:"パスワード", autoFocus:true}),
-      pwError ? e('div', {style:{color:"#E8631C", fontSize:12.5, marginTop:8}}, "パスワードが違います") : null,
-      e('button', {onClick:submitPassword, style:{marginTop:14, background:"#C9481F", color:"#fff", padding:"10px 28px", borderRadius:4, fontWeight:600}}, "開く")
+    return e('div', {style: Object.assign({minHeight:"100vh", display:"flex", flexDirection:"column", background:"#000"}, fontBody)},
+      e('div', {style:{position:"relative", overflow:"hidden", background:DAWN_GRADIENT, padding:"46px 24px 30px"}},
+        skylineOverlay(0.55, 90),
+        e('div', {style:{position:"relative", zIndex:2}},
+          e('div', {style: Object.assign({fontSize:26, fontWeight:700, marginBottom:4, color:"#fff", textShadow:"0 1px 8px rgba(0,0,0,0.5)"}, fontDisplay)}, "新規物件リスト"),
+          e('div', {style:{fontSize:12.5, color:"rgba(255,255,255,0.88)", textShadow:"0 1px 6px rgba(0,0,0,0.5)"}}, "パスワードを入力してください")
+        )
+      ),
+      e('div', {style:{flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24}},
+        e('input', {type:"password", value:pwInput, onChange:function(ev){ setPwInput(ev.target.value); setPwError(false); }, onKeyDown:function(ev){ if (ev.key==="Enter") submitPassword(); }, style:Object.assign({}, inputStyle, {maxWidth:260, textAlign:"center", letterSpacing:2, color:"#232323"}), placeholder:"パスワード", autoFocus:true}),
+        pwError ? e('div', {style:{color:"#E8631C", fontSize:12.5, marginTop:8}}, "パスワードが違います") : null,
+        e('button', {onClick:submitPassword, style:{marginTop:14, background:"#C9481F", color:"#fff", padding:"10px 28px", borderRadius:4, fontWeight:600}}, "開く")
+      )
     );
   }
 
-  var headerNode = e('div', {key:"header", style:{background:"#1F2933", color:"#F4F1E8"}},
-    e('div', {style:{padding:"18px 16px 10px"}},
-      e('div', {style:Object.assign({fontSize:26, fontWeight:700, letterSpacing:0.5}, fontDisplay)}, "新規物件リスト"),
-      e('div', {style:{fontSize:12, opacity:0.7, marginTop:2}}, "営業スカウトノート ・ 全" + items.length + "件")
+  var headerNode = e('div', {key:"header", style:{position:"relative", overflow:"hidden", background:DAWN_GRADIENT}},
+    skylineOverlay(0.6, 84),
+    e('div', {style:{position:"relative", zIndex:2, padding:"22px 16px 12px"}},
+      e('div', {style:Object.assign({fontSize:26, fontWeight:700, letterSpacing:0.5, color:"#fff", textShadow:"0 1px 8px rgba(0,0,0,0.5)"}, fontDisplay)}, "新規物件リスト"),
+      e('div', {style:{fontSize:12, color:"rgba(255,255,255,0.88)", marginTop:2, textShadow:"0 1px 6px rgba(0,0,0,0.5)"}}, "営業スカウトノート ・ 全" + items.length + "件")
     ),
-    e('div', {style:{display:"flex", overflow:"hidden", height:10}},
+    e('div', {style:{display:"flex", overflow:"hidden", height:10, position:"relative", zIndex:2}},
       Array.from({length:40}).map(function(_, i){
-        return e('div', {key:i, style:{flex:"0 0 auto", width:12, borderLeft: i%5===0 ? "1.5px solid #C9481F" : "1px solid #4B5768", height: i%5===0?10:6}});
+        return e('div', {key:i, style:{flex:"0 0 auto", width:12, borderLeft: i%5===0 ? "1.5px solid #0d0e17" : "1px solid rgba(5,5,5,0.45)", height: i%5===0?10:6}});
       })
     )
   );
 
-  var searchNode = e('div', {key:"searchbar", style:{padding:12, position:"sticky", top:0, background:"#E7E3D8", zIndex:10, borderBottom:"1px solid #C6C0AE"}},
-    e('div', {style:{display:"flex", alignItems:"center", background:"#FAF9F4", border:"1.5px solid #232323", borderRadius:4, padding:"8px 10px", gap:8}},
+  var searchNode = e('div', {key:"searchbar", style:{padding:12, position:"sticky", top:0, background:"#0a0a0a", zIndex:10, borderBottom:"1px solid #262626"}},
+    e('div', {style:{display:"flex", alignItems:"center", background:"#fff", border:"1.5px solid #000", borderRadius:4, padding:"8px 10px", gap:8}},
       e(SearchIcon, {size:18, color:"#5B5648"}),
       e('input', {value:query, onChange:function(ev){ setQuery(ev.target.value); }, placeholder:"物件名・住所・状態で検索（スペース区切りでAND）", style:Object.assign({border:"none", background:"transparent", flex:1, fontSize:14, color:"#232323"}, fontBody)}),
       query ? e('button', {onClick:function(){ setQuery(""); }, "aria-label":"検索をクリア"}, e(XIcon,{size:16,color:"#8a8478"})) : null,
@@ -541,14 +558,14 @@ function PropertyTracker() {
       ),
       e('div', {style:{display:"flex", gap:6, flexWrap:"wrap"}},
         STATUS_OPTIONS.filter(function(s){ return s!=="その他"; }).map(function(s){
-          return e('button', {key:s, onClick:function(){ toggleStatusFilter(s); }, style:{fontSize:12, padding:"5px 10px", borderRadius:999, border:"1.5px solid #5B5648", background: statusFilter.has(s)?"#232323":"transparent", color: statusFilter.has(s)?"#fff":"#5B5648"}}, s);
+          return e('button', {key:s, onClick:function(){ toggleStatusFilter(s); }, style:{fontSize:12, padding:"5px 10px", borderRadius:999, border:"1.5px solid #B8B2A3", background: statusFilter.has(s)?"#fff":"transparent", color: statusFilter.has(s)?"#232323":"#C9C4B6"}}, s);
         })
       )
     ) : null
   );
 
   var listNode = e('div', {key:"list", style:{padding:"8px 12px 120px", display:"flex", flexDirection:"column", gap:10}},
-    filtered.length===0 ? e('div', {style:{textAlign:"center", padding:"50px 20px", color:"#8a8478"}},
+    filtered.length===0 ? e('div', {style:{textAlign:"center", padding:"50px 20px", color:"#8f897a"}},
       items.length===0 ? e(F, null,
         e('div', {style:{fontSize:15, marginBottom:6}}, "まだ物件が登録されていません"),
         e('div', {style:{fontSize:13}}, "右下の「＋」から新しく見つけた物件を登録してください")
@@ -556,7 +573,7 @@ function PropertyTracker() {
     ) : null,
     filtered.map(function(it){
       var pm = priorityMeta(it.priority);
-      return e('div', {key:it.id, style:{background:"#FAF9F4", border:"1px solid #C6C0AE", borderRadius:6, padding:12, display:"flex", gap:10}},
+      return e('div', {key:it.id, style:{background:"#FFFFFF", border:"1px solid #EDEDED", borderRadius:6, padding:12, display:"flex", gap:10, boxShadow:"0 3px 12px rgba(0,0,0,0.55)"}},
         e('input', {type:"checkbox", checked:selected.has(it.id), onChange:function(){ toggleSelect(it.id); }, style:{marginTop:4, width:18, height:18, accentColor:"#C9481F"}, "aria-label":"選択"}),
         (it.photos && it.photos.length > 0) ? e('button', {onClick:function(ev){ ev.stopPropagation(); setViewer({photos: it.photos, index: 0}); }, style:{flex:"0 0 auto", position:"relative", width:48, height:48}, "aria-label":"写真を表示"},
           e('img', {src:it.photos[0], alt:"", style:{width:48, height:48, objectFit:"cover", borderRadius:4, border:"1px solid #C6C0AE"}}),
@@ -620,7 +637,7 @@ function PropertyTracker() {
   ) : null;
 
   var importNode = importOpen ? e('div', {key:"importmodal", style:{position:"fixed", inset:0, background:"rgba(20,20,20,0.5)", display:"flex", alignItems:"flex-end", zIndex:40}, onClick:function(){ setImportOpen(false); }},
-    e('div', {style:{background:"#FAF9F4", width:"100%", maxHeight:"88vh", overflowY:"auto", borderRadius:"12px 12px 0 0", padding:18}, onClick:function(ev){ ev.stopPropagation(); }},
+    e('div', {style:{background:"#FFFFFF", width:"100%", maxHeight:"88vh", overflowY:"auto", borderRadius:"12px 12px 0 0", padding:18}, onClick:function(ev){ ev.stopPropagation(); }},
       e('div', {style:{display:"flex", alignItems:"center", marginBottom:8}},
         e('div', {style:Object.assign({fontSize:20, fontWeight:700}, fontDisplay)}, "CSV取込"),
         e('button', {style:{marginLeft:"auto"}, onClick:function(){ setImportOpen(false); }, "aria-label":"閉じる"}, e(XIcon,{size:20}))
@@ -635,7 +652,7 @@ function PropertyTracker() {
   ) : null;
 
   var formNode = formOpen ? e('div', {key:"formmodal", style:{position:"fixed", inset:0, background:"rgba(20,20,20,0.5)", display:"flex", alignItems:"flex-end", zIndex:40}, onClick:function(){ setFormOpen(false); }},
-    e('div', {style:{background:"#FAF9F4", width:"100%", maxHeight:"88vh", overflowY:"auto", borderRadius:"12px 12px 0 0", padding:18}, onClick:function(ev){ ev.stopPropagation(); }},
+    e('div', {style:{background:"#FFFFFF", width:"100%", maxHeight:"88vh", overflowY:"auto", borderRadius:"12px 12px 0 0", padding:18}, onClick:function(ev){ ev.stopPropagation(); }},
       e('div', {style:{display:"flex", alignItems:"center", marginBottom:12}},
         e('div', {style:Object.assign({fontSize:20, fontWeight:700}, fontDisplay)}, editingId ? "物件を編集" : "新規物件を登録"),
         e('button', {style:{marginLeft:"auto"}, onClick:function(){ setFormOpen(false); }, "aria-label":"閉じる"}, e(XIcon,{size:20}))
@@ -696,7 +713,7 @@ function PropertyTracker() {
     e('div', {ref: mapContainerRef, style:{flex:1, width:"100%"}})
   ) : null;
 
-  return e('div', {style:Object.assign({background:"#E7E3D8", minHeight:"100vh", color:"#232323"}, fontBody)},
+  return e('div', {style:Object.assign({background:"#000000", minHeight:"100vh", color:"#F4F1E8"}, fontBody)},
     headerNode, searchNode, listNode, fabNode, selBarNode, toastNode, viewerNode, importNode, formNode, mapNode
   );
 }
