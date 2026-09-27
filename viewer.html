@@ -6,7 +6,7 @@
 <title>コース表</title>
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
-<meta name="theme-color" content="#f6f6f3">
+<meta name="theme-color" content="#181b16">
 <style>
   :root, :root[data-theme="light"]{
     --bg:#f6f6f3; --card:#ffffff; --border:rgba(0,0,0,.1); --border2:rgba(0,0,0,.25);
@@ -190,10 +190,10 @@ function tryUnlock() {
 function applyTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
   document.getElementById('themeBtn').textContent = t === 'dark' ? '☀️' : '🌙';
-  try { localStorage.setItem('cm_theme', t); } catch (e) {}
+  try { localStorage.setItem('cm_theme_viewer', t); } catch (e) {}
 }
-let savedTheme = 'light';
-try { savedTheme = localStorage.getItem('cm_theme') || 'light'; } catch (e) {}
+let savedTheme = 'dark'; // viewerの初期設定はダーク（editorとは別に記憶）
+try { savedTheme = localStorage.getItem('cm_theme_viewer') || 'dark'; } catch (e) {}
 applyTheme(savedTheme);
 document.getElementById('themeBtn').onclick = () => applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
 
