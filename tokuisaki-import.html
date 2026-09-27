@@ -2,106 +2,376 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>得意先検索 データ取込</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>得意先データ管理</title>
 <style>
   :root{
     --bg:#f5f6f8; --panel:#fff; --ink:#1f2937; --sub:#6b7280; --line:#e5e7eb;
-    --brand:#154266; --brand2:#1e5b8f; --ok:#15803d; --err:#c0392b;
+    --brand:#154266; --brand2:#1e5b8f;
+    --ok:#15803d; --ok-bg:#eefbf1; --err:#c0392b; --err-bg:#fdf0ee;
+    --warn:#8a6a06; --warn-bg:#fff4d6; --warn-line:#e8b93d;
   }
   *{box-sizing:border-box;}
   body{
     margin:0; background:var(--bg); color:var(--ink);
     font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+    -webkit-text-size-adjust:100%;
   }
-  header{
-    background:linear-gradient(180deg,#0b1830,#2c4d78);
-    color:#fff; padding:18px 20px;
+
+  header{ background:linear-gradient(180deg,#0b1830,#2c4d78); color:#fff; padding:16px 18px 14px; position:relative; }
+  header h1{ margin:0 0 3px; font-size:17px; }
+  header .stat{ font-size:11.5px; color:#c9d8e6; line-height:1.7; }
+  .logout{
+    position:absolute; right:14px; top:14px;
+    background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.4);
+    color:#fff; font-size:11px; padding:5px 10px; border-radius:100px; cursor:pointer;
   }
-  header h1{ margin:0 0 4px; font-size:17px; }
-  header p{ margin:0; font-size:12px; color:#c9d8e6; }
-  main{ max-width:680px; margin:0 auto; padding:18px 16px 60px; }
-  .card{
-    background:var(--panel); border:1px solid var(--line);
-    border-radius:10px; padding:18px; margin-bottom:14px;
+
+  .tabs{ display:flex; background:var(--brand); }
+  .tabs button{
+    flex:1; background:none; border:none; color:#c9d8e6;
+    padding:13px 4px; font-size:13px; font-weight:600; cursor:pointer;
+    border-bottom:3px solid transparent;
   }
-  .card h2{ margin:0 0 10px; font-size:14px; color:var(--brand); }
-  label{ display:block; font-size:12.5px; color:var(--sub); margin-bottom:5px; }
-  input[type=email], input[type=password]{
-    width:100%; padding:11px 13px; font-size:15px;
-    border:1px solid var(--line); border-radius:8px; outline:none; margin-bottom:10px;
+  .tabs button.on{ color:#fff; border-bottom-color:#ffd9a0; }
+
+  main{ max-width:680px; margin:0 auto; padding:16px 14px 80px; }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:12px; }
+  .card h2{ margin:0 0 10px; font-size:13.5px; color:var(--brand); }
+  .card h3{ margin:18px 0 8px; font-size:12.5px; color:var(--sub); border-top:1px solid var(--line); padding-top:14px; }
+
+  label{ display:block; font-size:12px; color:var(--sub); margin:0 0 4px; }
+  input[type=text], input[type=email], input[type=password], input[type=number], input[type=date], input[type=search]{
+    width:100%; padding:10px 12px; font-size:15px;
+    border:1px solid var(--line); border-radius:8px; outline:none; background:#fff; color:var(--ink);
   }
-  input[type=file]{ font-size:13px; width:100%; }
-  button{
-    width:100%; padding:12px; font-size:14px; font-weight:700;
+  input:focus{ border-color:var(--brand2); }
+  .fld{ margin-bottom:11px; }
+  .two{ display:flex; gap:9px; }
+  .two > *{ flex:1; min-width:0; }
+
+  button.main{
+    width:100%; padding:13px; font-size:14px; font-weight:700;
     border:none; border-radius:8px; background:var(--brand); color:#fff; cursor:pointer;
   }
-  button:disabled{ background:#9aa5b1; cursor:default; }
-  button.ghost{ background:#eef1f4; color:var(--brand); font-weight:600; }
-  .msg{ font-size:12.5px; margin-top:10px; line-height:1.7; white-space:pre-wrap; }
-  .msg.err{ color:var(--err); }
-  .msg.ok{ color:var(--ok); }
-  .hide{ display:none; }
-  .who{ font-size:12px; color:var(--sub); margin-bottom:10px; }
-  table{ width:100%; border-collapse:collapse; font-size:11.5px; margin-top:10px; }
-  th,td{ border:1px solid var(--line); padding:5px 7px; text-align:left; }
-  th{ background:#f7f9fb; color:var(--sub); font-weight:600; }
-  .bar{ height:6px; background:var(--line); border-radius:99px; overflow:hidden; margin-top:10px; }
-  .bar i{ display:block; height:100%; width:0; background:var(--brand2); transition:width .2s; }
-  .note{ font-size:11.5px; color:var(--sub); line-height:1.8; margin-top:8px; }
+  button.main:disabled{ background:#9aa5b1; cursor:default; }
+  button.ghost{
+    width:100%; padding:11px; font-size:13px; font-weight:600;
+    border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--brand); cursor:pointer;
+  }
+  button.danger{ background:#fff; color:var(--err); border:1px solid #f0c9c2; }
+  .btnrow{ display:flex; gap:9px; margin-top:6px; }
+  .btnrow > *{ flex:1; }
+
+  .msg{ font-size:12.5px; margin-top:11px; line-height:1.8; white-space:pre-wrap; border-radius:8px; }
+  .msg.ok{ color:var(--ok); background:var(--ok-bg); padding:10px 12px; }
+  .msg.err{ color:var(--err); background:var(--err-bg); padding:10px 12px; }
+  .msg.plain{ color:var(--sub); }
+  .hide{ display:none !important; }
+  .note{ font-size:11.5px; color:var(--sub); line-height:1.8; margin-top:7px; }
+
+  table.sum{ width:100%; border-collapse:collapse; font-size:12.5px; margin-top:11px; }
+  table.sum td{ border:1px solid var(--line); padding:7px 9px; }
+  table.sum td:first-child{ background:#f7f9fb; color:var(--sub); width:45%; }
+  table.sum td b{ font-size:14px; }
+
+  .rowcard{ border:1px solid var(--line); border-radius:9px; padding:12px; margin-bottom:10px; background:#fbfcfd; }
+  .rowcard .rowhead{ display:flex; justify-content:space-between; align-items:center; margin-bottom:9px; }
+  .rowcard .rowhead span{ font-size:11.5px; color:var(--sub); font-weight:600; }
+  .rowcard .rowhead button{ background:none; border:none; color:var(--err); font-size:11.5px; cursor:pointer; padding:2px 4px; }
+
+  .hit{ border:1px solid var(--line); border-radius:9px; padding:11px 12px; margin-bottom:8px; background:#fff; cursor:pointer; }
+  .hit:active{ background:#f3f6f9; }
+  .hit .nm{ font-size:13.5px; font-weight:700; }
+  .hit .mg{ font-size:11.5px; color:var(--brand2); margin-top:1px; }
+  .hit .ad{ font-size:11.5px; color:var(--sub); margin-top:2px; }
+  .hit .cd{ font-size:10.5px; color:#b7bcc4; margin-top:4px; }
+
+  .pill{ display:inline-block; font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:10px; margin-left:6px; }
+  .pill.k{ background:var(--warn-line); color:#fff; }
+  .pill.g{ background:#9aa0a8; color:#fff; }
+
+  .bar{ height:6px; background:var(--line); border-radius:99px; overflow:hidden; margin-top:11px; }
+  .bar i{ display:block; height:100%; width:0; background:var(--brand2); transition:width .25s; }
+  .empty{ text-align:center; color:var(--sub); font-size:13px; padding:26px 10px; }
+  .who{ font-size:11.5px; color:var(--sub); margin-bottom:11px; }
+  .logline{ font-size:11.5px; color:var(--sub); line-height:1.9; border-bottom:1px solid var(--line); padding:6px 0; }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>得意先検索 データ取込</h1>
-  <p>CSVを読み込んでFirestoreに登録します(管理者のみ)</p>
+  <h1>得意先データ管理</h1>
+  <div class="stat" id="stat">読み込み中…</div>
+  <button class="logout hide" id="logoutBtn">ログアウト</button>
 </header>
+
+<div class="tabs hide" id="tabs">
+  <button data-tab="csv" class="on">CSV取込</button>
+  <button data-tab="new">新規登録</button>
+  <button data-tab="edit">編集・削除</button>
+</div>
 
 <main>
 
-  <!-- ログイン -->
+  <!-- ===== ログイン ===== -->
   <div class="card" id="loginCard">
     <h2>ログイン</h2>
-    <label for="email">メールアドレス</label>
-    <input id="email" type="email" autocomplete="username" autocapitalize="off" spellcheck="false">
-    <label for="pw">パスワード</label>
-    <input id="pw" type="password" autocomplete="current-password">
-    <button id="loginBtn">ログイン</button>
+    <div class="fld">
+      <label for="email">メールアドレス</label>
+      <input id="email" type="email" autocomplete="username" autocapitalize="off" spellcheck="false">
+    </div>
+    <div class="fld">
+      <label for="pw">パスワード</label>
+      <input id="pw" type="password" autocomplete="current-password">
+    </div>
+    <button class="main" id="loginBtn">ログイン</button>
     <div class="msg err hide" id="loginMsg"></div>
   </div>
 
-  <!-- 取込 -->
-  <div class="card hide" id="workCard">
-    <div class="who" id="who"></div>
-    <h2>CSVを選ぶ</h2>
-    <input id="file" type="file" accept=".csv,text/csv">
-    <div class="note">
-      独自システムから書き出したCSV(Shift_JIS)をそのまま選んでください。<br>
-      1行目が項目名で、<b>収集先コード</b>の列が含まれている必要があります。
+  <!-- ===== CSV取込 ===== -->
+  <div class="pane hide" id="pane-csv">
+    <div class="card">
+      <h2>CSVを取り込む（追加・上書き）</h2>
+      <input id="file" type="file" accept=".csv,text/csv" style="font-size:13px;width:100%">
+      <div class="note">
+        独自システムから書き出したCSVをそのまま選んでください。<br>
+        <b>管理番号が同じものだけ上書き</b>され、CSVに入っていない物件はそのまま残ります。<br>
+        新規2件だけのCSVでも、その2件が追加されるだけです。
+      </div>
+      <div class="msg plain" id="parseMsg"></div>
+      <div id="preview"></div>
+      <div style="margin-top:14px">
+        <button class="main" id="importBtn" disabled>この内容で取り込む</button>
+        <div class="bar hide" id="bar"><i></i></div>
+        <div class="msg hide" id="impMsg"></div>
+      </div>
     </div>
-    <div class="msg" id="parseMsg"></div>
-    <div id="preview"></div>
+  </div>
 
-    <div style="margin-top:16px">
-      <button id="uploadBtn" disabled>この内容でFirestoreに登録する</button>
-      <div class="bar hide" id="bar"><i></i></div>
-      <div class="msg" id="upMsg"></div>
+  <!-- ===== 新規登録 ===== -->
+  <div class="pane hide" id="pane-new">
+    <div class="card">
+      <h2>新規登録</h2>
+      <div id="newForm"></div>
+      <button class="main" id="newSaveBtn" style="margin-top:8px">この内容で登録する</button>
+      <div class="msg hide" id="newMsg"></div>
+    </div>
+  </div>
+
+  <!-- ===== 編集・削除 ===== -->
+  <div class="pane hide" id="pane-edit">
+    <div class="card" id="searchCard">
+      <h2>登録済みを探す</h2>
+      <input id="editSearch" type="search" placeholder="会社名・住所・管理番号で検索" autocomplete="off">
+      <div class="note">スペース区切りで複数ワード。全角・半角は区別しません。</div>
+      <div id="hits"></div>
     </div>
 
-    <div style="margin-top:18px">
-      <button class="ghost" id="logoutBtn">ログアウト</button>
+    <div class="card hide" id="editCard">
+      <h2>内容を編集</h2>
+      <div id="editForm"></div>
+      <button class="main" id="editSaveBtn" style="margin-top:8px">保存する</button>
+      <div class="btnrow">
+        <button class="ghost" id="editCancelBtn">一覧に戻る</button>
+        <button class="ghost danger" id="editDelBtn">この物件を削除</button>
+      </div>
+      <div class="msg hide" id="editMsg"></div>
+    </div>
+
+    <div class="card" id="trashCard">
+      <h2>ゴミ箱 / 更新履歴</h2>
+      <div class="btnrow">
+        <button class="ghost" id="showTrashBtn">ゴミ箱を見る</button>
+        <button class="ghost" id="showLogBtn">履歴を見る</button>
+      </div>
+      <div id="trashBox"></div>
     </div>
   </div>
 
 </main>
 
+<!-- ============ 計算部分（画面・Firebaseに依存しない） ============ -->
+<script>
+function parseCSV(text){
+  const rows = [];
+  let row = [], field = '', inQ = false;
+  for(let i = 0; i < text.length; i++){
+    const c = text[i];
+    if(inQ){
+      if(c === '"'){
+        if(text[i+1] === '"'){ field += '"'; i++; }
+        else inQ = false;
+      } else field += c;
+    } else {
+      if(c === '"') inQ = true;
+      else if(c === ','){ row.push(field); field = ''; }
+      else if(c === '\n'){ row.push(field); field = ''; rows.push(row); row = []; }
+      else if(c === '\r'){ /* skip */ }
+      else field += c;
+    }
+  }
+  if(field.length || row.length){ row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(v => String(v).trim() !== ''));
+}
+
+const MONTH_SUFFIX = /[＊*]{2}月分$/;
+
+function padDate(s){
+  const t = String(s == null ? '' : s).trim();
+  const m = t.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+  if(!m) return t;
+  return m[1] + '/' + String(m[2]).padStart(2,'0') + '/' + String(m[3]).padStart(2,'0');
+}
+function toInputDate(s){
+  const t = padDate(s);
+  return /^\d{4}\/\d{2}\/\d{2}$/.test(t) ? t.replace(/\//g,'-') : '';
+}
+function fromInputDate(s){
+  const t = String(s == null ? '' : s).trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t.replace(/-/g,'/') : t;
+}
+function joinAddr(a, b, c){
+  return [a, b, c].map(v => String(v == null ? '' : v).trim()).filter(Boolean).join('');
+}
+
+function normalizeCSV(matrix){
+  if(!matrix.length) throw new Error('中身が空です');
+  const header = matrix[0].map(h => String(h).replace(/^﻿/, '').trim());
+  const ix = (n) => header.indexOf(n);
+  const missing = ['収集先コード','得意先正式名１','収集先正式名１'].filter(n => ix(n) === -1);
+  if(missing.length) throw new Error('CSVに次の列が見つかりません: ' + missing.join('、'));
+
+  const C = {
+    code: ix('収集先コード'),
+    k1: ix('得意先正式名１'), k2: ix('得意先正式名２'),
+    t1: ix('収集先正式名１'), t2: ix('収集先正式名２'),
+    ka1: ix('得意先住所１'), ka2: ix('得意先住所２'), ka3: ix('得意先住所３'),
+    ta1: ix('収集先住所１'), ta2: ix('収集先住所２'), ta3: ix('収集先住所３'),
+    shohin: ix('定額商品名'), tekiyou: ix('適用開始日'),
+    taniname: ix('単位名'), tanka: ix('単価'),
+    keiyaku: ix('契約日'), kyuushi: ix('休止日'), kaiyaku: ix('解約日')
+  };
+  const g = (r, i) => (i >= 0 && r[i] != null) ? String(r[i]).trim() : '';
+
+  const out = [];
+  for(let i = 1; i < matrix.length; i++){
+    const r = matrix[i];
+    const k1 = g(r, C.k1);
+    if(!k1) continue;
+    const tankaRaw = g(r, C.tanka);
+    out.push({
+      code: g(r, C.code), k1, k2: g(r, C.k2), t1: g(r, C.t1), t2: g(r, C.t2),
+      kaddr: joinAddr(g(r, C.ka1), g(r, C.ka2), g(r, C.ka3)),
+      taddr: joinAddr(g(r, C.ta1), g(r, C.ta2), g(r, C.ta3)),
+      shohin: g(r, C.shohin).replace(MONTH_SUFFIX, ''),
+      tanka: tankaRaw === '' ? 0 : (parseFloat(tankaRaw.replace(/,/g, '')) || 0),
+      taniname: g(r, C.taniname),
+      tekiyou: padDate(g(r, C.tekiyou)), keiyaku: padDate(g(r, C.keiyaku)),
+      kyuushi: padDate(g(r, C.kyuushi)), kaiyaku: padDate(g(r, C.kaiyaku))
+    });
+  }
+  return out;
+}
+
+function groupByCode(rows){
+  const map = new Map();
+  rows.forEach((r, i) => {
+    const key = r.code || ('__nocode_' + i);
+    if(!map.has(key)){
+      map.set(key, { code: r.code || '', k1: r.k1, k2: r.k2, t1: r.t1, t2: r.t2,
+                     kaddr: r.kaddr, taddr: r.taddr, rows: [] });
+    }
+    map.get(key).rows.push(r);
+  });
+  return map;
+}
+
+function mergeByCode(existingRows, incomingRows){
+  const incoming = groupByCode(incomingRows.filter(r => r.code));
+  const skipped = incomingRows.filter(r => !r.code).length;
+  const existingCodes = new Set(existingRows.map(r => r.code).filter(Boolean));
+  const addedCodes = [], updatedCodes = [];
+  incoming.forEach((_, code) => { (existingCodes.has(code) ? updatedCodes : addedCodes).push(code); });
+  const kept = existingRows.filter(r => !r.code || !incoming.has(r.code));
+  const replaced = [];
+  incoming.forEach((g) => { g.rows.forEach(r => replaced.push(r)); });
+  return { rows: kept.concat(replaced), added: addedCodes.length, updated: updatedCodes.length,
+           addedCodes, updatedCodes, skipped };
+}
+
+function upsertOne(existingRows, code, rowsForCode){
+  return existingRows.filter(r => r.code !== code).concat(rowsForCode);
+}
+function removeOne(existingRows, code){
+  return existingRows.filter(r => r.code !== code);
+}
+function chunkRows(rows, size){
+  const out = [];
+  for(let i = 0; i < rows.length; i += size) out.push(rows.slice(i, i + size));
+  return out;
+}
+/* 物件データ -> 入力欄に入れる値 */
+function groupToForm(g){
+  return {
+    base: { code:g.code||'', k1:g.k1||'', k2:g.k2||'', t1:g.t1||'', t2:g.t2||'',
+            kaddr:g.kaddr||'', taddr:g.taddr||'' },
+    rows: (g.rows.length ? g.rows : [emptyRowVals()]).map(r => ({
+      shohin: r.shohin || '',
+      tanka: String(r.tanka == null ? 0 : r.tanka),
+      taniname: r.taniname || '',
+      tekiyou: toInputDate(r.tekiyou), keiyaku: toInputDate(r.keiyaku),
+      kyuushi: toInputDate(r.kyuushi), kaiyaku: toInputDate(r.kaiyaku),
+      /* 入力欄で扱えない形式の日付はそのまま持ち回して消さない */
+      _raw: { tekiyou:r.tekiyou||'', keiyaku:r.keiyaku||'', kyuushi:r.kyuushi||'', kaiyaku:r.kaiyaku||'' }
+    }))
+  };
+}
+function emptyRowVals(){
+  return { shohin:'', tanka:0, taniname:'', tekiyou:'', keiyaku:'', kyuushi:'', kaiyaku:'' };
+}
+/* 入力欄の値 -> 保存する行データ */
+function formToRows(base, rowVals){
+  return rowVals.map(v => {
+    const keep = (inputVal, rawVal) => {
+      // 入力欄が空でも、元が入力欄で扱えない形式だった場合は元の値を残す
+      if(inputVal) return fromInputDate(inputVal);
+      if(rawVal && !toInputDate(rawVal)) return rawVal;
+      return '';
+    };
+    const raw = v._raw || {};
+    return Object.assign({}, base, {
+      shohin: String(v.shohin || '').trim(),
+      tanka: (v.tanka === '' || v.tanka == null) ? 0 : (parseFloat(v.tanka) || 0),
+      taniname: String(v.taniname || '').trim(),
+      tekiyou: keep(v.tekiyou, raw.tekiyou),
+      keiyaku: keep(v.keiyaku, raw.keiyaku),
+      kyuushi: keep(v.kyuushi, raw.kyuushi),
+      kaiyaku: keep(v.kaiyaku, raw.kaiyaku)
+    });
+  });
+}
+
+function norm(s){ return String(s == null ? '' : s).normalize('NFKC').toLowerCase(); }
+function tokenize(q){ return norm(q).split(/[\s　]+/).filter(Boolean); }
+function groupMatches(g, tokens){
+  if(!tokens.length) return true;
+  const hay = norm([g.code, g.k1, g.k2, g.t1, g.t2, g.kaddr, g.taddr,
+                    g.rows.map(r => r.shohin).join(' ')].join(' '));
+  return tokens.every(t => hay.includes(t));
+}
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+
+<!-- ============ Firebase と画面の動き ============ -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
          setPersistence, browserLocalPersistence }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, doc, getDocs, writeBatch, serverTimestamp }
+import { getFirestore, collection, doc, getDoc, getDocs, writeBatch, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 /* ▼▼▼ ここだけ書き換えてください ▼▼▼ */
@@ -115,247 +385,465 @@ const firebaseConfig = {
 };
 /* ▲▲▲ ここまで ▲▲▲ */
 
-const COLLECTION = "ts_customers";
-const CHUNK_SIZE = 600;
+const COL = "ts_customers";
+const CHUNK = 600;
+const TRASH_MAX = 100;
+const LOG_MAX = 200;
 
 const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
 const $ = (id) => document.getElementById(id);
-let ROWS = [];
+const S = { rows: [], stamp: '', chunkCount: 0, trash: [], log: [], email: '', pending: null, editCode: null };
 
-/* ---------- ログイン ---------- */
-$('loginBtn').addEventListener('click', async () => {
-  const msg = $('loginMsg');
-  msg.classList.add('hide');
-  $('loginBtn').disabled = true;
-  $('loginBtn').textContent = '確認中…';
+/* ---------------- ログイン ---------------- */
+$('loginBtn').addEventListener('click', doLogin);
+['email','pw'].forEach(id => $(id).addEventListener('keydown', e => { if(e.key === 'Enter') doLogin(); }));
+
+async function doLogin(){
+  const m = $('loginMsg');
+  m.classList.add('hide');
+  $('loginBtn').disabled = true; $('loginBtn').textContent = '確認中…';
   try{
     await setPersistence(auth, browserLocalPersistence);
     await signInWithEmailAndPassword(auth, $('email').value.trim(), $('pw').value);
   }catch(err){
-    msg.textContent = 'ログインできませんでした(' + ((err && err.code) || '') + ')';
-    msg.classList.remove('hide');
-    $('loginBtn').disabled = false;
-    $('loginBtn').textContent = 'ログイン';
+    const c = String((err && err.code) || '');
+    m.textContent = c.includes('invalid-credential') || c.includes('wrong-password') || c.includes('user-not-found')
+      ? 'メールアドレスかパスワードが違います'
+      : c.includes('too-many-requests') ? '試行回数が多すぎます。しばらく待ってからお試しください'
+      : 'ログインできませんでした（' + c + '）';
+    m.classList.remove('hide');
+    $('loginBtn').disabled = false; $('loginBtn').textContent = 'ログイン';
   }
-});
+}
 $('logoutBtn').addEventListener('click', async () => { await signOut(auth); location.reload(); });
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
   if(user){
+    S.email = user.email || '';
     $('loginCard').classList.add('hide');
-    $('workCard').classList.remove('hide');
-    $('who').textContent = 'ログイン中: ' + (user.email || '');
+    $('tabs').classList.remove('hide');
+    $('logoutBtn').classList.remove('hide');
+    showTab('csv');
+    await loadAll();
   }else{
     $('loginCard').classList.remove('hide');
-    $('workCard').classList.add('hide');
-    $('loginBtn').disabled = false;
-    $('loginBtn').textContent = 'ログイン';
+    $('tabs').classList.add('hide');
+    $('logoutBtn').classList.add('hide');
+    document.querySelectorAll('.pane').forEach(p => p.classList.add('hide'));
+    $('loginBtn').disabled = false; $('loginBtn').textContent = 'ログイン';
+    $('stat').textContent = 'ログインしてください';
   }
 });
 
-/* ---------- CSV パース ---------- */
-function parseCSV(text){
-  const rows = [];
-  let row = [], field = '', inQ = false;
-  for(let i = 0; i < text.length; i++){
-    const c = text[i];
-    if(inQ){
-      if(c === '"'){
-        if(text[i+1] === '"'){ field += '"'; i++; }
-        else inQ = false;
-      }else field += c;
-    }else{
-      if(c === '"') inQ = true;
-      else if(c === ','){ row.push(field); field = ''; }
-      else if(c === '\n'){ row.push(field); field = ''; rows.push(row); row = []; }
-      else if(c === '\r'){ /* skip */ }
-      else field += c;
-    }
-  }
-  if(field.length || row.length){ row.push(field); rows.push(row); }
-  return rows.filter(r => r.some(v => String(v).trim() !== ''));
+/* ---------------- タブ ---------------- */
+document.querySelectorAll('.tabs button').forEach(b => {
+  b.addEventListener('click', () => showTab(b.dataset.tab));
+});
+function showTab(name){
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+  document.querySelectorAll('.pane').forEach(p => p.classList.add('hide'));
+  $('pane-' + name).classList.remove('hide');
+  if(name === 'new' && !$('newForm').dataset.built){ buildForm($('newForm'), null); $('newForm').dataset.built = '1'; }
+  if(name === 'edit'){ renderHits(); }
 }
 
-const MONTH_SUFFIX = /[＊*]{2}月分$/;
-function padDate(s){
-  const t = String(s || '').trim();
-  const m = t.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
-  if(!m) return t;
-  return m[1] + '/' + String(m[2]).padStart(2,'0') + '/' + String(m[3]).padStart(2,'0');
-}
-function joinAddr(a, b, c){
-  return [a, b, c].map(v => String(v || '').trim()).filter(Boolean).join('');
-}
-
-function buildRows(matrix){
-  const header = matrix[0].map(h => String(h).trim());
-  const idx = (name) => header.indexOf(name);
-  const need = ['収集先コード','得意先正式名１','収集先正式名１'];
-  const missing = need.filter(n => idx(n) === -1);
-  if(missing.length) throw new Error('CSVに次の列が見つかりません: ' + missing.join('、'));
-
-  const col = {
-    code: idx('収集先コード'),
-    k1: idx('得意先正式名１'), k2: idx('得意先正式名２'),
-    t1: idx('収集先正式名１'), t2: idx('収集先正式名２'),
-    ka1: idx('得意先住所１'), ka2: idx('得意先住所２'), ka3: idx('得意先住所３'),
-    ta1: idx('収集先住所１'), ta2: idx('収集先住所２'), ta3: idx('収集先住所３'),
-    shohin: idx('定額商品名'), tekiyou: idx('適用開始日'),
-    taniname: idx('単位名'), tanka: idx('単価'),
-    keiyaku: idx('契約日'), kyuushi: idx('休止日'), kaiyaku: idx('解約日')
-  };
-  const g = (r, i) => (i >= 0 && r[i] != null) ? String(r[i]).trim() : '';
-
-  const out = [];
-  for(let i = 1; i < matrix.length; i++){
-    const r = matrix[i];
-    const k1 = g(r, col.k1);
-    if(!k1) continue;
-    const shohinRaw = g(r, col.shohin);
-    const tankaRaw = g(r, col.tanka);
-    const tanka = tankaRaw === '' ? 0 : (parseFloat(tankaRaw.replace(/,/g, '')) || 0);
-    out.push({
-      code: g(r, col.code),
-      k1,
-      k2: g(r, col.k2),
-      t1: g(r, col.t1),
-      t2: g(r, col.t2),
-      kaddr: joinAddr(g(r, col.ka1), g(r, col.ka2), g(r, col.ka3)),
-      taddr: joinAddr(g(r, col.ta1), g(r, col.ta2), g(r, col.ta3)),
-      shohin: shohinRaw.replace(MONTH_SUFFIX, ''),
-      tanka,
-      taniname: g(r, col.taniname),
-      tekiyou: padDate(g(r, col.tekiyou)),
-      keiyaku: padDate(g(r, col.keiyaku)),
-      kyuushi: padDate(g(r, col.kyuushi)),
-      kaiyaku: padDate(g(r, col.kaiyaku))
+/* ---------------- 読み込み ---------------- */
+async function loadAll(){
+  $('stat').textContent = 'データを読み込んでいます…';
+  try{
+    const qs = await getDocs(collection(db, COL));
+    const chunks = [];
+    let meta = null;
+    S.trash = []; S.log = [];
+    qs.forEach(d => {
+      const v = d.data() || {};
+      if(d.id === 'meta'){ meta = v; return; }
+      if(d.id === 'trash'){ S.trash = Array.isArray(v.items) ? v.items : []; return; }
+      if(d.id === 'log'){ S.log = Array.isArray(v.items) ? v.items : []; return; }
+      if(Array.isArray(v.rows)) chunks.push({ id: d.id, rows: v.rows });
     });
+    chunks.sort((a,b) => a.id.localeCompare(b.id));
+    S.rows = chunks.flatMap(c => c.rows);
+    S.chunkCount = chunks.length;
+    S.stamp = meta ? String(meta.updatedAt || '') : '';
+    updateStat(meta);
+  }catch(err){
+    const c = String((err && err.code) || '');
+    $('stat').textContent = c.includes('permission-denied')
+      ? '読み書きの権限がありません（Firestoreのルールを確認してください）'
+      : '読み込みに失敗しました（' + c + '）';
   }
-  return out;
+}
+function updateStat(meta){
+  const sites = groupByCode(S.rows).size;
+  const when = meta && meta.updatedAt ? String(meta.updatedAt).replace('T',' ').slice(0,16) : '—';
+  const by = meta && meta.updatedBy ? ' / ' + meta.updatedBy : '';
+  $('stat').innerHTML = S.rows.length.toLocaleString() + '行・' + sites.toLocaleString() + '物件<br>' +
+                        '最終更新 ' + esc(when) + esc(by);
 }
 
-/* ---------- ファイル選択 ---------- */
+/* ---------------- 保存（共通） ---------------- */
+async function saveAll(newRows, logEntry, trashAdd, trashSet){
+  // 他の人が先に更新していないか確認
+  const snap = await getDoc(doc(db, COL, 'meta'));
+  const cur = snap.exists() ? String(snap.data().updatedAt || '') : '';
+  if(S.stamp !== cur){
+    const e = new Error('CONFLICT'); e.conflict = true; throw e;
+  }
+
+  const chunks = chunkRows(newRows, CHUNK);
+  const stamp = new Date().toISOString();
+  const b = writeBatch(db);
+
+  chunks.forEach((c, i) => {
+    b.set(doc(db, COL, 'chunk_' + String(i).padStart(4,'0')), { i, rows: c });
+  });
+  for(let i = chunks.length; i < S.chunkCount; i++){
+    b.delete(doc(db, COL, 'chunk_' + String(i).padStart(4,'0')));
+  }
+
+  const log = [{ at: stamp, by: S.email, what: logEntry }].concat(S.log).slice(0, LOG_MAX);
+  b.set(doc(db, COL, 'log'), { items: log });
+
+  let trash = S.trash;
+  if(trashAdd){
+    trash = [trashAdd].concat(S.trash).slice(0, TRASH_MAX);
+    b.set(doc(db, COL, 'trash'), { items: trash });
+  }else if(trashSet){
+    trash = trashSet;
+    b.set(doc(db, COL, 'trash'), { items: trash });
+  }
+
+  b.set(doc(db, COL, 'meta'), {
+    count: newRows.length, chunks: chunks.length,
+    updatedAt: stamp, updatedBy: S.email, serverTime: serverTimestamp()
+  });
+
+  await b.commit();
+
+  S.rows = newRows; S.stamp = stamp; S.chunkCount = chunks.length; S.log = log; S.trash = trash;
+  updateStat({ updatedAt: stamp, updatedBy: S.email });
+}
+
+function saveErrText(err){
+  if(err && err.conflict) return '他の人が先にデータを更新しました。\n画面を再読み込みしてからやり直してください。';
+  const c = String((err && err.code) || '');
+  if(c.includes('permission-denied')) return '書き込みの権限がありません。\nFirestoreのルールを確認してください。';
+  return '保存に失敗しました（' + (c || (err && err.message) || 'unknown') + '）';
+}
+
+/* ---------------- CSV取込 ---------------- */
 $('file').addEventListener('change', async (e) => {
   const f = e.target.files && e.target.files[0];
-  const msg = $('parseMsg');
-  const prev = $('preview');
-  $('uploadBtn').disabled = true;
-  ROWS = [];
-  prev.innerHTML = '';
-  if(!f) return;
+  const msg = $('parseMsg'), prev = $('preview');
+  $('importBtn').disabled = true; S.pending = null; prev.innerHTML = '';
+  $('impMsg').classList.add('hide');
+  if(!f) { msg.textContent = ''; return; }
 
-  msg.className = 'msg';
-  msg.textContent = '読み込み中…';
+  msg.className = 'msg plain'; msg.textContent = '読み込み中…';
   try{
     const buf = await f.arrayBuffer();
-    let text;
-    try{
-      text = new TextDecoder('shift_jis', { fatal: false }).decode(buf);
-    }catch(err){
-      text = new TextDecoder('utf-8').decode(buf);
-    }
-    // 文字化けしていそうならUTF-8で読み直す
+    let text = new TextDecoder('shift_jis', { fatal:false }).decode(buf);
     if(text.indexOf('収集先コード') === -1){
       const alt = new TextDecoder('utf-8').decode(buf);
       if(alt.indexOf('収集先コード') !== -1) text = alt;
     }
-    const matrix = parseCSV(text);
-    ROWS = buildRows(matrix);
+    const incoming = normalizeCSV(parseCSV(text));
+    if(!incoming.length) throw new Error('取り込める行がありませんでした');
 
-    const kanri = new Set(ROWS.map(r => r.k1));
-    const shu   = new Set(ROWS.map(r => r.t1));
-    const noCode = ROWS.filter(r => !r.code).length;
-    const lens = {};
-    ROWS.forEach(r => { const L = r.code.length; lens[L] = (lens[L] || 0) + 1; });
-    const lenStr = Object.keys(lens).sort((a,b)=>a-b).map(k => k + '桁: ' + lens[k] + '件').join(' / ');
+    const res = mergeByCode(S.rows, incoming);
+    S.pending = res;
 
-    msg.className = 'msg ok';
-    msg.textContent =
-      '読み込みOK\n' +
-      '・データ件数: ' + ROWS.length + '件\n' +
-      '・管理会社: ' + kanri.size + '社 / 収集先: ' + shu.size + '件\n' +
-      '・管理番号の桁数: ' + (lenStr || '—') + (noCode ? '\n・管理番号が空: ' + noCode + '件' : '');
+    msg.className = 'msg plain'; msg.textContent = '';
+    const sample = (arr) => arr.slice(0,5).map(c => {
+      const g = groupByCode(incoming).get(c);
+      return '・' + esc(c) + '　' + esc(g ? g.t1 : '');
+    }).join('<br>') + (arr.length > 5 ? '<br>…ほか' + (arr.length - 5) + '件' : '');
 
-    const head = ROWS.slice(0, 3);
-    prev.innerHTML = '<table><tr><th>管理番号</th><th>管理会社</th><th>収集先</th><th>単価</th></tr>' +
-      head.map(r => '<tr><td>' + esc(r.code) + '</td><td>' + esc(r.k1) + '</td><td>' + esc(r.t1) +
-                    '</td><td>' + r.tanka + '</td></tr>').join('') + '</table>';
+    prev.innerHTML =
+      '<table class="sum">' +
+      '<tr><td>CSVの行数</td><td><b>' + incoming.length + '</b> 行</td></tr>' +
+      '<tr><td>新しく追加される物件</td><td><b>' + res.added + '</b> 件</td></tr>' +
+      '<tr><td>上書きされる物件</td><td><b>' + res.updated + '</b> 件</td></tr>' +
+      '<tr><td>取込後の合計</td><td><b>' + res.rows.length + '</b> 行 / ' + groupByCode(res.rows).size + ' 物件</td></tr>' +
+      (res.skipped ? '<tr><td>管理番号が空で除外</td><td><b>' + res.skipped + '</b> 行</td></tr>' : '') +
+      '</table>' +
+      (res.added ? '<h3>追加される物件</h3><div class="note">' + sample(res.addedCodes) + '</div>' : '') +
+      (res.updated ? '<h3>上書きされる物件</h3><div class="note">' + sample(res.updatedCodes) + '</div>' : '');
 
-    $('uploadBtn').disabled = ROWS.length === 0;
+    $('importBtn').disabled = false;
   }catch(err){
     msg.className = 'msg err';
-    msg.textContent = '読み込めませんでした: ' + (err && err.message ? err.message : err);
+    msg.textContent = '読み込めませんでした: ' + ((err && err.message) || err);
   }
 });
 
-function esc(s){
-  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+$('importBtn').addEventListener('click', async () => {
+  if(!S.pending) return;
+  const res = S.pending;
+  if(!confirm('新規 ' + res.added + '件 / 上書き ' + res.updated + '件 を取り込みます。よろしいですか?')) return;
 
-/* ---------- Firestore へ登録 ---------- */
-$('uploadBtn').addEventListener('click', async () => {
-  if(!ROWS.length) return;
-  const msg = $('upMsg');
-  const bar = $('bar');
-  const fill = bar.querySelector('i');
-  if(!confirm('現在のデータを全て置き換えます。よろしいですか?\n(' + ROWS.length + '件)')) return;
-
-  $('uploadBtn').disabled = true;
-  bar.classList.remove('hide');
-  msg.className = 'msg';
-  msg.textContent = '古いデータを削除しています…';
-
+  const msg = $('impMsg'), bar = $('bar'), fill = bar.querySelector('i');
+  $('importBtn').disabled = true;
+  bar.classList.remove('hide'); fill.style.width = '40%';
+  msg.className = 'msg plain'; msg.classList.remove('hide'); msg.textContent = '保存しています…';
   try{
-    // 1) 既存ドキュメントを全削除
-    const existing = await getDocs(collection(db, COLLECTION));
-    const olds = [];
-    existing.forEach(d => olds.push(d.id));
-    for(let i = 0; i < olds.length; i += 400){
-      const b = writeBatch(db);
-      olds.slice(i, i + 400).forEach(id => b.delete(doc(db, COLLECTION, id)));
-      await b.commit();
-    }
-
-    // 2) 新しいデータをチャンクに分けて書き込み
-    const chunks = [];
-    for(let i = 0; i < ROWS.length; i += CHUNK_SIZE) chunks.push(ROWS.slice(i, i + CHUNK_SIZE));
-
-    for(let i = 0; i < chunks.length; i++){
-      const id = 'chunk_' + String(i).padStart(4, '0');
-      const b = writeBatch(db);
-      b.set(doc(db, COLLECTION, id), { i, rows: chunks[i] });
-      await b.commit();
-      const pct = Math.round(((i + 1) / (chunks.length + 1)) * 100);
-      fill.style.width = pct + '%';
-      msg.textContent = '登録中… ' + (i + 1) + ' / ' + chunks.length;
-    }
-
-    // 3) meta を最後に書く(これが更新の目印になる)
-    const stamp = new Date().toISOString();
-    const b = writeBatch(db);
-    b.set(doc(db, COLLECTION, 'meta'), {
-      count: ROWS.length,
-      chunks: chunks.length,
-      updatedAt: stamp,
-      updatedBy: (auth.currentUser && auth.currentUser.email) || '',
-      serverTime: serverTimestamp()
-    });
-    await b.commit();
-
+    await saveAll(res.rows, 'CSV取込（新規' + res.added + '件・上書き' + res.updated + '件）', null);
     fill.style.width = '100%';
     msg.className = 'msg ok';
-    msg.textContent = '完了しました(' + ROWS.length + '件 / ' + chunks.length + 'ブロック)\n' +
-                      '検索アプリを開き直すと新しいデータが表示されます。';
+    msg.textContent = '取り込みました。\n新規 ' + res.added + '件 / 上書き ' + res.updated + '件\n' +
+                      '検索アプリを開き直すと反映されます。';
+    S.pending = null; $('file').value = ''; $('preview').innerHTML = ''; $('parseMsg').textContent = '';
   }catch(err){
-    msg.className = 'msg err';
-    msg.textContent = '登録に失敗しました: ' + ((err && err.message) || err) +
-      '\n※権限エラーの場合はFirestoreのルール設定を確認してください。';
-    $('uploadBtn').disabled = false;
+    fill.style.width = '0%';
+    msg.className = 'msg err'; msg.textContent = saveErrText(err);
+    $('importBtn').disabled = false;
   }
 });
+
+/* ---------------- 入力フォーム ---------------- */
+function buildForm(host, group){
+  const g = group || { code:'', k1:'', k2:'', t1:'', t2:'', kaddr:'', taddr:'', rows:[] };
+  const f = groupToForm(g);
+  const b = f.base;
+  host.innerHTML =
+    fld('管理番号（収集先コード）', 'code', b.code, 'text', 'inputmode="numeric"') +
+    fld('管理会社名', 'k1', b.k1) +
+    fld('管理会社名（部署など・任意）', 'k2', b.k2) +
+    fld('管理会社の住所', 'kaddr', b.kaddr) +
+    fld('得意先名（収集先）', 't1', b.t1) +
+    fld('得意先名（部署など・任意）', 't2', b.t2) +
+    fld('得意先の住所', 'taddr', b.taddr) +
+    '<h3>料金（何行でも足せます）</h3><div class="rows"></div>' +
+    '<button class="ghost addrow" type="button">＋ 料金行を追加</button>';
+
+  const box = host.querySelector('.rows');
+  f.rows.forEach(r => box.appendChild(rowCard(r)));
+  host.querySelector('.addrow').addEventListener('click', () => {
+    box.appendChild(rowCard(groupToForm({ rows:[] }).rows[0]));
+    renumber(box);
+  });
+  renumber(box);
+}
+function fld(label, name, val, type, extra){
+  return '<div class="fld"><label>' + esc(label) + '</label>' +
+         '<input type="' + (type||'text') + '" data-f="' + name + '" value="' + esc(val) + '" ' + (extra||'') + '></div>';
+}
+function rowCard(r){
+  const d = document.createElement('div');
+  d.className = 'rowcard';
+  d.dataset.raw = JSON.stringify(r._raw || {});
+  d.innerHTML =
+    '<div class="rowhead"><span class="no">料金行</span><button type="button" class="del">この行を削除</button></div>' +
+    '<div class="fld"><label>商品名</label><input type="text" data-r="shohin" value="' + esc(r.shohin) + '"></div>' +
+    '<div class="two">' +
+      '<div class="fld"><label>単価</label><input type="number" data-r="tanka" value="' + esc(r.tanka) + '" inputmode="decimal"></div>' +
+      '<div class="fld"><label>単位（ヶ月・kg など）</label><input type="text" data-r="taniname" value="' + esc(r.taniname) + '"></div>' +
+    '</div>' +
+    '<div class="two">' +
+      '<div class="fld"><label>適用開始日</label><input type="date" data-r="tekiyou" value="' + esc(r.tekiyou) + '"></div>' +
+      '<div class="fld"><label>契約日</label><input type="date" data-r="keiyaku" value="' + esc(r.keiyaku) + '"></div>' +
+    '</div>' +
+    '<div class="two">' +
+      '<div class="fld"><label>休止日</label><input type="date" data-r="kyuushi" value="' + esc(r.kyuushi) + '"></div>' +
+      '<div class="fld"><label>解約日</label><input type="date" data-r="kaiyaku" value="' + esc(r.kaiyaku) + '"></div>' +
+    '</div>';
+  d.querySelector('.del').addEventListener('click', () => {
+    const box = d.parentElement;
+    if(box.children.length <= 1){ alert('料金行は最低1行必要です。'); return; }
+    d.remove(); renumber(box);
+  });
+  return d;
+}
+function renumber(box){
+  Array.from(box.children).forEach((c, i) => { c.querySelector('.no').textContent = '料金行 ' + (i+1); });
+}
+function collectForm(host){
+  const v = (n) => { const el = host.querySelector('[data-f="' + n + '"]'); return el ? el.value.trim() : ''; };
+  const base = { code: v('code'), k1: v('k1'), k2: v('k2'), t1: v('t1'), t2: v('t2'),
+                 kaddr: v('kaddr'), taddr: v('taddr') };
+  const rowVals = Array.from(host.querySelectorAll('.rowcard')).map(c => {
+    const g = (n) => { const el = c.querySelector('[data-r="' + n + '"]'); return el ? el.value.trim() : ''; };
+    let raw = {};
+    try{ raw = JSON.parse(c.dataset.raw || '{}'); }catch(e){}
+    return { shohin:g('shohin'), tanka:g('tanka'), taniname:g('taniname'),
+             tekiyou:g('tekiyou'), keiyaku:g('keiyaku'), kyuushi:g('kyuushi'), kaiyaku:g('kaiyaku'),
+             _raw: raw };
+  });
+  return { base, rows: formToRows(base, rowVals) };
+}
+function validate(base){
+  if(!base.code) return '管理番号を入力してください。';
+  if(!base.k1) return '管理会社名を入力してください。';
+  if(!base.t1) return '得意先名（収集先）を入力してください。';
+  return null;
+}
+
+/* ---------------- 新規登録 ---------------- */
+$('newSaveBtn').addEventListener('click', async () => {
+  const host = $('newForm'), msg = $('newMsg');
+  const { base, rows } = collectForm(host);
+  const bad = validate(base);
+  msg.classList.remove('hide');
+  if(bad){ msg.className = 'msg err'; msg.textContent = bad; return; }
+
+  if(S.rows.some(r => r.code === base.code)){
+    msg.className = 'msg err';
+    msg.textContent = 'この管理番号はすでに登録されています。\n「編集・削除」タブから内容を直してください。';
+    return;
+  }
+
+  $('newSaveBtn').disabled = true;
+  msg.className = 'msg plain'; msg.textContent = '保存しています…';
+  try{
+    await saveAll(upsertOne(S.rows, base.code, rows), '新規登録　' + base.t1 + '（' + base.code + '）', null);
+    msg.className = 'msg ok';
+    msg.textContent = '登録しました。\n' + base.t1 + '（' + base.code + '）/ 料金 ' + rows.length + '行';
+    buildForm(host, null);
+  }catch(err){
+    msg.className = 'msg err'; msg.textContent = saveErrText(err);
+  }
+  $('newSaveBtn').disabled = false;
+});
+
+/* ---------------- 編集・削除 ---------------- */
+$('editSearch').addEventListener('input', renderHits);
+
+function renderHits(){
+  const q = $('editSearch').value;
+  const tokens = tokenize(q);
+  const box = $('hits');
+  if(!tokens.length){ box.innerHTML = '<div class="empty">検索ワードを入力してください</div>'; return; }
+  const groups = [...groupByCode(S.rows).values()].filter(g => groupMatches(g, tokens));
+  if(!groups.length){ box.innerHTML = '<div class="empty">該当する物件がありません</div>'; return; }
+
+  box.innerHTML = '<div class="note" style="margin:12px 0 8px">' + groups.length + '件</div>' +
+    groups.slice(0, 50).map(g => {
+      const anyK = g.rows.some(r => r.kyuushi), anyG = g.rows.some(r => r.kaiyaku);
+      return '<div class="hit" data-code="' + esc(g.code) + '">' +
+        '<div class="nm">' + esc(g.t1) + (g.t2 ? ' / ' + esc(g.t2) : '') +
+          (anyK ? '<span class="pill k">休止</span>' : '') + (anyG ? '<span class="pill g">解約</span>' : '') + '</div>' +
+        '<div class="mg">' + esc(g.k1) + '</div>' +
+        '<div class="ad">' + esc(g.taddr || '—') + '</div>' +
+        '<div class="cd">管理番号:' + esc(g.code) + '　料金' + g.rows.length + '行</div>' +
+      '</div>';
+    }).join('') +
+    (groups.length > 50 ? '<div class="note">※上位50件のみ表示しています</div>' : '');
+
+  box.querySelectorAll('.hit').forEach(el => {
+    el.addEventListener('click', () => openEdit(el.dataset.code));
+  });
+}
+
+function openEdit(code){
+  const g = groupByCode(S.rows).get(code);
+  if(!g) return;
+  S.editCode = code;
+  buildForm($('editForm'), g);
+  $('editMsg').classList.add('hide');
+  $('searchCard').classList.add('hide');
+  $('trashCard').classList.add('hide');
+  $('editCard').classList.remove('hide');
+  window.scrollTo(0,0);
+}
+function closeEdit(){
+  S.editCode = null;
+  $('editCard').classList.add('hide');
+  $('searchCard').classList.remove('hide');
+  $('trashCard').classList.remove('hide');
+  renderHits();
+}
+$('editCancelBtn').addEventListener('click', closeEdit);
+
+$('editSaveBtn').addEventListener('click', async () => {
+  const host = $('editForm'), msg = $('editMsg');
+  const { base, rows } = collectForm(host);
+  const bad = validate(base);
+  msg.classList.remove('hide');
+  if(bad){ msg.className = 'msg err'; msg.textContent = bad; return; }
+
+  if(base.code !== S.editCode && S.rows.some(r => r.code === base.code)){
+    msg.className = 'msg err';
+    msg.textContent = '変更後の管理番号は、別の物件がすでに使っています。';
+    return;
+  }
+
+  $('editSaveBtn').disabled = true;
+  msg.className = 'msg plain'; msg.textContent = '保存しています…';
+  try{
+    const cleared = removeOne(S.rows, S.editCode);
+    await saveAll(upsertOne(cleared, base.code, rows),
+                  '編集　' + base.t1 + '（' + base.code + '）', null);
+    msg.className = 'msg ok'; msg.textContent = '保存しました。';
+    S.editCode = base.code;
+  }catch(err){
+    msg.className = 'msg err'; msg.textContent = saveErrText(err);
+  }
+  $('editSaveBtn').disabled = false;
+});
+
+$('editDelBtn').addEventListener('click', async () => {
+  const code = S.editCode;
+  const g = groupByCode(S.rows).get(code);
+  if(!g) return;
+  if(!confirm(g.t1 + '（' + code + '）を削除します。\nゴミ箱に入るので、あとで戻せます。')) return;
+
+  const msg = $('editMsg');
+  msg.classList.remove('hide'); msg.className = 'msg plain'; msg.textContent = '削除しています…';
+  try{
+    await saveAll(removeOne(S.rows, code), '削除　' + g.t1 + '（' + code + '）',
+                  { at: new Date().toISOString(), by: S.email, code, name: g.t1, rows: g.rows });
+    msg.className = 'msg ok'; msg.textContent = '削除しました。ゴミ箱から戻せます。';
+    setTimeout(closeEdit, 700);
+  }catch(err){
+    msg.className = 'msg err'; msg.textContent = saveErrText(err);
+  }
+});
+
+/* ---------------- ゴミ箱 / 履歴 ---------------- */
+$('showTrashBtn').addEventListener('click', () => {
+  const box = $('trashBox');
+  if(!S.trash.length){ box.innerHTML = '<div class="empty">ゴミ箱は空です</div>'; return; }
+  box.innerHTML = S.trash.map((t, i) =>
+    '<div class="hit" data-t="' + i + '">' +
+      '<div class="nm">' + esc(t.name) + '</div>' +
+      '<div class="cd">管理番号:' + esc(t.code) + '　削除 ' + esc(String(t.at).replace('T',' ').slice(0,16)) +
+      '　' + esc(t.by || '') + '</div>' +
+      '<div class="mg" style="margin-top:6px">タップで元に戻す</div>' +
+    '</div>').join('');
+  box.querySelectorAll('.hit').forEach(el => {
+    el.addEventListener('click', () => restore(parseInt(el.dataset.t, 10)));
+  });
+});
+$('showLogBtn').addEventListener('click', () => {
+  const box = $('trashBox');
+  if(!S.log.length){ box.innerHTML = '<div class="empty">履歴はまだありません</div>'; return; }
+  box.innerHTML = '<div style="margin-top:10px">' + S.log.slice(0,40).map(l =>
+    '<div class="logline">' + esc(String(l.at).replace('T',' ').slice(0,16)) + '　' +
+    esc(l.by || '') + '<br>' + esc(l.what || '') + '</div>').join('') + '</div>';
+});
+
+async function restore(i){
+  const t = S.trash[i];
+  if(!t) return;
+  if(S.rows.some(r => r.code === t.code)){
+    alert('同じ管理番号の物件がすでに登録されています。先にそちらを確認してください。');
+    return;
+  }
+  if(!confirm(t.name + '（' + t.code + '）を元に戻します。よろしいですか?')) return;
+  try{
+    const restored = upsertOne(S.rows, t.code, t.rows);
+    const remaining = S.trash.filter((_, k) => k !== i);
+    await saveAll(restored, '復元　' + t.name + '（' + t.code + '）', null, remaining);
+    $('showTrashBtn').click();
+    alert('元に戻しました。');
+  }catch(err){
+    alert(saveErrText(err));
+  }
+}
 </script>
 </body>
 </html>

@@ -350,6 +350,13 @@
     backdrop-filter:blur(6px);
   }
   .lock-box input + input{ margin-top:0; }
+  .sub-note{
+    display:inline-block;
+    margin-top:6px;
+    font-size:12px;
+    color:#9aa5b1;
+    line-height:1.7;
+  }
   .loading{
     text-align:center;
     color:var(--sub);
@@ -682,12 +689,12 @@ function writeCache(stamp, rows){
 async function loadData(){
   resultsEl.innerHTML = '<div class="loading"><div class="spin"></div>データを読み込んでいます…</div>';
 
-  let meta = null;
+  let meta = null, metaErr = null;
   try{
     const snap = await getDoc(doc(db, COLLECTION, 'meta'));
     if(snap.exists()) meta = snap.data();
   }catch(e){
-    // オフライン等。キャッシュがあればそれで動かす
+    metaErr = e;   // 権限エラー・オフライン等
   }
 
   const cache = readCache();
@@ -699,7 +706,16 @@ async function loadData(){
   }
 
   if(!meta){
-    resultsEl.innerHTML = '<div class="empty">データを読み込めませんでした。通信状況を確認して開き直してください。</div>';
+    const code = (metaErr && metaErr.code) ? String(metaErr.code) : '';
+    let m;
+    if(code.includes('permission-denied')){
+      m = 'データを読む権限がありません。<br><span class="sub-note">Firestoreの「ルール」が公開されているか確認してください。</span>';
+    }else if(metaErr){
+      m = '通信できませんでした。<br><span class="sub-note">電波の良い場所で開き直してください（' + escapeHtml(code || 'unknown') + '）</span>';
+    }else{
+      m = 'まだデータが登録されていません。<br><span class="sub-note">取込ページ（tokuisaki-import.html）からCSVを登録してください。</span>';
+    }
+    resultsEl.innerHTML = '<div class="empty">' + m + '</div>';
     return;
   }
 
@@ -716,8 +732,11 @@ async function loadData(){
     writeCache(stamp, rows);
     window.bootApp(rows);
   }catch(e){
-    resultsEl.innerHTML = '<div class="empty">データを読み込めませんでした。' +
-      '権限の設定を確認してください。</div>';
+    const code = (e && e.code) ? String(e.code) : '';
+    const m = code.includes('permission-denied')
+      ? 'データを読む権限がありません。<br><span class="sub-note">Firestoreの「ルール」が公開されているか確認してください。</span>'
+      : 'データを読み込めませんでした。<br><span class="sub-note">開き直してみてください（' + escapeHtml(code || 'unknown') + '）</span>';
+    resultsEl.innerHTML = '<div class="empty">' + m + '</div>';
   }
 }
 
