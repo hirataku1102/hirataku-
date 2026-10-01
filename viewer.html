@@ -94,6 +94,8 @@
   .row .val{font-size:14.5px;font-weight:700;text-align:right}
   .bigmap{display:block;text-align:center;margin-top:14px;background:var(--blue);color:#fff;font-weight:900;padding:13px;border-radius:12px;text-decoration:none;font-size:15px}
   .updated{color:var(--sub);font-size:11px;text-align:center;padding:10px 0 0}
+  .updated a{color:var(--sub);text-decoration:underline}
+  .courserow button.locked{opacity:.55}
   .lockscreen{position:fixed;inset:0;background:var(--bg);color:var(--text);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;text-align:center}
   .lockscreen input{width:220px;text-align:center;font-size:18px;letter-spacing:2px;padding:11px 12px;border-radius:10px;border:1px solid var(--input-border);background:var(--input-bg);color:var(--text)}
   .lockscreen button{border:none;border-radius:10px;padding:11px 22px;font-weight:800;font-size:14px;background:var(--orange);color:#fff;cursor:pointer}
@@ -132,6 +134,7 @@
   </div>
 </div>
 <p class="updated" id="updatedAt"></p>
+<p class="updated" id="accessInfo" style="padding:4px 0 90px"></p>
 <button class="fab" id="routeFab">📍 まとめて開く</button>
 <div class="lightbox" id="lightbox"><button class="lightbox-close" id="lightboxClose">✕</button><div class="lightbox-strip" id="lightboxStrip"></div></div>
 
@@ -174,17 +177,61 @@ function recentlyUnlocked() {
     return !!t && (Date.now() - parseInt(t, 10)) < IDLE_LIMIT_MS;
   } catch (e) { return false; }
 }
-if (recentlyUnlocked()) { document.getElementById('lockscreen').style.display = 'none'; markActive(); }
+/* 閲覧範囲：full=全コース / limited=選ばれたコースのみ（editorの🔑で登録） */
+const ACCESS_DOC_ID = '_access';
+let access = { type: 'full' };
+try { const a = JSON.parse(localStorage.getItem('cm_view_access') || 'null'); if (a && a.type) access = a; } catch (e) {}
+function saveAccess() { try { localStorage.setItem('cm_view_access', JSON.stringify(access)); } catch (e) {} }
+function isLimited() { return access.type === 'limited'; }
+function canView(courseId) { return !isLimited() || (access.courseIds || []).includes(courseId); }
+let unlocked = recentlyUnlocked();
+if (unlocked) { document.getElementById('lockscreen').style.display = 'none'; markActive(); }
 document.addEventListener('click', () => { if (document.getElementById('lockscreen').style.display === 'none') markActive(); });
 document.getElementById('passBtn').onclick = tryUnlock;
 document.getElementById('passInput').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
-function tryUnlock() {
-  if (document.getElementById('passInput').value === VIEW_PASSCODE) {
-    markActive();
-    document.getElementById('lockscreen').style.display = 'none';
-  } else {
-    document.getElementById('passErr').style.display = 'block';
+function showLock(msg) {
+  try { localStorage.removeItem('cm_view_unlocked_at'); } catch (e) {}
+  unlocked = false;
+  document.getElementById('passInput').value = '';
+  const err = document.getElementById('passErr');
+  if (msg) { err.textContent = msg; err.style.display = 'block'; } else err.style.display = 'none';
+  document.getElementById('lockscreen').style.display = 'flex';
+}
+function clearViewCache() { try { localStorage.removeItem(CACHE_KEY); } catch (e) {} }
+async function tryUnlock() {
+  const v = document.getElementById('passInput').value.trim();
+  const err = document.getElementById('passErr');
+  const btn = document.getElementById('passBtn');
+  if (!v) return;
+  let next = null;
+  if (v === VIEW_PASSCODE) next = { type: 'full' };
+  else {
+    btn.disabled = true; btn.textContent = '確認中…';
+    try {
+      const d = await getWithRetry(db.collection('cm_courses').doc(ACCESS_DOC_ID), 2);
+      const pass = d.exists ? (d.data().passes || []).find(p => p.code === v) : null;
+      if (pass) next = { type: 'limited', passId: pass.id, label: pass.label || '', courseIds: pass.courseIds || [] };
+    } catch (e) { console.error(e); err.textContent = '通信に失敗しました。電波の良い場所でもう一度お試しください'; err.style.display = 'block'; btn.disabled = false; btn.textContent = '開く'; return; }
+    btn.disabled = false; btn.textContent = '開く';
   }
+  if (!next) { err.textContent = 'パスコードが違います'; err.style.display = 'block'; return; }
+  const changed = JSON.stringify(next) !== JSON.stringify(access);
+  access = next; saveAccess(); markActive(); unlocked = true;
+  document.getElementById('lockscreen').style.display = 'none';
+  err.style.display = 'none';
+  if (changed) { clearViewCache(); mode = 'search'; activeCourseId = null; }
+  await load(changed);
+}
+/* 制限付きの場合、editor側で変更・削除されていないか確認 */
+async function refreshAccess() {
+  if (!isLimited()) return true;
+  let d;
+  try { d = await getWithRetry(db.collection('cm_courses').doc(ACCESS_DOC_ID), 2); } catch (e) { return true; } // 圏外時は前回の範囲で表示
+  const pass = d.exists ? (d.data().passes || []).find(p => p.id === access.passId) : null;
+  if (!pass) { access = { type: 'full' }; saveAccess(); clearViewCache(); showLock('パスワードが変更されました。新しいパスワードを入力してください'); return false; }
+  const next = { type: 'limited', passId: pass.id, label: pass.label || '', courseIds: pass.courseIds || [] };
+  access = next; saveAccess();
+  return true;
 }
 
 function applyTheme(t) {
@@ -265,7 +312,7 @@ async function ensureAllCustomersLoaded() {
 async function ensureCourseLoaded(courseId) {
   if (!courseId || allCustomersLoaded || loadedCourseIds.has(courseId)) return;
   const snap = await getWithRetry(db.collection('cm_customers').where('courseIds', 'array-contains', courseId));
-  if (snap.empty) { await ensureAllCustomersLoaded(); return; } // 旧形式データへの保険
+  if (snap.empty && !isLimited()) { await ensureAllCustomersLoaded(); return; } // 旧形式データへの保険
   mergeCustomersInto(snap.docs);
   loadedCourseIds.add(courseId);
   saveCache();
@@ -278,6 +325,8 @@ function showListError(retryFn) {
   document.getElementById('list').innerHTML = '<div class="empty">データを読み込めませんでした。通信環境をご確認ください。<br><button style="margin-top:12px;background:var(--orange);color:#fff;border:none;border-radius:10px;padding:10px 18px;font-weight:800" onclick="' + retryFn + '">再読み込み</button></div>';
 }
 async function load(forceFresh = false) {
+  if (!unlocked) return;
+  if (!(await refreshAccess())) return;
   const cache = forceFresh ? null : readCache();
   if (cache && cache.courses && cache.courses.length) {
     courses = cache.courses; customers = cache.customers || [];
@@ -288,19 +337,35 @@ async function load(forceFresh = false) {
     showListLoading();
     try {
       const snap = await getWithRetry(db.collection('cm_courses'));
-      courses = snap.docs.map(normalizeDoc);
+      courses = snap.docs.filter(d => !d.id.startsWith('_')).map(normalizeDoc);
       saveCache();
       showUpdated(Date.now());
     } catch (e) { console.error(e); showListError('load(true)'); return; }
   }
-  if (mode !== 'search' && !courses.some(c => c.id === activeCourseId)) {
-    const first = courses.filter(c => c.wasteType === mode).sort((a,b)=>(a.order??0)-(b.order??0))[0];
-    activeCourseId = first ? first.id : null;
+  if (isLimited() && mode === 'search') {
+    const firstAllowed = WASTE_TYPES.find(w => sortedCoursesOf(w.key).some(c => canView(c.id)));
+    mode = firstAllowed ? firstAllowed.key : WASTE_TYPES[0].key;
+    activeCourseId = null;
   }
-  renderTopTabs(); renderCourseTabs(); renderDayTabs();
+  if (mode !== 'search' && !courses.some(c => c.id === activeCourseId)) activeCourseId = defaultCourseFor(mode);
+  renderTopTabs(); renderCourseTabs(); renderDayTabs(); renderAccessInfo();
   await openActiveCourse();
 }
+function sortedCoursesOf(type) { return courses.filter(c => c.wasteType === type).sort((a,b)=>(a.order??0)-(b.order??0)); }
+function defaultCourseFor(type) {
+  const list = sortedCoursesOf(type);
+  const first = list.find(c => canView(c.id)) || list[0];
+  return first ? first.id : null;
+}
+function renderAccessInfo() {
+  const el = document.getElementById('accessInfo');
+  el.innerHTML = isLimited()
+    ? `閲覧範囲：${esc(access.label || '限定')}（${(access.courseIds || []).filter(id => courses.some(c => c.id === id)).length}コース）　<a href="#" id="changePassLink">パスワードを変更</a>`
+    : `<a href="#" id="changePassLink">パスワードを変更</a>`;
+  document.getElementById('changePassLink').onclick = e => { e.preventDefault(); showLock(''); };
+}
 async function openActiveCourse() {
+  if (mode !== 'search' && activeCourseId && !canView(activeCourseId)) { renderList(); return; }
   if (mode !== 'search' && activeCourseId && !allCustomersLoaded && !loadedCourseIds.has(activeCourseId)) {
     showListLoading();
     try { await ensureCourseLoaded(activeCourseId); } catch (e) { console.error(e); showListError('openActiveCourse()'); return; }
@@ -310,16 +375,13 @@ async function openActiveCourse() {
 
 function renderTopTabs() {
   const box = document.getElementById('topTabs');
-  box.innerHTML = `<button data-m="search" class="${mode === 'search' ? 'active' : ''}">🔎 検索</button>` +
+  box.innerHTML = (isLimited() ? '' : `<button data-m="search" class="${mode === 'search' ? 'active' : ''}">🔎 検索</button>`) +
     WASTE_TYPES.map(w => `<button data-m="${w.key}" class="${mode === w.key ? 'active' : ''}">${w.icon} ${w.label}</button>`).join('');
   box.querySelectorAll('button').forEach(b => b.onclick = () => {
     mode = b.dataset.m;
     dayFilter = 'all';
     selectedIds.clear();
-    if (mode !== 'search') {
-      const first = courses.filter(c => c.wasteType === mode).sort((a,b)=>(a.order??0)-(b.order??0))[0];
-      activeCourseId = first ? first.id : null;
-    }
+    if (mode !== 'search') activeCourseId = defaultCourseFor(mode);
     document.getElementById('search').value = '';
     updateFab();
     renderTopTabs(); renderCourseTabs(); renderDayTabs(); openActiveCourse();
@@ -328,7 +390,7 @@ function renderTopTabs() {
 
 function renderDayTabs() {
   const box = document.getElementById('dayTabs');
-  if (mode === 'search') { box.innerHTML = ''; return; }
+  if (mode === 'search' || (activeCourseId && !canView(activeCourseId))) { box.innerHTML = ''; return; }
   const today = todayChar();
   const chips = [
     { key: 'all', label: '全て' },
@@ -344,7 +406,7 @@ function renderCourseTabs() {
   if (mode === 'search') { box.innerHTML = ''; return; }
   const list = courses.filter(c => c.wasteType === mode).sort((a,b)=>(a.order??0)-(b.order??0));
   box.innerHTML = list.map(c => `
-    <button data-c="${c.id}" class="${c.id === activeCourseId ? 'active' : ''}"><span class="dot" style="background:${c.color}"></span>${esc(courseLabel(c))}</button>
+    <button data-c="${c.id}" class="${c.id === activeCourseId ? 'active' : ''}${canView(c.id) ? '' : ' locked'}">${canView(c.id) ? `<span class="dot" style="background:${c.color}"></span>` : '🔒 '}${esc(courseLabel(c))}</button>
   `).join('');
   box.querySelectorAll('button').forEach(b => b.onclick = () => { activeCourseId = b.dataset.c; dayFilter = 'all'; selectedIds.clear(); updateFab(); renderCourseTabs(); renderDayTabs(); openActiveCourse(); });
 }
@@ -386,6 +448,7 @@ async function renderList() {
   const list = document.getElementById('list');
 
   if (mode === 'search') {
+    if (isLimited()) { list.innerHTML = ''; return; }
     if (!q) { document.getElementById('meta').textContent = ''; list.innerHTML = `<div class="empty">得意先名・住所・管理番号を入力して検索してください。</div>`; return; }
     if (!allCustomersLoaded) {
       showListLoading();
@@ -410,6 +473,11 @@ async function renderList() {
   }
 
   const course = courses.find(c => c.id === activeCourseId);
+  if (course && !canView(course.id)) {
+    document.getElementById('meta').textContent = courseLabel(course);
+    list.innerHTML = `<div class="empty">🔒 閲覧権限がありません。<br><span style="font-size:12.5px">このコースを見る必要がある場合は、管理者にパスワードを確認してください。</span></div>`;
+    return;
+  }
   if (!course) { document.getElementById('meta').textContent = ''; list.innerHTML = `<div class="empty">この品目にはまだコースが登録されていません。</div>`; return; }
   let items = customers.filter(c => findAssignment(c, mode, course.id));
   items.sort((a, b) => (findAssignment(a, mode, course.id).order ?? 0) - (findAssignment(b, mode, course.id).order ?? 0));
