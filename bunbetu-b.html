@@ -46,7 +46,9 @@ body{margin:0;background:var(--bg2);color:var(--ink);font-family:var(--ui);overf
 
 .stage{position:relative;flex:1;min-height:0;border-radius:18px;overflow:hidden}
 canvas{display:block;width:100%;height:100%}
-.overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px;padding:12px 6px;overflow:hidden;background:rgba(5,11,34,.55)}
+.overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:8px 6px;overflow:hidden;background:rgba(5,11,34,.55)}
+/* 画面が低いブラウザでもはみ出さないよう、中身ごと縮める */
+.ovin{display:flex;flex-direction:column;align-items:center;gap:12px;transform-origin:center center;flex:none}
 .deco{position:absolute;font-size:44px;filter:drop-shadow(0 6px 10px rgba(0,0,0,.5));animation:bob 3s ease-in-out infinite;pointer-events:none}
 @keyframes bob{50%{transform:translateY(-10px) rotate(var(--r,8deg))}}
 
@@ -144,6 +146,7 @@ canvas{display:block;width:100%;height:100%}
       <span class="deco" style="right:5%;top:2%;animation-delay:-1s">🥫</span>
       <span class="deco" style="left:2%;top:30%;animation-delay:-2s;--r:14deg">🧢</span>
       <span class="deco" style="right:3%;top:28%;animation-delay:-.5s;--r:-12deg">🍌</span>
+      <div class="ovin" id="ovin">
       <div class="logo">
         <svg class="ring" viewBox="0 0 100 100" aria-hidden="true">
           <circle cx="50" cy="50" r="38" fill="none" stroke="#7cf03a" stroke-width="7"/>
@@ -155,17 +158,18 @@ canvas{display:block;width:100%;height:100%}
       </div>
       <div id="intro" style="display:contents">
         <p class="tag">ゴミのボールを、<em>正しく打ち返せ!</em></p>
-        <p class="desc">ボールがホームベースの<b>光る輪</b>に来た瞬間に、そのゴミの分別ボタンを押して打とう。ジャストに近いほど長打!少しずれると打ってもアウト、大きくずれると空振り。</p>
+        <p class="desc">ボールが<b>光る輪</b>に来た瞬間に、正しい分別ボタンで打とう!ずれるとアウトや空振り。</p>
         <div class="legend" id="legend"></div>
-        <p class="desc">1レベル10球。<b>10点でクリア</b>(ヒット1・2塁打2・3塁打3・ホームラン4点)。届かなくてもLIFEがあれば再挑戦できます。</p>
+        <p class="desc">1レベル10球で<b>10点</b>取ればクリア。ヒット1・2塁打2・3塁打3・ホームラン4点。</p>
       </div>
       <div class="result" id="result" hidden></div>
       <div class="best" id="best"></div>
       <button class="go" id="start">▶ プレイボール</button>
+      </div>
     </div>
   </div>
   <div class="bins" id="bins"></div>
-  <div class="note">※分別ルールは自治体によって異なります。PCは数字キー1〜6でも操作できます。</div>
+  <div class="note">※分別ルールは自治体によって異なります。</div>
   <div class="modal" id="modal" hidden>
     <div class="card" id="card" role="dialog" aria-modal="true" aria-labelledby="mTitle">
       <div class="eyebrow" id="mEyebrow"></div>
@@ -355,7 +359,7 @@ function resize(){
   const cx=W/2,yP=H*.86;
   G={cx,yP,yM:H*.215,fy:H*.13,ringRx:Math.min(W*.14,H*.12),hb:Math.min(H*.28,W*.42),yHit:yP-H*.035};
 }
-addEventListener("resize",()=>{resize();if(!S||S.state!=="play")draw()});
+addEventListener("resize",()=>{resize();fitOv();if(!S||S.state!=="play")draw()});
 
 let S=null,best=0;
 try{best=+localStorage.getItem("bunbetsu-hr-best")||0}catch(e){}
@@ -547,7 +551,7 @@ function levelEnd(){
       `<div class="next">LIFEを1つ使って、Lv${S.lv}をもう一度!(残りLIFE ${S.life})</div>`;
     $("start").textContent=`▶ Lv${S.lv} もう一度`;
   }
-  $("best").hidden=true;$("ov").hidden=false;draw();
+  $("best").hidden=true;showOv();draw();
 }
 function end(clear,stats){
   setTimeout(()=>Snd[clear?"level":"over"](),clear?600:300);
@@ -556,10 +560,17 @@ function end(clear,stats){
   r.innerHTML=(clear?`<div class="over clear">ALL CLEAR!</div><div class="sub">プロ野球選手ピッチャーも打ち崩した!</div>`:
     `<div class="over">GAME OVER</div><div class="sub">Lv${S.lv} ${LV_NAME[S.lv-1]}ピッチャーで終了</div>`)+
     `<div class="big">${S.score}<small> 点</small></div>${stats}${nb?'<div class="nb">ベスト更新!</div>':""}`;
-  $("start").textContent="▶ もう一度";showBest();$("best").hidden=false;$("ov").hidden=false;draw();
+  $("start").textContent="▶ もう一度";showBest();$("best").hidden=false;showOv();draw();
   setTimeout(()=>{if(S&&(S.state==="over"||S.state==="allclear"))showModal({eyebrow:"お知らせ",title:"遊んでくれてありがとう!",
     body:"これはあくまでもゲームです。実際の分別ルールは地域や出し方によって異なります。詳しい分別については、お問い合わせください。"})},1400);
 }
+function fitOv(){
+  const ov=$("ov"),inn=$("ovin");if(ov.hidden)return;
+  inn.style.transform="none";
+  const s=Math.min(1,(ov.clientHeight-12)/inn.offsetHeight,(ov.clientWidth-8)/inn.offsetWidth);
+  inn.style.transform=s<1?`scale(${s})`:"none";
+}
+function showOv(){$("ov").hidden=false;fitOv()}
 function hud(){
   $("lv").textContent=S?S.lv:1;$("sc").textContent=S?S.score:0;
   const l=S?Math.max(0,S.life):3;let h="";for(let i=0;i<3;i++)h+=`<span class="${i<l?"":"off"}">❤️</span>`;$("lf").innerHTML=h;
@@ -871,7 +882,8 @@ addEventListener("keydown",e=>{
   if(!S||S.state!=="play"){if(e.key==="Enter"||e.key===" "){e.preventDefault();go()}return}
   const c=CATS[+e.key-1];if(c&&c.from<=S.lv)swing(c.id);
 });
-resize();draw();
+resize();draw();fitOv();
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fitOv);
 </script>
 
 </body></html>
