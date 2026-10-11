@@ -225,7 +225,9 @@ const CATS=[
    title:"リサイクル家電",
    desc:"テレビ・洗濯機・冷蔵庫・エアコンの4品目は「家電リサイクル法」の対象です。ごみとしては出せず、購入したお店や指定の引取場所でリサイクルします。"}
 ];
-const PER_LEVEL=25; // 1レベルのクリアに必要な正解数
+const PER_LEVEL=30; // 1レベルのクリアに必要な正解数
+const IS=1.1; // 落ちてくるアイコンの大きさ(倍率)
+const BOOST_EVERY=10, BOOSTS=[1,1.2,1.4]; // レベル内:0〜9個目=1倍、10〜19個目=1.2倍、20〜29個目=1.4倍
 const $=id=>document.getElementById(id);
 
 /* ===== オープニング ===== */
@@ -339,7 +341,9 @@ function introduce(list,done,i=0){
   showModal({eyebrow:S.lv===1?`分別のきほん ${i+1}/${list.length}`:`Lv${S.lv} 新しい分別が追加!`,title:c.title,color:c.color,
     icons:[...new Set(c.items.map(x=>x[0]))].slice(0,10),body:c.desc,onClose:()=>introduce(list,done,i+1)});
 }
-function params(){const lv=S.lv;return{speed:(0.075+lv*0.017)*H,gap:Math.max(.45,1.9-lv*.15),sway:lv>=4?Math.min(40,(lv-3)*9):0}}
+function params(){
+  const lv=S.lv,boost=BOOSTS[Math.min(BOOSTS.length-1,Math.floor((S.sorted%PER_LEVEL)/BOOST_EVERY))];
+  return{speed:(0.075+lv*0.017)*H*boost,gap:Math.max(.45,1.9-lv*.15)/boost,sway:lv>=4?Math.min(40,(lv-3)*9):0}}
 function spawn(){
   const a=active();
   let c=a[Math.floor(Math.random()*a.length)];
@@ -363,6 +367,7 @@ function sort(id){
     flash(btn,"flash-ok");
     if(S.combo>0&&S.combo%10===0){toast(`${S.combo}連続!`);Snd.combo()}else Snd.ok();
     if(S.sorted%PER_LEVEL===0)levelClear();
+    else if(S.sorted%BOOST_EVERY===0)toast("スピードアップ!",1200);
   }else{
     flash(btn,"flash-ng");miss(t,false);
   }
@@ -375,12 +380,13 @@ function miss(t,dropped){
   S.life--;S.combo=0;hud();
   S.fx.push({x:t.x+t.bx,y:Math.min(t.y,H-40),txt:"×",c:"#ff3b55",t:0});
   if(navigator.vibrate)try{navigator.vibrate(80)}catch(e){}
+  if(dropped)S.items=[]; // 落としたら画面上のゴミを一旦全部消す
   S.state="pause";Snd.bgmStop();draw();
   const c=CATS.find(x=>x.id===t.cat);
   showModal({eyebrow:dropped?"落としちゃった!":"ざんねん!",title:`${t.name}は「${c.full}」です`,color:c.color,icons:[t.e],body:c.desc,
     onClose:()=>{if(S.life<=0)end();else resume()}});
 }
-function resume(){S.state="play";Snd.init();Snd.bgmStart();last=performance.now();requestAnimationFrame(loop)}
+function resume(){S.state="play";if(!S.items.length)S.spawnT=.5;Snd.init();Snd.bgmStart();last=performance.now();requestAnimationFrame(loop)}
 function levelClear(){
   S.state="clear";S.items=[];Snd.bgmStop();Snd.level();
   const nx=S.lv+1,added=CATS.find(c=>c.from===nx);
@@ -444,13 +450,13 @@ function draw(){
   for(const it of S.items){
     const x=it.x+it.bx,y=it.y;
     ctx.save();
-    if(it===t){ctx.shadowColor="#ffe14a";ctx.shadowBlur=16;ctx.strokeStyle="#ffe14a";ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,28,0,6.283);ctx.stroke()}
+    if(it===t){ctx.shadowColor="#ffe14a";ctx.shadowBlur=16;ctx.strokeStyle="#ffe14a";ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,28*IS,0,6.283);ctx.stroke()}
     ctx.shadowColor="rgba(46,198,255,.6)";ctx.shadowBlur=12;
-    const g=ctx.createRadialGradient(x-8,y-10,4,x,y,24);g.addColorStop(0,"#ffffff");g.addColorStop(1,"#cfe6ff");
-    ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,23,0,6.283);ctx.fill();ctx.restore();
-    if(it.img){if(it.img.complete)ctx.drawImage(it.img,x-17,y-17,34,34)}
-    else{ctx.font="28px sans-serif";ctx.fillText(it.e,x,y+1)}
-    ctx.font="800 12px 'M PLUS Rounded 1c',sans-serif";ctx.lineWidth=4;ctx.strokeStyle="#050b22";ctx.strokeText(it.name,x,y+38);ctx.fillStyle="#fff";ctx.fillText(it.name,x,y+38);
+    const g=ctx.createRadialGradient(x-8*IS,y-10*IS,4,x,y,24*IS);g.addColorStop(0,"#ffffff");g.addColorStop(1,"#cfe6ff");
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,23*IS,0,6.283);ctx.fill();ctx.restore();
+    if(it.img){if(it.img.complete)ctx.drawImage(it.img,x-17*IS,y-17*IS,34*IS,34*IS)}
+    else{ctx.font=Math.round(28*IS)+"px sans-serif";ctx.fillText(it.e,x,y+1)}
+    ctx.font="800 12px 'M PLUS Rounded 1c',sans-serif";ctx.lineWidth=4;ctx.strokeStyle="#050b22";ctx.strokeText(it.name,x,y+38*IS);ctx.fillStyle="#fff";ctx.fillText(it.name,x,y+38*IS);
   }
   for(const f of S.fx){ctx.globalAlpha=1-f.t/.8;ctx.fillStyle=f.c;ctx.font="900 22px 'M PLUS Rounded 1c',sans-serif";ctx.lineWidth=4;ctx.strokeStyle="#050b22";ctx.strokeText(f.txt,f.x,f.y-f.t*50);ctx.fillText(f.txt,f.x,f.y-f.t*50)}
   ctx.globalAlpha=1;
