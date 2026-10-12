@@ -175,7 +175,7 @@ canvas{display:block;width:100%;height:100%}
         <p class="tag">ゴミのボールを、<em>正しく打ち返せ!</em></p>
         <p class="desc">ボールが<b>光る輪</b>に来た瞬間に、正しい分別ボタンで打とう!ずれるとアウトや空振り。</p>
         <div class="legend" id="legend"></div>
-        <p class="desc">1レベル10球。<b>10点</b>取った時点でクリア!ヒット1・2塁打2・3塁打3・ホームラン4点。クリアすると<b>🔥闘志モード</b>(球が速い)に挑戦!</p>
+        <p class="desc">1レベル10球。<b>10点</b>取った時点でクリア!ヒット1・2塁打2・3塁打3・ホームラン4点。クリアすると<b>🔥闘志モード</b>に挑戦!全部クリアすると…<b>☠地獄モード</b>!</p>
       </div>
       <div class="result" id="result" hidden></div>
       <div class="best" id="best"></div>
@@ -261,7 +261,9 @@ const UNI=[ // ピッチャーのユニフォーム
 ];
 const MAX_LV=6,PITCHES=10,GOAL=10;
 const FIRE_SPEED=1.25; // 闘志モードの球速の倍率
-function lvName(){return LV_NAME[S.lv-1]+(S.fire?"(闘志)":"")}
+const HELL_SPEED=1.3;  // 地獄モード(2周目)の球速の倍率
+function lvName(){return(S.hell?"地獄の":"")+LV_NAME[S.lv-1]+(S.fire?"(闘志)":"")}
+function speedMul(){return(S.fire?FIRE_SPEED:1)*(S.hell?HELL_SPEED:1)}
 /* 打撃判定:タイミングゲージ
    ジャストを中心に「好打ゾーン」10マス → ホームラン1・3塁打1・2塁打2・ヒット6
    その外側に前後5マスずつ「打ったけどアウト」、さらに外は空振り。
@@ -272,6 +274,12 @@ const HITS=[ // w=ジャストからの片側の幅(マス)。好打ゾーン合
  {k:"b2",w:1.75,pts:2,txt:"ツーベース!",c:"#2ec6ff"},   // 2塁打 1マス
  {k:"b1",w:4,pts:1,txt:"ヒット!",c:"#7cf03a"}           // ヒット 4.5マス
 ];
+const HITS_FIRE=[ // 闘志モード:ホームラン2・2塁打1・ヒット3.5マス(3塁打なし)
+ {k:"hr",w:1,pts:4,txt:"ホームラン!",c:"#ffe14a"},
+ {k:"b2",w:1.5,pts:2,txt:"ツーベース!",c:"#2ec6ff"},
+ {k:"b1",w:3.25,pts:1,txt:"ヒット!",c:"#7cf03a"}
+];
+function hits(){return S&&S.fire?HITS_FIRE:HITS}
 const OUT_W=9,MISS_W=11; // 好打ゾーンの前後5マスずつがアウト/ゲージの端
 function unit(){return .024-.002*(S.lv-1)} // 1マスの秒数 Lv1=0.024秒 → Lv6=0.014秒
 const KCOL={hr:"#ffe14a",b3:"#ff9a1f",b2:"#2ec6ff",b1:"#7cf03a",out:"#ff3b55"};
@@ -403,7 +411,7 @@ function flash(b,cls){if(!b)return;b.classList.remove(cls);void b.offsetWidth;b.
 /* ===== ゲームの流れ ===== */
 function start(){
   resize();
-  S={lv:1,fire:false,fireSeen:new Set(),score:0,life:3,state:"intro",seen:new Set(),fx:[],parts:[],trail:[],shake:0,flashT:null,fenceT:null,banner:null,swingT:9,clock:0};
+  S={lv:1,fire:false,hell:false,fireSeen:new Set(),score:0,life:3,state:"intro",seen:new Set(),fx:[],parts:[],trail:[],shake:0,flashT:null,fenceT:null,banner:null,swingT:9,clock:0};
   $("ov").hidden=true;renderBins();hud();
   Snd.init();Snd.pop();beginLevel();
 }
@@ -414,7 +422,7 @@ function beginLevel(){
   if(added.length){Snd.pop();introduce(added,beginPlay)}
   else if(S.fire&&!S.fireSeen.has(S.lv)){S.fireSeen.add(S.lv);Snd.pop();draw();
     showModal({eyebrow:"🔥 闘志モード",title:`${LV_NAME[S.lv-1]}ピッチャーが燃えている!`,color:"#ff5a1f",
-      body:"ノーマルを打ち崩されて本気になった!球がグンと速くなるぞ。分別の種類は同じ。タイミングをよく見て打ち返そう!",onClose:beginPlay})}
+      body:`ノーマルを打ち崩されて本気になった!球がグンと速くなり、3塁打は出なくなる。ヒットの幅もせまいぞ。${S.hell?"しかも地獄モード…!":""}タイミングをよく見て打ち返そう!`,onClose:beginPlay})}
   else beginPlay();
 }
 function introduce(list,done,i=0){
@@ -425,13 +433,13 @@ function introduce(list,done,i=0){
 }
 function beginPlay(){
   S.state="play";Snd.init();Snd.tempo(S.lv+(S.fire?.6:0));Snd.start();Snd.bgmStart();
-  toast(`${S.fire?"🔥":""}Lv${S.lv} ${lvName()}ピッチャー登板!`,1600);
+  toast(`${S.hell?"☠":""}${S.fire?"🔥":""}Lv${S.lv} ${lvName()}ピッチャー登板!`,1600);
   nextPitch(1.5);last=performance.now();requestAnimationFrame(loop);
 }
 function nextPitch(wait){
   if(S.count>=PITCHES||S.lvPts>=GOAL)return levelEnd(); // 10点取ったらその時点でクリア
   S.count++;S.ball=null;S.hitBall=null;S.gauge=null;S.trail=[];S.flashT=null;S.fenceT=null;S.phase="windup";S.phT=0;
-  S.windT=wait||Math.max(.55,1.05-.07*(S.lv-1))*(0.85+Math.random()*.3)*(S.fire?.85:1);
+  S.windT=wait||Math.max(.55,1.05-.07*(S.lv-1))*(0.85+Math.random()*.3)/Math.sqrt(speedMul());
   const a=active();let c=a[Math.floor(Math.random()*a.length)];
   {const wt=a.map(x=>x.from===S.lv&&S.lv>1?1.3:1);let r=Math.random()*wt.reduce((s,v)=>s+v,0);c=a.find((x,i)=>(r-=wt[i])<0)||a[0]} // 基本は均等、新しい区分だけ少し多め
   const it=c.items[Math.floor(Math.random()*c.items.length)];
@@ -439,7 +447,7 @@ function nextPitch(wait){
 }
 function release(){
   const n=S.next,p=PITCH[n.cat],lv=S.lv;
-  const T=(1.75-.16*(lv-1))*p.spd*(0.95+Math.random()*.1)/(S.fire?FIRE_SPEED:1);
+  const T=(1.75-.16*(lv-1))*p.spd*(0.95+Math.random()*.1)/speedMul();
   S.ball={...n,t:0,p:0,T,k:.6+.12*(lv-1),side:Math.random()<.5?-1:1,ph:Math.random()*6.28,
     dx0:(Math.random()-.5)*.04,swung:false,done:false,gone:false,trail:[]};
   S.phase="flight";S.phT=0;Snd.pitch();
@@ -477,10 +485,10 @@ function swing(id){
     return;
   }
   const extra=Math.min(.05,(performance.now()-last)/1000); // フレームの間に押した分も正確に
-  const d=(b.t+extra-b.T)/unit(),ad=Math.abs(d),h=HITS.find(x=>ad<=x.w);
+  const d=(b.t+extra-b.T)/unit(),ad=Math.abs(d),h=hits().find(x=>ad<=x.w);
   S.gauge={d,t:0};
   if(h){
-    flash(btn,"flash-ok");if(h.k==="hr"){Snd.bang();Snd.cheer();setTimeout(()=>{if(S&&S.state==="play")Snd.hr()},350)}else{Snd.bat();Snd.hit(3-HITS.indexOf(h))}record(h.k,h.pts);
+    flash(btn,"flash-ok");if(h.k==="hr"){Snd.bang();Snd.cheer();setTimeout(()=>{if(S&&S.state==="play")Snd.hr()},350)}else{Snd.bat();Snd.hit(3-HITS.findIndex(x=>x.k===h.k))}record(h.k,h.pts);
     const pos=traj(b,b.p);b.gone=true;startHit(h.k,pos);
     banner(h.txt,h.c,`+${h.pts}点 ・ ${PITCH[b.cat].n}`);
     if(h.k==="hr"){S.shake=.45;S.flashT=0;setTimeout(()=>{if(S&&S.state==="play")fireworks()},900);if(navigator.vibrate)try{navigator.vibrate([60,30,120])}catch(e){}}
@@ -558,8 +566,14 @@ function levelEnd(){
   const stats=`<div class="stats">${[["hr","ホームラン"],["b3","3塁打"],["b2","2塁打"],["b1","ヒット"],["out","アウト"]].map(([k,n])=>`<span style="--c:${KCOL[k]}"><b>${st[k]}</b>${n}</span>`).join("")}</div>`;
   if(ok){
     Snd.level();
-    if(S.lv>=MAX_LV&&S.fire){S.state="allclear";return end(true,stats)}
+    if(S.lv>=MAX_LV&&S.fire&&S.hell){S.state="allclear";return end(true,stats)}
     S.state="clear";
+    if(S.lv>=MAX_LV&&S.fire){ // 1周目クリア → 地獄モードへ
+      r.innerHTML=`<div class="over clear">1周目 CLEAR!</div><div class="sub">闘志モードのプロ野球選手も打ち崩した!</div>`+
+        `<div class="big">${S.score}<small> 点</small></div>${stats}`+
+        `<div class="next">ここからが本番…<b style="color:#ff5a5a">☠ 地獄モード</b>突入!<br>球速1.3倍で、小学生からもう一周。LIFEは全回復!</div>`;
+      $("start").textContent="▶ 地獄モードへ";$("best").hidden=true;showOv();draw();return;
+    }
     r.innerHTML=`<div class="over clear">LEVEL ${S.lv}${S.fire?"🔥":""} CLEAR!</div><div class="sub">${lvName()}ピッチャーを攻略!</div>`+
       `<div class="big">${S.lvPts}<small> 点 / 目標${GOAL}点</small></div>${stats}`;
     if(!S.fire)r.innerHTML+=`<div class="next">次は<b>🔥闘志モード</b>の${LV_NAME[S.lv-1]}ピッチャー!球が速くなるぞ</div>`;
@@ -580,7 +594,7 @@ function end(clear,stats){
   setTimeout(()=>Snd[clear?"level":"over"](),clear?600:300);
   const nb=S.score>best;if(nb){best=S.score;try{localStorage.setItem("bunbetsu-hr-best",best)}catch(e){}}
   const r=$("result");
-  r.innerHTML=(clear?`<div class="over clear">ALL CLEAR!</div><div class="sub">闘志モードのプロ野球選手も打ち崩した!</div>`:
+  r.innerHTML=(clear?`<div class="over clear">ALL CLEAR!</div><div class="sub">地獄モードまで完全制覇!伝説の分別王!</div>`:
     `<div class="over">GAME OVER</div><div class="sub">Lv${S.lv} ${lvName()}ピッチャーで終了</div>`)+
     `<div class="big">${S.score}<small> 点</small></div>${stats}${nb?'<div class="nb">ベスト更新!</div>':""}`;
   $("start").textContent="▶ もう一度";showBest();$("best").hidden=false;showOv();draw();
@@ -595,7 +609,7 @@ function fitOv(){
 }
 function showOv(){$("ov").hidden=false;fitOv()}
 function hud(){
-  $("lv").textContent=S?S.lv+(S.fire?"🔥":""):1;$("sc").textContent=S?S.score:0;
+  $("lv").textContent=S?(S.hell?"☠":"")+S.lv+(S.fire?"🔥":""):1;$("lv").style.color=S&&S.hell?"#ff5a5a":"";$("sc").textContent=S?S.score:0;
   const l=S?Math.max(0,S.life):3;let h="";for(let i=0;i<3;i++)h+=`<span class="${i<l?"":"off"}">❤️</span>`;$("lf").innerHTML=h;
 }
 hud();
@@ -795,7 +809,7 @@ function drawPitcher(){
   ctx.restore();
   if(fire)drawAura(clk,.45); // 体の前にも少し炎
   ctx.restore();
-  txt(`Lv${lv} ${LV_NAME[lv-1]}${fire?" 🔥闘志":""}`,cx,yM+ringRx*.42+11,11,fire?"#ffb03a":"#ffffff",800);
+  txt(`${S&&S.hell?"☠地獄 ":""}Lv${lv} ${LV_NAME[lv-1]}${fire?" 🔥闘志":""}`,cx,yM+ringRx*.42+11,11,fire?"#ffb03a":"#ffffff",800);
 }
 
 /* バッター:野球盤のように、ホームベース横の軸を中心に回るバット(地面の上を上から見た形) */
@@ -826,8 +840,9 @@ function drawBatter(){
   ctx.fillStyle=bg;ctx.beginPath();ctx.arc(0,0,24,0,6.283);ctx.fill();
   ctx.strokeStyle="#2ec6ff";ctx.lineWidth=3;ctx.shadowColor="#2ec6ff";ctx.shadowBlur=12;ctx.stroke();ctx.restore();
   // バットの影(地面)→ バット本体(少し浮いている)
+  const gold=S&&S.hell;
   const shape=(lift)=>{
-    ctx.save();ctx.translate(px,py-lift);ctx.scale(1,FL);ctx.rotate(ang);
+    ctx.save();ctx.translate(px,py-lift);ctx.scale(1,FL);ctx.rotate(ang);ctx.scale(1,gold?2:1);
     ctx.beginPath();ctx.moveTo(-6,-5);ctx.lineTo(L*.42,-5.5);ctx.quadraticCurveTo(L*.62,-13,L*.97,-13);
     ctx.arc(L*.97,0,13,-Math.PI/2,Math.PI/2);ctx.quadraticCurveTo(L*.62,13,L*.42,5.5);ctx.lineTo(-6,5);ctx.closePath();
   };
@@ -836,10 +851,12 @@ function drawBatter(){
   const pg=ctx.createLinearGradient(px-5,0,px+5,0);pg.addColorStop(0,"#5d6b86");pg.addColorStop(.45,"#e3e9f3");pg.addColorStop(1,"#4a566e");
   ctx.fillStyle=pg;ctx.fillRect(px-4.5,py-LIFT,9,LIFT);
   shape(LIFT);
-  const wg=ctx.createLinearGradient(0,-13,0,13);wg.addColorStop(0,"#f6d095");wg.addColorStop(.45,"#d99a52");wg.addColorStop(1,"#8a5426");
+  const wg=ctx.createLinearGradient(0,-13,0,13);
+  if(gold){wg.addColorStop(0,"#fff6c4");wg.addColorStop(.3,"#ffd84a");wg.addColorStop(.6,"#d99a14");wg.addColorStop(1,"#7a4c00");ctx.shadowColor="#ffd84a";ctx.shadowBlur=14}
+  else{wg.addColorStop(0,"#f6d095");wg.addColorStop(.45,"#d99a52");wg.addColorStop(1,"#8a5426")}
   ctx.fillStyle=wg;ctx.fill();
   if(swinging){ctx.shadowColor="#ffe14a";ctx.shadowBlur=18;ctx.fill()}
-  ctx.fillStyle="#1f4fd0";ctx.fillRect(-6,-5.5,L*.2,11);                         // グリップテープ
+  ctx.shadowBlur=0;ctx.fillStyle=gold?"#1a1a1a":"#1f4fd0";ctx.fillRect(-6,-5.5,L*.2,11);                         // グリップテープ
   ctx.fillStyle="rgba(255,255,255,.45)";ctx.fillRect(L*.5,-9,L*.42,3);            // ツヤ
   ctx.restore();
   // 軸のキャップ
@@ -874,7 +891,7 @@ function drawGauge(){
   ctx.save();ctx.globalAlpha=a;
   ctx.fillStyle="rgba(8,20,58,.88)";rr(x0-8,y-8,gw+16,gh+30,10);ctx.fill();
   const seg=(w0,w1,c)=>{ctx.fillStyle=c;ctx.fillRect(cx-w1*sx,y,(w1-w0)*sx,gh);ctx.fillRect(cx+w0*sx,y,(w1-w0)*sx,gh)};
-  seg(OUT_W,MISS_W,"#3a4566");seg(4,OUT_W,"#c8303f");seg(1.75,4,"#4fbf2a");seg(1.25,1.75,"#2ea6e6");seg(1,1.25,"#ff9a1f");seg(0,1,"#ffe14a");
+  seg(OUT_W,MISS_W,"#3a4566");const hz=hits();seg(hz[hz.length-1].w,OUT_W,"#c8303f");for(let i=hz.length-1;i>=0;i--)seg(i?hz[i-1].w:0,hz[i].w,KCOL[hz[i].k]);
   ctx.strokeStyle="rgba(255,255,255,.6)";ctx.lineWidth=1.5;ctx.strokeRect(x0,y,gw,gh);
   const d=Math.max(-MISS_W,Math.min(MISS_W,S.gauge.d)),mx=cx+d*sx;
   ctx.fillStyle="#fff";ctx.shadowColor="#fff";ctx.shadowBlur=8;
@@ -890,7 +907,7 @@ function draw(){
   if(S&&S.flashT!=null&&S.flashT<.35){ctx.fillStyle=`rgba(255,255,240,${.75*(1-S.flashT/.35)})`;ctx.fillRect(0,0,W,H)}
 }
 function drawScene(){
-  drawField();drawLane();drawMound();drawPitcher();drawZone();drawBatter();
+  drawField();if(S&&S.hell){ctx.fillStyle="rgba(4,0,14,.42)";ctx.fillRect(0,0,W,H)}drawLane();drawMound();drawPitcher();drawZone();drawBatter();
   if(!S)return;
   const b=S.ball;
   if(b&&!b.gone){
@@ -930,7 +947,7 @@ function drawScene(){
 
 function go(){
   if(!$("modal").hidden)return;
-  if(S&&S.state==="clear"){if(S.fire){S.fire=false;S.lv++}else S.fire=true;beginLevel()}
+  if(S&&S.state==="clear"){if(S.fire){S.fire=false;if(S.lv>=MAX_LV){S.hell=true;S.lv=1;S.life=3;S.fireSeen=new Set()}else S.lv++}else S.fire=true;beginLevel()}
   else if(S&&S.state==="fail")beginLevel();
   else start();
 }
