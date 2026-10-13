@@ -312,15 +312,33 @@ const Snd=(()=>{
     g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);
     s.connect(f);f.connect(g);g.connect(master);s.start(t);s.stop(t+d+.02);
   }
-  const MEL=[72,0,76,79,77,76,74,0,72,74,76,72,67,0,0,0,69,0,72,76,74,72,71,0,72,74,71,67,72,0,0,0];
-  const ROOT=[48,53,55,48];
+  /* 球場オルガン風のBGM(オリジナル)。16分音符で「テレテレテテテレ…」と駆け上がり、最後に「ドン・ドン・ドン」 */
+  const MEL=[
+    67,69,67,69, 67,69,71,67, 72,74,72,74, 72,74,76,72,
+    76,77,76,74, 72,74,76,79, 76,0,72,0,   0,0,0,0,
+    67,69,71,72, 74,76,77,79, 81,79,77,76, 74,72,71,74,
+    72,0,0,0,    -1,0,0,0,    -1,0,0,0,    -1,0,0,0     // -1 = ドン!
+  ];
+  const BASS=[48,48,43,43, 43,43,48,48, 53,53,55,55, 48,48,48,48]; // 8分音符ごとの低音(4小節分)
+  function organ(m,t,d,vol){ // ドローバーオルガン風:倍音を重ねて、ゆらぎ(トレモロ)を少し
+    [[0,1],[12,.5],[19,.3],[24,.22]].forEach(([iv,g])=>tone(m+iv,t,d,"sine",vol*g,bgmGain));
+  }
+  function don(t){ // ドン!(バスドラム+手拍子+和音)
+    const o=ac.createOscillator(),g=ac.createGain();o.type="sine";
+    o.frequency.setValueAtTime(130,t);o.frequency.exponentialRampToValueAtTime(42,t+.22);
+    g.gain.setValueAtTime(.55,t);g.gain.exponentialRampToValueAtTime(.0001,t+.3);o.connect(g);g.connect(bgmGain);o.start(t);o.stop(t+.32);
+    const s=ac.createBufferSource(),f=ac.createBiquadFilter(),ng=ac.createGain();s.buffer=noise;f.type="bandpass";f.frequency.value=1400;f.Q.value=.8;
+    ng.gain.setValueAtTime(.32,t);ng.gain.exponentialRampToValueAtTime(.0001,t+.14);s.connect(f);f.connect(ng);ng.connect(bgmGain);s.start(t);s.stop(t+.16);
+    [60,64,67,72].forEach(m=>organ(m,t,.22,.05));
+  }
   function sched(){
-    const sd=60/bpm/2;
+    const sd=60/bpm/4; // 16分音符
     while(nextT<ac.currentTime+.12){
-      const s=step%32,m=MEL[s];
-      if(m)tone(m,nextT,sd*.9,"square",.045,bgmGain);
-      if(s%2===0){const r=ROOT[Math.floor(s/8)];tone(s%4===0?r:r+7,nextT,sd*1.6,"triangle",.13,bgmGain)}
-      if(s%4===2)tone(96,nextT,.03,"square",.015,bgmGain);
+      const s=step%64,m=MEL[s];
+      if(m>0)organ(m,nextT,sd*.85,.075);
+      else if(m<0)don(nextT);
+      if(s%2===0&&s<52){const r=BASS[Math.floor(s/4)%16];tone(r,nextT,sd*1.7,"triangle",.16,bgmGain)}
+      if(s%4===2&&s<48)tone(96,nextT,.025,"square",.012,bgmGain); // ハイハット代わり
       nextT+=sd;step++;
     }
   }
@@ -332,7 +350,7 @@ const Snd=(()=>{
       if(on)init();if(master)master.gain.setTargetAtTime(on?1:0,ac.currentTime,.02);return on},
     bgmStart(){if(!ac)return;this.bgmStop();step=0;nextT=ac.currentTime+.1;timer=setInterval(sched,25)},
     bgmStop(){clearInterval(timer);timer=null},
-    tempo(lv){bpm=Math.min(170,116+(lv-1)*9)},
+    tempo(lv){bpm=Math.min(150,118+(lv-1)*6)},
     pitch(){if(!ac)return;const t=now();burst(t,.18,1800,.08);tone(76,t,.16,"triangle",.05,master,10)},
     bat(){if(!ac)return;const t=now();burst(t,.08,3200,.5);tone(88,t,.06,"square",.08)},
     whiff(){if(!ac)return;const t=now();burst(t,.14,900,.12)},
@@ -348,6 +366,20 @@ const Snd=(()=>{
       s.buffer=buf;f.type="bandpass";f.frequency.value=900;f.Q.value=.6;
       g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.22,t+.35);g.gain.exponentialRampToValueAtTime(.0001,t+2.1);
       s.connect(f);f.connect(g);g.connect(master);s.start(t);s.stop(t+2.2)},
+    kyuin(){ // ホームランの「キュインッ」×8(高く・速く)
+      if(!ac)return;const t0=now()+.02;
+      const one=(t,vol)=>{
+        [1,1.006,.994].forEach(det=>{
+          [["square",.5,1],["sine",.25,2],["sine",.1,3]].forEach(([ty,g,h])=>{
+            const o=ac.createOscillator(),gn=ac.createGain();o.type=ty;
+            o.frequency.setValueAtTime(900*det*h,t);o.frequency.exponentialRampToValueAtTime(4140*det*h,t+.065);o.frequency.linearRampToValueAtTime(3520*det*h,t+.13);
+            gn.gain.setValueAtTime(0,t);gn.gain.linearRampToValueAtTime(vol*g/3,t+.005);gn.gain.setValueAtTime(vol*g/3,t+.1);gn.gain.linearRampToValueAtTime(0,t+.13);
+            o.connect(gn);gn.connect(master);o.start(t);o.stop(t+.14);
+          });
+        });
+      };
+      for(let i=0;i<8;i++){const t=t0+i*.16;one(t,.16);one(t+.07,.05);one(t+.14,.025)} // 本体+エコー2回
+    },
     thud(){if(!ac)return;const t=now();burst(t,.12,700,.3);tone(40,t,.12,"triangle",.18)},
     hr(){if(!ac)return;const t=now()+.05;[72,76,79,84,79,84,88,91].forEach((m,i)=>tone(m,t+i*.07,.16,"square",.08));tone(60,t,.6,"triangle",.15)},
     out(){if(!ac)return;const t=now();tone(55,t,.25,"sawtooth",.1,master,-4)},
@@ -488,7 +520,7 @@ function swing(id){
   const d=(b.t+extra-b.T)/unit(),ad=Math.abs(d),h=hits().find(x=>ad<=x.w);
   S.gauge={d,t:0};
   if(h){
-    flash(btn,"flash-ok");if(h.k==="hr"){Snd.bang();Snd.cheer();setTimeout(()=>{if(S&&S.state==="play")Snd.hr()},350)}else{Snd.bat();Snd.hit(3-HITS.findIndex(x=>x.k===h.k))}record(h.k,h.pts);
+    flash(btn,"flash-ok");if(h.k==="hr"){Snd.bang();Snd.cheer();setTimeout(()=>{if(S&&S.state==="play")Snd.kyuin()},120);setTimeout(()=>{if(S&&S.state==="play")Snd.hr()},1500)}else{Snd.bat();Snd.hit(3-HITS.findIndex(x=>x.k===h.k))}record(h.k,h.pts);
     const pos=traj(b,b.p);b.gone=true;startHit(h.k,pos);
     banner(h.txt,h.c,`+${h.pts}点 ・ ${PITCH[b.cat].n}`);
     if(h.k==="hr"){S.shake=.45;S.flashT=0;setTimeout(()=>{if(S&&S.state==="play")fireworks()},900);if(navigator.vibrate)try{navigator.vibrate([60,30,120])}catch(e){}}
