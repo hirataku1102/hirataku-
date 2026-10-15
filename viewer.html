@@ -121,7 +121,7 @@
   .wsz{font-weight:900;font-size:17px}
   .wstep{display:grid;grid-template-columns:52px 1fr 52px;align-items:center;gap:6px}
   .wstep button{height:46px;border-radius:10px;border:1px solid var(--border2);background:var(--surface1);color:var(--text);font-size:24px;font-weight:700;font-family:inherit}
-  .wstep output{text-align:center;font-size:24px;font-weight:900;font-variant-numeric:tabular-nums}
+  .wstep .wcount{width:100%;min-width:0;height:46px;text-align:center;font-size:24px;font-weight:900;font-variant-numeric:tabular-nums;border:1px solid var(--input-border);border-radius:10px;background:var(--input-bg);color:var(--text);font-family:inherit;padding:0}
   .wkg{display:flex;align-items:center;gap:8px}
   .wkg input{flex:1;min-width:0;font-size:26px;font-weight:900;text-align:right;padding:10px 12px;border-radius:12px;border:1px solid var(--input-border);background:var(--input-bg);color:var(--text);font-variant-numeric:tabular-nums;font-family:inherit}
   .wkg span{font-size:18px;font-weight:900}
@@ -724,7 +724,7 @@ function drawWeigh() {
     <div class="wdate">回収日 <input type="date" id="wDate" value="${s.date}" max="${todayStr()}"></div>
     ${useB ? `<div class="wlbl">袋の数（サイズごとに＋で数える）</div>
     <div class="wsizes">${SIZES.map(z => `<div class="wsrow${s.bags[z] ? ' has' : ''}"><span class="wsz">${z}</span>
-      <div class="wstep"><button data-wm="${z}" aria-label="${z}を減らす">−</button><output id="wo${z}">${s.bags[z] || 0}</output><button data-wp="${z}" aria-label="${z}を増やす">＋</button></div></div>`).join('')}</div>` : ''}
+      <div class="wstep"><button data-wm="${z}" aria-label="${z}を減らす">−</button><input class="wcount" id="wo${z}" data-wz="${z}" type="text" inputmode="numeric" pattern="[0-9]*" value="${s.bags[z] || 0}" aria-label="${z}の袋数" autocomplete="off"><button data-wp="${z}" aria-label="${z}を増やす">＋</button></div></div>`).join('')}</div>` : ''}
     ${useK ? `<div class="wlbl">重さ（はかりの数字）</div>
     <div class="wkg"><input id="wKg" type="text" inputmode="decimal" placeholder="0.0" value="${esc(s.kg)}" autocomplete="off"><span>kg</span></div>` : ''}
     <div class="wquick"><button id="wNone">今日は出ていない（0）</button>${useB ? `<span id="wTotal">合計 ${bagSum(s.bags)}袋</span>` : ''}</div>
@@ -736,11 +736,20 @@ function drawWeigh() {
     </div>`;
   const upd = () => {
     if (!useB) return;
-    SIZES.forEach(z => { const o = document.getElementById('wo' + z); o.textContent = s.bags[z] || 0; o.closest('.wsrow').classList.toggle('has', !!s.bags[z]); });
+    SIZES.forEach(z => { const o = document.getElementById('wo' + z); if (document.activeElement !== o) o.value = s.bags[z] || 0; o.closest('.wsrow').classList.toggle('has', !!s.bags[z]); });
     document.getElementById('wTotal').textContent = `合計 ${bagSum(s.bags)}袋`;
   };
   document.querySelectorAll('[data-wp]').forEach(b => b.onclick = () => { s.bags[b.dataset.wp] = (s.bags[b.dataset.wp] || 0) + 1; upd(); });
   document.querySelectorAll('[data-wm]').forEach(b => b.onclick = () => { s.bags[b.dataset.wm] = Math.max(0, (s.bags[b.dataset.wm] || 0) - 1); upd(); });
+  document.querySelectorAll('[data-wz]').forEach(inp => {
+    inp.onfocus = () => setTimeout(() => inp.select(), 0);   // タップで全選択→そのまま打ち直せる
+    inp.oninput = () => {
+      const d = inp.value.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0)).replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '').slice(0, 3);
+      if (inp.value !== d) inp.value = d;
+      s.bags[inp.dataset.wz] = d ? parseInt(d, 10) : 0; upd();
+    };
+    inp.onblur = () => { inp.value = s.bags[inp.dataset.wz] || 0; };
+  });
   if (document.getElementById('wKg')) document.getElementById('wKg').oninput = e => { s.kg = e.target.value; };
   document.getElementById('wNone').onclick = () => { s.bags = {}; s.kg = '0'; if (document.getElementById('wKg')) document.getElementById('wKg').value = '0'; upd(); };
   document.getElementById('wDate').onchange = async e => {
