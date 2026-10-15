@@ -143,6 +143,53 @@
 .wtrow { display: flex; flex-wrap: wrap; gap: 6px; }
 .wtrow button { width: auto; height: auto; min-height: 38px; padding: 8px 12px; border-radius: 8px; white-space: nowrap; writing-mode: horizontal-tb; font-size: 13px; line-height: 1.2; flex: 0 0 auto; }
   .banner{display:block;width:100%;aspect-ratio:1200/335;object-fit:cover;background:#1a2a4a}
+  /* 計量・お知らせ */
+  .card.alert{border-color:var(--red);background:var(--danger-bg)}
+  .alertline{font-size:12px;font-weight:700;color:var(--danger-fg);margin-top:5px;line-height:1.5}
+  .opsbtn{border-color:var(--red)!important;color:var(--danger-fg)!important;background:var(--danger-bg)!important}
+  .menupanel{position:absolute;right:14px;top:50px;z-index:30;background:var(--card);border:1px solid var(--border2);border-radius:12px;padding:6px;display:flex;flex-direction:column;gap:4px;min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+  .menupanel button{text-align:left;justify-content:flex-start}
+  .opstabs{display:flex;gap:4px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px}
+  .opstabs button{flex:0 0 auto;border:1px solid var(--border);background:transparent;color:var(--sub);border-radius:999px;padding:7px 12px;font-size:12.5px;font-weight:800}
+  .opstabs button.on{background:var(--surface1);color:var(--text);border-color:var(--border2)}
+  .oprow{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--border)}
+  .oprow .t{min-width:0;font-size:14px;line-height:1.5}
+  .oprow .t small{display:block;color:var(--sub);font-size:12px;margin-top:2px;line-height:1.55}
+  .oprow .r{display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex:0 0 auto}
+  .stag{font-size:11px;font-weight:800;border-radius:6px;padding:3px 7px;background:var(--surface1);color:var(--sub)}
+  .stag.now{background:var(--red);color:#fff}
+  .stag.cont{background:var(--key-bg);color:var(--key-fg)}
+  .stag.soon{background:var(--days-bg);color:var(--days-fg)}
+  .opform{border:1px solid var(--border2);border-radius:12px;padding:12px;margin-bottom:12px}
+  .opform .field{margin-bottom:12px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .two input{width:100%}
+  input[type=date],input[type=tel],input[type=email]{width:100%;padding:10px 11px;border-radius:10px;border:1px solid var(--input-border);background:var(--input-bg);color:var(--text);font-size:15px;font-family:inherit}
+  .segbtns{display:flex;flex-wrap:wrap;gap:6px}
+  .segbtns button{border:1px solid var(--input-border);background:transparent;color:var(--sub);border-radius:9px;padding:8px 11px;font-size:13px;font-weight:800}
+  .segbtns button.on{border-color:var(--orange);background:var(--orangechip-bg);color:var(--orangechip-fg)}
+  .picked{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--input-border);border-radius:10px}
+  .picklist{display:flex;flex-direction:column;gap:4px;margin-top:6px;max-height:260px;overflow-y:auto}
+  .picklist button{text-align:left;border:1px solid var(--border);background:var(--surface3);color:var(--text);border-radius:9px;padding:8px 10px;font-size:14px}
+  .picklist small{display:block;color:var(--sub);font-size:11.5px}
+  .opserr{color:var(--danger-fg);font-size:12.5px;font-weight:700;margin:4px 0 8px}
+  .sendbox{border:2px solid var(--orange);border-radius:12px;padding:12px;margin-bottom:14px}
+  .sendbox textarea,.opform textarea{font-family:inherit;line-height:1.6}
+  .sb-actions a.btn{white-space:nowrap}
+  .sb-title{font-weight:900;font-size:14px;margin-bottom:6px}
+  .sb-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .sb-actions a.btn{text-decoration:none;justify-content:center;flex:1 1 150px}
+  .rcpt{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+  .rcpt span{font-size:12px;font-weight:700;border-radius:999px;padding:3px 9px;background:var(--surface1)}
+  .lb2{font-size:12px;font-weight:800;color:var(--sub);margin:4px 0 8px}
+  .contactrow{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px 0;border-top:1px solid var(--border)}
+  .contactrow .cname{grid-column:1/-1;font-weight:800;font-size:14px}
+  .contactrow input{width:100%;font-size:14px;padding:8px 10px}
+  .tablewrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px}
+  .optable{border-collapse:collapse;width:100%;font-size:12.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .optable th,.optable td{padding:7px 8px;border-bottom:1px solid var(--border);text-align:right}
+  .optable th:first-child,.optable td:first-child{text-align:left}
+  .optable th{color:var(--sub);background:var(--surface2)}
 </style>
 </head>
 <body>
@@ -160,13 +207,17 @@
 <header>
   <h1><span>🚚 コース表 編集</span>
     <span class="btns">
-      <button class="themebtn" id="accessBtn" title="閲覧パスワードの管理">🔑</button>
+      <button class="btn sm opsbtn" id="opsBtn">📢 計量・お知らせ</button>
       <button class="themebtn" id="reloadBtn" title="最新データを読み込み">🔄</button>
       <button class="themebtn" id="themeBtn">🌙</button>
-      <button class="btn danger sm" id="wipeBtn">全消去</button>
-      <button class="btn ghost sm" id="csvBtn">CSV登録</button>
+      <button class="themebtn" id="menuBtn" title="その他のメニュー">☰</button>
     </span>
   </h1>
+  <div class="menupanel" id="menuPanel" hidden>
+    <button class="btn ghost sm" id="csvBtn">📥 CSV登録</button>
+    <button class="btn ghost sm" id="accessBtn">🔑 閲覧パスワード</button>
+    <button class="btn danger sm" id="wipeBtn">🗑 全消去</button>
+  </div>
   <div class="toprow" id="topTabs"></div>
   <div class="courserow" id="courseTabs"></div>
 </header>
@@ -328,10 +379,14 @@ function mergeCustomersInto(docs) {
 }
 let accessPasses = []; // 閲覧パスワード（cm_courses/_access に保存）
 async function fetchCourses() {
-  const snap = await getWithRetry(db.collection('cm_courses'));
-  const accDoc = snap.docs.find(d => d.id === ACCESS_DOC_ID);
-  accessPasses = accDoc ? (accDoc.data().passes || []) : [];
+  // コースだけを取得（計量記録などの特別なデータは品目を持たないので含まれない）
+  const [snap, acc] = await Promise.all([
+    getWithRetry(db.collection('cm_courses').where('wasteType', 'in', WASTE_TYPES.map(w => w.key))),
+    getWithRetry(db.collection('cm_courses').doc(ACCESS_DOC_ID)),
+  ]);
+  accessPasses = acc.exists ? (acc.data().passes || []) : [];
   courses = snap.docs.filter(d => !d.id.startsWith('_')).map(d => ({ id: d.id, ...d.data() }));
+  try { await fetchOpsDocs(); } catch (e) { console.error('計量・お知らせの読み込みに失敗', e); }
 }
 async function ensureCourseLoaded(courseId) {
   if (!courseId || allCustomersLoaded || loadedCourseIds.has(courseId)) return;
@@ -543,8 +598,9 @@ function renderCourseList(course) {
   const readOnly = dayFilter !== 'all';
   list.innerHTML = filtered.map((cu, i) => {
     const it = withLegacyFallback(cu, findAssignment(cu, mode, course.id));
+    const al = alertLinesHtml(cu.id, mode);
     return `
-    <div class="card">
+    <div class="card${al ? ' alert' : ''}">
       ${readOnly ? `<div class="num">${i+1}</div>` : `
       <div class="updown">
         <button data-move="-1" data-id="${cu.id}" ${i===0?'disabled':''}>▲</button>
@@ -559,6 +615,7 @@ function renderCourseList(course) {
           ${it.days && it.days.length ? `<span class="badge days">${it.days.join('')}</span>` : ''}
         </div>
         ${it.memo ? `<div class="addr">📝 ${esc(it.memo)}</div>` : ''}
+        ${al}
         ${customerTypeBadges(cu, mode)}
       </div>
       ${cu.address ? `<a class="maplink" href="${mapsUrl(cu.address)}" target="_blank">📍</a>` : ''}
@@ -945,7 +1002,7 @@ async function openCustomerModal(cu, presetType, presetCourseId) {
   });
 
   const box = document.getElementById('uActions');
-  box.innerHTML = `<div class="modal-actions">
+  box.innerHTML = `${cu ? `<div class="sb-actions" style="margin:0 0 12px"><button class="btn ghost sm" id="custNoticeBtn">📢 お知らせを追加</button><button class="btn ghost sm" id="custWeighBtn">⚖️ 計量を設定</button></div>` : ''}<div class="modal-actions">
     ${cu ? `<button class="btn danger" id="delCustBtn">削除</button>` : '<span></span>'}
     <div class="right"><button class="btn ghost" onclick="closeModal()">キャンセル</button><button class="btn primary" id="saveCustBtn">保存</button></div>
   </div>`;
@@ -976,6 +1033,9 @@ async function openCustomerModal(cu, presetType, presetCourseId) {
     } catch (e) { toast('保存に失敗しました'); console.error(e); btn.disabled = false; btn.textContent = '保存'; }
   };
   if (cu) {
+    const preset = { cid: cu.id, name: cu.name, type: presetType || (WASTE_TYPES.find(w => getAssignments(cu, w.key).length) || WASTE_TYPES[0]).key };
+    document.getElementById('custNoticeBtn').onclick = () => openOps('notice', preset);
+    document.getElementById('custWeighBtn').onclick = () => openOps('weigh', preset);
     document.getElementById('delCustBtn').onclick = () => {
       box.innerHTML = `<div class="confirmbox"><p>⚠️ この得意先をすべての品目から完全に削除します。よろしいですか？</p>
         <div class="confirm-actions"><button class="btn ghost" id="cancelDelC">やめる</button><button class="btn danger" id="confirmDelC">完全に削除</button></div></div>`;
@@ -1160,7 +1220,7 @@ document.getElementById('wipeBtn').onclick = () => {
     <div class="modal-body">
       <div class="confirmbox">
         <p>⚠️ 登録されている<b>コース ${courses.length}件</b>と<b>得意先 ${customers.length}件</b>（うちどのコースにも属していない得意先 ${orphans}件）、および<b>すべての写真</b>を完全に削除します。元に戻せません。</p>
-        <p>CSVで最初から登録し直す場合にお使いください。</p>
+        <p>CSVで最初から登録し直す場合にお使いください。（計量の記録・お知らせ・送り先の設定は残ります）</p>
       </div>
       <div class="field" style="margin-top:14px">
         <span class="lb">実行するには下に <b>DELETE</b> と入力してください</span>
@@ -1200,7 +1260,7 @@ document.getElementById('wipeBtn').onclick = () => {
       if (n) await batch.commit();
       prog.textContent = `得意先 ${done}件を削除しました。コースを削除中…`;
       // コースを削除
-      const allCourses = await db.collection('cm_courses').get();
+      const allCourses = await db.collection('cm_courses').where('wasteType', 'in', WASTE_TYPES.map(w => w.key)).get(); // 計量記録・お知らせ・送り先は残す
       let cbatch = db.batch(), cn = 0;
       for (const d of allCourses.docs) {
         cbatch.delete(d.ref); cn++;
@@ -1324,6 +1384,389 @@ function openAccessEdit(pass) {
   };
 }
 document.getElementById('accessBtn').onclick = openAccessList;
+
+/* ==== 計量・お知らせ ==== */
+// 保存場所（Firestoreルールの変更不要。すべて cm_courses 内の特別なドキュメント）
+//   cm_courses/_alerts        … お知らせ・計量の設定 { items:[...] }（編集はeditorのみ）
+//   cm_courses/_notify        … 送り先 { contacts:{ドライバー名:{tel,mail}}, always:[{id,name,tel,mail}] }
+//   cm_courses/_wl_YYYYMMDD   … その日の計量記録 { logMonth:'YYYY-MM', logDate:'YYYY-MM-DD', entries:{ 得意先ID__品目:{...} } }
+const ALERTS_DOC_ID = '_alerts', NOTIFY_DOC_ID = '_notify';
+const SIZES = ['45L', '70L', '90L', '120L'];
+const WMODES = { both: '袋数と重さ', bags: '袋数のみ', kg: '重さのみ' };
+let alerts = [];
+let notify = { contacts: {}, always: [] };
+const pad2 = n => String(n).padStart(2, '0');
+const ymdOf = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const todayStr = () => ymdOf(new Date());
+const addDaysStr = (s, n) => { const d = new Date(s + 'T00:00:00'); d.setDate(d.getDate() + n); return ymdOf(d); };
+const fmtDay = s => { if (!s) return ''; const d = new Date(s + 'T00:00:00'); return `${d.getMonth() + 1}/${d.getDate()}(${WEEKDAYS[d.getDay()]})`; };
+const fmtMonth = s => { const [y, m] = s.split('-'); return `${y}年${+m}月`; };
+function driverLabel(c) { return c ? (c.group || c.name || '') : ''; }
+function alertActive(a, day) { return a.from <= day && (!a.to || day <= a.to); }
+function activeAlertsFor(cid, type, day = todayStr()) { return alerts.filter(a => a.cid === cid && a.type === type && alertActive(a, day)); }
+function alertState(a) {
+  const t = todayStr();
+  if (a.to && a.to < t) return ['end', '終了'];
+  if (a.from > t) return ['soon', '予定'];
+  if (a.kind === 'weigh' && !a.to) return ['cont', '継続'];
+  return ['now', a.kind === 'notice' ? '表示中' : '実施中'];
+}
+async function fetchOpsDocs() {
+  const [al, nt] = await Promise.all([
+    getWithRetry(db.collection('cm_courses').doc(ALERTS_DOC_ID), 2),
+    getWithRetry(db.collection('cm_courses').doc(NOTIFY_DOC_ID), 2),
+  ]);
+  alerts = al.exists ? (al.data().items || []) : [];
+  const n = nt.exists ? nt.data() : {};
+  notify = { contacts: n.contacts || {}, always: n.always || [] };
+}
+async function saveAlerts(list) {
+  const cutoff = addDaysStr(todayStr(), -180); // 終了から半年以上たった設定は自動で整理
+  const kept = list.filter(a => !a.to || a.to >= cutoff);
+  await db.collection('cm_courses').doc(ALERTS_DOC_ID).set({ items: kept, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+  alerts = kept;
+}
+async function saveNotify(n) {
+  await db.collection('cm_courses').doc(NOTIFY_DOC_ID).set({ contacts: n.contacts, always: n.always, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+  notify = n;
+}
+
+/* --- 連絡先・送信 --- */
+const telOk = t => /^0\d{1,4}-?\d{1,4}-?\d{3,4}$/.test(String(t).replace(/[‐－ー−]/g, '-').trim());
+const mailOk = m => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m);
+const telDigits = t => String(t || '').replace(/[^0-9]/g, '');
+const telFmt = t => { const d = telDigits(t); return d.length === 11 ? `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}` : String(t).trim(); };
+const isIOS = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
+function smsHref(tels, body) {
+  const nums = tels.map(telDigits);
+  return isIOS ? `sms:/open?addresses=${nums.join(',')}&body=${encodeURIComponent(body)}` : `sms:${nums.join(',')}?body=${encodeURIComponent(body)}`;
+}
+function mailHref(mails, body) {
+  return `mailto:${mails.join(',')}?subject=${encodeURIComponent(body.split('\n')[0])}&body=${encodeURIComponent(body.replace(/\n/g, '\r\n'))}`;
+}
+function driverLabelsFor(cid, type) {
+  const cu = customers.find(c => c.id === cid);
+  if (!cu) return [];
+  return [...new Set(getAssignments(cu, type).map(a => driverLabel(courses.find(c => c.id === a.courseId))).filter(Boolean))];
+}
+function recipientsFor(cid, type) {
+  const r = driverLabelsFor(cid, type).map(l => ({ name: l, tel: (notify.contacts[l] || {}).tel || '', mail: (notify.contacts[l] || {}).mail || '' }));
+  notify.always.forEach(a => r.push(a));
+  const seenT = new Set(), seenM = new Set();
+  return r.map(x => {
+    const t = x.tel && !seenT.has(telDigits(x.tel)) ? x.tel : '';
+    const m = x.mail && !seenM.has(x.mail.toLowerCase()) ? x.mail : '';
+    if (t) seenT.add(telDigits(t)); if (m) seenM.add(m.toLowerCase());
+    return { ...x, tel: t, mail: m };
+  }).filter(x => x.tel || x.mail);
+}
+function alertMsg(a) {
+  const labels = driverLabelsFor(a.cid, a.type);
+  const head = `${a.name}（${WT[a.type] ? WT[a.type].label : ''}${labels.length ? '・' + labels.join('／') : ''}）`;
+  if (a.kind === 'notice') return `【お知らせ】${head}\n${a.text}\n期間：${fmtDay(a.from)}〜${fmtDay(a.to)}`;
+  return `【計量】${head}\n${WMODES[a.mode]}を入力してください\n期間：${a.to ? fmtDay(a.from) + '〜' + fmtDay(a.to) : fmtDay(a.from) + 'から継続'}${a.memo ? '\n' + a.memo : ''}`;
+}
+
+/* --- 一覧カード用の表示 --- */
+function alertLinesHtml(cid, type) {
+  return activeAlertsFor(cid, type).map(a => a.kind === 'notice'
+    ? `<div class="alertline">📢 ${esc(a.text)}</div>`
+    : `<div class="alertline">⚖️ 計量中（${WMODES[a.mode]}${a.to ? '・' + fmtDay(a.to) + 'まで' : '・継続'}）${a.memo ? ' ' + esc(a.memo) : ''}</div>`).join('');
+}
+
+/* --- CSV --- */
+function csvCell(v) { const s = v == null ? '' : String(v); return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; }
+function csvText(rows) { return rows.map(r => r.map(csvCell).join(',')).join('\r\n'); }
+function downloadCsv(filename, text) {
+  const blob = new Blob(['﻿' + text], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+const bagSum = b => b ? SIZES.reduce((s, k) => s + (b[k] || 0), 0) : 0;
+
+/* --- 管理画面（モーダル） --- */
+let ops = { tab: 'weigh', form: null, send: null, month: ymdOf(new Date()).slice(0, 7), logs: {}, alwaysForm: false };
+function openOps(tab, preset) {
+  ops.tab = tab || ops.tab; ops.send = null; ops.alwaysForm = false;
+  ops.form = preset ? newOpsForm(ops.tab === 'notice' ? 'notice' : 'weigh', preset) : null;
+  renderOps();
+}
+function newOpsForm(kind, preset = {}) {
+  const t = todayStr();
+  return { kind, cid: preset.cid || '', name: preset.name || '', type: preset.type || 'combustible', q: '',
+    wkind: 'period', mode: 'both', from: t, to: kind === 'notice' ? addDaysStr(t, 7) : addDaysStr(t, 30), memo: '', text: '' };
+}
+function opsTabs() {
+  const tabs = [['weigh', '⚖️ 計量'], ['notice', '📢 お知らせ'], ['data', '📄 計量データ'], ['contacts', '📨 送り先']];
+  return `<div class="opstabs">${tabs.map(([k, l]) => `<button data-opstab="${k}" class="${ops.tab === k ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+}
+function sendBoxHtml() {
+  if (!ops.send) return '';
+  const r = ops.send.list, sms = r.filter(x => x.tel), ml = r.filter(x => x.mail);
+  return `<div class="sendbox">
+    <div class="sb-title">📨 登録した内容を知らせる</div>
+    <div class="rcpt">${r.map(x => `<span>${esc(x.name)} ${x.tel ? '📱' : ''}${x.mail ? '✉️' : ''}</span>`).join('') || '<span>送り先が登録されていません（「📨 送り先」で登録できます）</span>'}</div>
+    <textarea id="sendBody" rows="5">${esc(ops.send.body)}</textarea>
+    <div class="sb-actions">
+      ${sms.length ? `<a class="btn primary" id="sendSms" href="${esc(smsHref(sms.map(x => x.tel), ops.send.body))}">📱 SMS（${sms.length}人）</a>` : ''}
+      ${ml.length ? `<a class="btn primary" id="sendMail" href="${esc(mailHref(ml.map(x => x.mail), ops.send.body))}">✉️ メール（${ml.length}人）</a>` : ''}
+    </div>
+    <div class="sb-actions"><button class="btn ghost sm" id="sendCopy">本文をコピー</button><span style="flex:1"></span><button class="btn ghost sm" id="sendClose">閉じる</button></div>
+    <div class="hint" style="margin:8px 0 0">押すとメッセージアプリやメールアプリが、送り先と本文が入った状態で開きます。送信を押せば送れます。</div>
+  </div>`;
+}
+function alertRowHtml(a) {
+  const [k, l] = alertState(a);
+  const period = a.kind === 'notice' ? `${fmtDay(a.from)}〜${fmtDay(a.to)}` : (a.to ? `${fmtDay(a.from)}〜${fmtDay(a.to)}` : `${fmtDay(a.from)}から継続`);
+  const detail = a.kind === 'notice' ? esc(a.text) : `${WMODES[a.mode]}${a.memo ? '　' + esc(a.memo) : ''}`;
+  const endable = a.kind === 'weigh' && (k === 'now' || k === 'cont');
+  return `<div class="oprow">
+    <div class="t"><b>${esc(a.name)}</b> <span class="badge type">${WT[a.type] ? WT[a.type].icon + ' ' + WT[a.type].label : ''}</span><small>${detail}<br>${period}</small></div>
+    <div class="r"><span class="stag ${k}">${l}</span>
+      ${endable ? `<button class="btn ghost sm" data-alend="${a.id}">終了</button>` : `<button class="btn danger sm" data-aldel="${a.id}">削除</button>`}
+      <button class="btn ghost sm" data-alsend="${a.id}">送る</button></div>
+  </div>`;
+}
+function opsFormHtml() {
+  const f = ops.form; if (!f) return '';
+  const cu = f.cid ? customers.find(c => c.id === f.cid) : null;
+  const types = cu ? WASTE_TYPES.filter(w => getAssignments(cu, w.key).length) : WASTE_TYPES;
+  if (cu && types.length && !types.some(w => w.key === f.type)) f.type = types[0].key;
+  return `<div class="opform">
+    <div class="field"><span class="lb">得意先</span>
+      ${f.cid ? `<div class="picked"><b>${esc(f.name)}</b><button class="btn ghost sm" id="opsRepick">変更</button></div>`
+        : `<input type="search" id="opsQ" placeholder="得意先名・住所・管理番号で検索" value="${esc(f.q)}" autocomplete="off"><div id="opsPick" class="picklist"></div>`}
+    </div>
+    <div class="field"><span class="lb">品目</span><select id="opsType">${(types.length ? types : WASTE_TYPES).map(w => `<option value="${w.key}" ${w.key === f.type ? 'selected' : ''}>${w.icon} ${w.label}</option>`).join('')}</select></div>
+    ${f.kind === 'weigh' ? `
+      <div class="field"><span class="lb">期間</span><div class="segbtns"><button data-wk="period" class="${f.wkind === 'period' ? 'on' : ''}">期間を決めて計量</button><button data-wk="cont" class="${f.wkind === 'cont' ? 'on' : ''}">継続して計量</button></div></div>
+      <div class="two"><div class="field"><span class="lb">開始日</span><input type="date" id="opsFrom" value="${f.from}"></div>${f.wkind === 'period' ? `<div class="field"><span class="lb">終了日</span><input type="date" id="opsTo" value="${f.to}"></div>` : '<div></div>'}</div>
+      <div class="field"><span class="lb">入力してもらう内容</span><div class="segbtns">${Object.entries(WMODES).map(([k, v]) => `<button data-wm="${k}" class="${f.mode === k ? 'on' : ''}">${v}</button>`).join('')}</div></div>
+      <div class="field"><span class="lb">目的・メモ（ドライバーにも表示されます）</span><input type="text" id="opsMemo" value="${esc(f.memo)}" placeholder="例：料金改定のため現状の袋数を確認"></div>`
+    : `
+      <div class="two"><div class="field"><span class="lb">表示開始</span><input type="date" id="opsFrom" value="${f.from}"></div><div class="field"><span class="lb">表示終了</span><input type="date" id="opsTo" value="${f.to}"></div></div>
+      <div class="field"><span class="lb">本文</span><textarea id="opsText" rows="3" placeholder="例：10/20(火)は改装のため回収不要">${esc(f.text)}</textarea></div>`}
+    <div id="opsErr"></div>
+    <div class="modal-actions"><span></span><div class="right"><button class="btn ghost" id="opsCancel">やめる</button><button class="btn primary" id="opsSave">${f.kind === 'weigh' ? '計量を設定' : 'お知らせを登録'}</button></div></div>
+  </div>`;
+}
+function dataTabHtml() {
+  const months = []; const d0 = new Date();
+  for (let i = 0; i < 13; i++) months.push(ymdOf(new Date(d0.getFullYear(), d0.getMonth() - i, 1)).slice(0, 7));
+  const logs = ops.logs[ops.month];
+  let body;
+  if (!logs) body = `<div class="empty" style="padding:30px"><span class="spin"></span> 読み込み中…</div>`;
+  else {
+    const groups = {};
+    logs.forEach(e => { const k = e.cid + '__' + e.type; (groups[k] = groups[k] || []).push(e); });
+    const rows = Object.values(groups).map(es => {
+      const b = {}; SIZES.forEach(s => b[s] = es.reduce((t, e) => t + ((e.bags || {})[s] || 0), 0));
+      return { e: es[0], n: es.length, hasB: es.some(e => e.bags), hasK: es.some(e => e.kg != null), b, bags: bagSum(b), kg: es.reduce((t, e) => t + (e.kg || 0), 0) };
+    }).sort((a, b) => (a.e.name || '').localeCompare(b.e.name || '', 'ja'));
+    ops.dataRows = rows;
+    body = rows.length ? `<div class="tablewrap"><table class="optable">
+      <thead><tr><th>得意先</th><th>品目</th><th>回数</th>${SIZES.map(s => `<th>${s}</th>`).join('')}<th>袋計</th><th>kg</th></tr></thead>
+      <tbody>${rows.map(r => `<tr><td>${esc(r.e.name)}</td><td>${WT[r.e.type] ? WT[r.e.type].icon : ''}</td><td>${r.n}</td>${SIZES.map(s => `<td>${r.hasB ? r.b[s] : '–'}</td>`).join('')}<td>${r.hasB ? r.bags : '–'}</td><td>${r.hasK ? r.kg.toFixed(1) : '–'}</td></tr>`).join('')}</tbody>
+    </table></div>
+    <div class="sb-actions" style="margin-top:12px"><button class="btn primary sm" id="csvDetail">CSV保存（明細）</button><button class="btn primary sm" id="csvSum">CSV保存（得意先別の月合計）</button></div>`
+      : `<div class="empty" style="padding:30px">${fmtMonth(ops.month)}の計量記録はまだありません。</div>`;
+  }
+  return `<div class="hint">ドライバーが入力した計量の集計です。CSVはエクセルでそのまま開けます。</div>
+    <div class="field"><select id="opsMonth">${months.map(m => `<option value="${m}" ${m === ops.month ? 'selected' : ''}>${fmtMonth(m)}</option>`).join('')}</select></div>${body}`;
+}
+function contactsTabHtml() {
+  const labels = [...new Set(courses.map(driverLabel).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ja'));
+  return `<div class="hint">お知らせや計量を登録した時に知らせる相手です。電話番号にはショートメール、メールアドレスにはメールで送ります。片方だけでも構いません。</div>
+    <div class="lb2">コースの担当者（そのコースの得意先の登録だけ届きます）</div>
+    ${labels.map((l, i) => { const c = notify.contacts[l] || {}; return `<div class="contactrow"><div class="cname">${esc(l)}</div>
+      <input type="tel" inputmode="tel" data-ctel="${i}" value="${esc(c.tel || '')}" placeholder="電話番号">
+      <input type="email" inputmode="email" data-cmail="${i}" value="${esc(c.mail || '')}" placeholder="メールアドレス"></div>`; }).join('') || '<div class="hint">コースがまだありません。</div>'}
+    <div id="ctErr"></div>
+    <div class="sb-actions"><span style="flex:1"></span><button class="btn primary sm" id="ctSave">担当者の送り先を保存</button></div>
+    <div class="lb2" style="margin-top:20px">すべての登録をお知らせする人（管理者・役職者など、複数可）</div>
+    ${notify.always.map(a => `<div class="oprow"><div class="t"><b>${esc(a.name)}</b><small>${[a.tel ? '📱 ' + esc(a.tel) : '', a.mail ? '✉️ ' + esc(a.mail) : ''].filter(Boolean).join('　')}</small></div><div class="r"><button class="btn danger sm" data-awdel="${a.id}">削除</button></div></div>`).join('') || '<div class="hint">まだ登録されていません。</div>'}
+    ${ops.alwaysForm ? `<div class="opform">
+      <div class="field"><span class="lb">名前・役職</span><input type="text" id="awName" placeholder="例：社長"></div>
+      <div class="two"><div class="field"><span class="lb">電話番号</span><input type="tel" inputmode="tel" id="awTel" placeholder="090-1234-5678"></div><div class="field"><span class="lb">メール</span><input type="email" inputmode="email" id="awMail" placeholder="name@example.jp"></div></div>
+      <div id="awErr"></div>
+      <div class="modal-actions"><span></span><div class="right"><button class="btn ghost" id="awCancel">やめる</button><button class="btn primary" id="awSave">追加</button></div></div></div>`
+      : `<div class="sb-actions"><button class="btn primary sm" id="awAdd">＋ 送り先を追加</button></div>`}`;
+}
+function renderOps() {
+  let body = '';
+  if (ops.tab === 'weigh' || ops.tab === 'notice') {
+    const kind = ops.tab;
+    const order = { now: 0, cont: 1, soon: 2, end: 3 };
+    const list = alerts.filter(a => a.kind === kind).sort((a, b) => order[alertState(a)[0]] - order[alertState(b)[0]] || (a.from < b.from ? 1 : -1));
+    body = `<div class="hint">${kind === 'weigh'
+      ? '計量中の得意先は、ドライバー画面で枠が赤くなり入力ボタンが出ます。「継続」はずっと、「期間」は終了日まで計量します。'
+      : '表示期間の間だけ、ドライバー画面でその得意先の枠が赤くなり本文が表示されます。期間が終わると自動で消えます。'}</div>
+      ${ops.form ? opsFormHtml() : `<div class="sb-actions" style="margin-bottom:10px"><button class="btn primary" id="opsAdd">＋ ${kind === 'weigh' ? '計量する得意先を追加' : 'お知らせを追加'}</button></div>`}
+      ${list.map(alertRowHtml).join('') || `<div class="empty" style="padding:30px">${kind === 'weigh' ? '計量する得意先はありません。' : 'お知らせはありません。'}</div>`}`;
+  } else if (ops.tab === 'data') body = dataTabHtml();
+  else body = contactsTabHtml();
+  openModal(`<div class="modal-head"><h2>📢 計量・お知らせ</h2><button class="closebtn" id="opsCloseBtn">✕</button></div>
+    <div class="modal-body">${opsTabs()}${sendBoxHtml()}${body}</div>`);
+  bindOps();
+}
+function opsKeepForm() {
+  const f = ops.form; if (!f) return;
+  const v = id => { const el = document.getElementById(id); return el ? el.value : undefined; };
+  if (v('opsType') !== undefined) f.type = v('opsType');
+  if (v('opsFrom') !== undefined) f.from = v('opsFrom');
+  if (v('opsTo') !== undefined) f.to = v('opsTo');
+  if (v('opsMemo') !== undefined) f.memo = v('opsMemo');
+  if (v('opsText') !== undefined) f.text = v('opsText');
+  if (v('opsQ') !== undefined) f.q = v('opsQ');
+}
+async function renderPickList() {
+  const box = document.getElementById('opsPick'); if (!box) return;
+  const q = (document.getElementById('opsQ').value || '').trim().toLowerCase();
+  if (!q) { box.innerHTML = ''; return; }
+  if (!allCustomersLoaded) {
+    box.innerHTML = `<div class="hint"><span class="spin"></span> 得意先を読み込み中…</div>`;
+    try { await ensureAllCustomersLoaded(); } catch (e) { box.innerHTML = '<div class="hint">読み込みに失敗しました。</div>'; return; }
+    if (!document.getElementById('opsQ') || document.getElementById('opsQ').value.trim().toLowerCase() !== q) return;
+  }
+  const res = customers.filter(c => matchesQuery(c, q)).slice(0, 12);
+  box.innerHTML = res.map(c => `<button data-pick="${c.id}"><b>${esc(c.name)}</b><small>${esc(c.address || '')}</small></button>`).join('') || '<div class="hint">見つかりません。</div>';
+  box.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => {
+    const cu = customers.find(c => c.id === b.dataset.pick);
+    opsKeepForm(); ops.form.cid = cu.id; ops.form.name = cu.name; ops.form.q = '';
+    renderOps();
+  });
+}
+function bindOps() {
+  const $id = id => document.getElementById(id);
+  $id('opsCloseBtn').onclick = () => { closeModal(); renderContent(); };
+  document.querySelectorAll('[data-opstab]').forEach(b => b.onclick = () => { ops.tab = b.dataset.opstab; ops.form = null; ops.alwaysForm = false; renderOps(); });
+  // 送信ボックス
+  if ($id('sendBody')) {
+    $id('sendBody').oninput = e => {
+      ops.send.body = e.target.value;
+      const r = ops.send.list;
+      if ($id('sendSms')) $id('sendSms').href = smsHref(r.filter(x => x.tel).map(x => x.tel), ops.send.body);
+      if ($id('sendMail')) $id('sendMail').href = mailHref(r.filter(x => x.mail).map(x => x.mail), ops.send.body);
+    };
+    $id('sendClose').onclick = () => { ops.send = null; renderOps(); };
+    $id('sendCopy').onclick = () => {
+      const fb = () => { $id('sendBody').select(); toast('選択しました。コピーしてください'); };
+      try { navigator.clipboard.writeText(ops.send.body).then(() => toast('本文をコピーしました'), fb); } catch (e) { fb(); }
+    };
+  }
+  // 一覧の操作
+  document.querySelectorAll('[data-alsend]').forEach(b => b.onclick = async () => {
+    const a = alerts.find(x => x.id === b.dataset.alsend);
+    try { await ensureAllCustomersLoaded(); } catch (e) {}
+    ops.send = { body: alertMsg(a), list: recipientsFor(a.cid, a.type) }; renderOps();
+    document.querySelector('#modalRoot').scrollTop = 0;
+  });
+  document.querySelectorAll('[data-aldel]').forEach(b => b.onclick = async () => {
+    try { await saveAlerts(alerts.filter(x => x.id !== b.dataset.aldel)); toast('削除しました'); renderOps(); }
+    catch (e) { console.error(e); toast('削除に失敗しました'); }
+  });
+  document.querySelectorAll('[data-alend]').forEach(b => b.onclick = async () => {
+    const y = addDaysStr(todayStr(), -1);
+    const list = alerts.map(x => x.id === b.dataset.alend ? { ...x, to: y < x.from ? x.from : y } : x);
+    try { await saveAlerts(list); toast('計量を終了しました'); renderOps(); }
+    catch (e) { console.error(e); toast('保存に失敗しました'); }
+  });
+  // 追加フォーム
+  if ($id('opsAdd')) $id('opsAdd').onclick = () => { ops.form = newOpsForm(ops.tab); ops.send = null; renderOps(); if ($id('opsQ')) $id('opsQ').focus(); };
+  if ($id('opsCancel')) $id('opsCancel').onclick = () => { ops.form = null; renderOps(); };
+  if ($id('opsRepick')) $id('opsRepick').onclick = () => { opsKeepForm(); ops.form.cid = ''; ops.form.name = ''; renderOps(); $id('opsQ').focus(); };
+  if ($id('opsQ')) { $id('opsQ').oninput = renderPickList; if ($id('opsQ').value) renderPickList(); }
+  document.querySelectorAll('[data-wk]').forEach(b => b.onclick = () => { opsKeepForm(); ops.form.wkind = b.dataset.wk; renderOps(); });
+  document.querySelectorAll('[data-wm]').forEach(b => b.onclick = () => { opsKeepForm(); ops.form.mode = b.dataset.wm; renderOps(); });
+  if ($id('opsSave')) $id('opsSave').onclick = async () => {
+    opsKeepForm(); const f = ops.form;
+    const err = m => { $id('opsErr').innerHTML = `<div class="opserr">${m}</div>`; };
+    if (!f.cid) return err('得意先を検索して選んでください。');
+    if (!f.from) return err('開始日を入れてください。');
+    const needTo = f.kind === 'notice' || f.wkind === 'period';
+    if (needTo && (!f.to || f.to < f.from)) return err('終了日は開始日と同じ日か、それより後にしてください。');
+    if (f.kind === 'notice' && !f.text.trim()) return err('本文を入力してください。');
+    const cu = customers.find(c => c.id === f.cid);
+    const item = { id: uid(), kind: f.kind, cid: f.cid, name: f.name, mgmtNo: cu ? (cu.mgmtNo || '') : '', type: f.type, from: f.from, to: needTo ? f.to : '' };
+    if (f.kind === 'weigh') {
+      const clash = alerts.find(a => a.kind === 'weigh' && a.cid === f.cid && a.type === f.type && alertState(a)[0] !== 'end'
+        && (!a.to || !item.to || (a.from <= item.to && item.from <= a.to)));
+      if (clash) return err('この得意先・品目には期間の重なる計量設定がすでにあります。先にそちらを終了してください。');
+      Object.assign(item, { mode: f.mode, memo: f.memo.trim() });
+    } else item.text = f.text.trim();
+    const btn = $id('opsSave'); btn.disabled = true; btn.textContent = '保存中…';
+    try {
+      await saveAlerts([...alerts, item]);
+      ops.form = null;
+      ops.send = { body: alertMsg(item), list: recipientsFor(item.cid, item.type) };
+      toast(f.kind === 'weigh' ? '計量を設定しました' : 'お知らせを登録しました');
+      renderOps(); document.querySelector('#modalRoot').scrollTop = 0;
+    } catch (e) { console.error(e); err('保存に失敗しました。通信環境をご確認ください。'); btn.disabled = false; btn.textContent = '保存'; }
+  };
+  // 計量データ
+  if ($id('opsMonth')) {
+    $id('opsMonth').onchange = e => { ops.month = e.target.value; renderOps(); };
+    if (!ops.logs[ops.month]) {
+      const m = ops.month;
+      getWithRetry(db.collection('cm_courses').where('logMonth', '==', m), 2).then(snap => {
+        const out = [];
+        snap.docs.forEach(d => { const es = d.data().entries || {}; Object.values(es).forEach(e => { if (e && e.cid) out.push(e); }); });
+        out.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ja') || (a.date < b.date ? -1 : 1));
+        ops.logs[m] = out;
+        if (ops.tab === 'data' && ops.month === m) renderOps();
+      }).catch(e => { console.error(e); toast('計量データの読み込みに失敗しました'); });
+    }
+  }
+  if ($id('csvDetail')) $id('csvDetail').onclick = () => {
+    const rows = [['年月', '回収日', '管理番号', '得意先', '品目', 'コース', ...SIZES, '合計袋数', '重量kg', '入力者']];
+    ops.logs[ops.month].forEach(e => rows.push([fmtMonth(ops.month), e.date.replace(/-/g, '/'), e.mgmtNo || '', e.name, WT[e.type] ? WT[e.type].label : e.type, e.course || '',
+      ...SIZES.map(s => e.bags ? (e.bags[s] || 0) : ''), e.bags ? bagSum(e.bags) : '', e.kg != null ? e.kg.toFixed(1) : '', e.by || '']));
+    downloadCsv(`計量明細_${ops.month}.csv`, csvText(rows));
+  };
+  if ($id('csvSum')) $id('csvSum').onclick = () => {
+    const rows = [['年月', '管理番号', '得意先', '品目', '回収回数', ...SIZES, '合計袋数', '合計重量kg']];
+    ops.dataRows.forEach(r => rows.push([fmtMonth(ops.month), r.e.mgmtNo || '', r.e.name, WT[r.e.type] ? WT[r.e.type].label : r.e.type, r.n,
+      ...SIZES.map(s => r.hasB ? r.b[s] : ''), r.hasB ? r.bags : '', r.hasK ? r.kg.toFixed(1) : '']));
+    downloadCsv(`計量月合計_${ops.month}.csv`, csvText(rows));
+  };
+  // 送り先
+  if ($id('ctSave')) $id('ctSave').onclick = async () => {
+    const labels = [...new Set(courses.map(driverLabel).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ja'));
+    const contacts = { ...notify.contacts };
+    for (let i = 0; i < labels.length; i++) {
+      const tel = document.querySelector(`[data-ctel="${i}"]`).value.trim(), mail = document.querySelector(`[data-cmail="${i}"]`).value.trim();
+      if (tel && !telOk(tel)) { $id('ctErr').innerHTML = `<div class="opserr">${esc(labels[i])}の電話番号の形が正しくありません（例：090-1234-5678）。</div>`; return; }
+      if (mail && !mailOk(mail)) { $id('ctErr').innerHTML = `<div class="opserr">${esc(labels[i])}のメールアドレスの形が正しくありません。</div>`; return; }
+      if (tel || mail) contacts[labels[i]] = { tel: tel ? telFmt(tel) : '', mail }; else delete contacts[labels[i]];
+    }
+    try { await saveNotify({ contacts, always: notify.always }); toast('送り先を保存しました'); renderOps(); }
+    catch (e) { console.error(e); toast('保存に失敗しました'); }
+  };
+  if ($id('awAdd')) $id('awAdd').onclick = () => { ops.alwaysForm = true; renderOps(); $id('awName').focus(); };
+  if ($id('awCancel')) $id('awCancel').onclick = () => { ops.alwaysForm = false; renderOps(); };
+  if ($id('awSave')) $id('awSave').onclick = async () => {
+    const name = $id('awName').value.trim(), tel = $id('awTel').value.trim(), mail = $id('awMail').value.trim();
+    const err = m => { $id('awErr').innerHTML = `<div class="opserr">${m}</div>`; };
+    if (!name) return err('名前か役職を入れてください。');
+    if (!tel && !mail) return err('電話番号かメールアドレスのどちらかを入れてください。');
+    if (tel && !telOk(tel)) return err('電話番号を「090-1234-5678」の形で入れてください。');
+    if (mail && !mailOk(mail)) return err('メールアドレスの形が正しくありません。');
+    try { await saveNotify({ contacts: notify.contacts, always: [...notify.always, { id: uid(), name, tel: tel ? telFmt(tel) : '', mail }] }); ops.alwaysForm = false; toast('送り先を追加しました'); renderOps(); }
+    catch (e) { console.error(e); toast('保存に失敗しました'); }
+  };
+  document.querySelectorAll('[data-awdel]').forEach(b => b.onclick = async () => {
+    try { await saveNotify({ contacts: notify.contacts, always: notify.always.filter(a => a.id !== b.dataset.awdel) }); toast('削除しました'); renderOps(); }
+    catch (e) { console.error(e); toast('削除に失敗しました'); }
+  });
+}
+document.getElementById('opsBtn').onclick = () => openOps('weigh');
+// メニュー
+document.getElementById('menuBtn').onclick = e => { e.stopPropagation(); const m = document.getElementById('menuPanel'); m.hidden = !m.hidden; };
+document.addEventListener('click', e => { const m = document.getElementById('menuPanel'); if (!m.hidden && !m.contains(e.target)) m.hidden = true; });
+document.querySelectorAll('#menuPanel button').forEach(b => b.addEventListener('click', () => { document.getElementById('menuPanel').hidden = true; }));
+
 
 /* ==== init ==== */
 const loadTimeout = setTimeout(() => showErr('読み込みに時間がかかっています。電波の良い場所で開き直すか、しばらくしてから再度お試しください。', false), 25000);

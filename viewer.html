@@ -100,6 +100,45 @@
   .lockscreen input{width:220px;text-align:center;font-size:18px;letter-spacing:2px;padding:11px 12px;border-radius:10px;border:1px solid var(--input-border);background:var(--input-bg);color:var(--text)}
   .lockscreen button{border:none;border-radius:10px;padding:11px 22px;font-weight:800;font-size:14px;background:var(--orange);color:#fff;cursor:pointer}
   .banner{display:block;width:100%;aspect-ratio:1200/335;object-fit:cover;background:#1a2a4a}
+  /* 計量・お知らせ */
+  .card.alert{border-color:var(--red);background:var(--nokey-bg)}
+  .card.done{border-color:var(--teal)}
+  .card.alert .info,.card.done .info{align-self:flex-start}
+  .opnotice{margin-top:6px;font-size:13px;line-height:1.5;font-weight:800;color:var(--nokey-fg);white-space:normal}
+  .opnotice small,.opweigh small{display:block;font-weight:600;font-size:11.5px;opacity:.85}
+  .opweigh{margin-top:6px;font-size:12px;font-weight:800;color:var(--nokey-fg);white-space:normal;line-height:1.5}
+  .card.done .opweigh{color:var(--key-fg)}
+  .wbtn{display:block;width:100%;margin-top:8px;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:900;background:var(--red);color:#fff;font-family:inherit}
+  .wdone{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;border:1px solid var(--teal);background:var(--key-bg);color:var(--key-fg);border-radius:10px;padding:9px 11px;font-size:13px;font-weight:800}
+  .wfix{border:1px solid var(--teal);border-radius:8px;padding:3px 9px;font-size:12px}
+  .wsub{font-size:12.5px;color:var(--sub);line-height:1.6;margin-bottom:10px}
+  .wdate{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px;margin-bottom:6px}
+  .wdate input{padding:6px 8px;border-radius:8px;border:1px solid var(--input-border);background:var(--input-bg);color:var(--text);font-size:14px;font-family:inherit}
+  .wlbl{font-size:12px;font-weight:800;color:var(--sub);margin:14px 0 6px}
+  .wsizes{display:grid;gap:8px}
+  .wsrow{display:grid;grid-template-columns:62px 1fr;align-items:center;gap:10px;border:1px solid var(--border);border-radius:12px;padding:7px 10px}
+  .wsrow.has{border-color:var(--orange)}
+  .wsz{font-weight:900;font-size:17px}
+  .wstep{display:grid;grid-template-columns:52px 1fr 52px;align-items:center;gap:6px}
+  .wstep button{height:46px;border-radius:10px;border:1px solid var(--border2);background:var(--surface1);color:var(--text);font-size:24px;font-weight:700;font-family:inherit}
+  .wstep output{text-align:center;font-size:24px;font-weight:900;font-variant-numeric:tabular-nums}
+  .wkg{display:flex;align-items:center;gap:8px}
+  .wkg input{flex:1;min-width:0;font-size:26px;font-weight:900;text-align:right;padding:10px 12px;border-radius:12px;border:1px solid var(--input-border);background:var(--input-bg);color:var(--text);font-variant-numeric:tabular-nums;font-family:inherit}
+  .wkg span{font-size:18px;font-weight:900}
+  .wquick{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:var(--sub);font-variant-numeric:tabular-nums}
+  .wquick button{border:1px solid var(--border2);background:transparent;color:var(--sub);border-radius:8px;padding:7px 10px;font-size:12.5px;font-weight:700;font-family:inherit}
+  .wactions{display:flex;gap:8px;margin-top:14px}
+  .wbtn2{border:1px solid var(--border2);background:transparent;color:var(--text);border-radius:12px;padding:13px 14px;font-weight:900;font-size:15px;font-family:inherit}
+  .wbtn2.primary{flex:1;background:var(--orange);border-color:var(--orange);color:#fff}
+  .wbtn2.danger{color:var(--nokey-fg);border-color:var(--red)}
+  .wbtn2.sm{padding:6px 10px;font-size:13px;border-radius:9px}
+  .werr{color:var(--nokey-fg);font-size:12.5px;font-weight:700;margin-top:10px;line-height:1.6}
+  .whist{margin-top:18px;border-top:1px solid var(--border);padding-top:10px}
+  .whh{display:flex;justify-content:space-between;font-size:13px;font-weight:800;margin-bottom:6px;font-variant-numeric:tabular-nums}
+  .whr{display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:6px 0;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums}
+  .whr span:first-child{color:var(--sub)}
+  .wnote{font-size:12px;color:var(--sub)}
+  .vtoast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));background:var(--text);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:13px;font-weight:800;z-index:90;display:none;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -133,6 +172,13 @@
     <div class="sheet-body" id="sheetBody"></div>
   </div>
 </div>
+<div class="overlay" id="wOverlay">
+  <div class="sheet" role="dialog" aria-label="計量の入力">
+    <div class="sheet-head"><h2 id="wName"></h2><button class="closebtn" onclick="closeWeigh()">✕</button></div>
+    <div class="sheet-body" id="wBody"></div>
+  </div>
+</div>
+<div class="vtoast" id="vtoast"></div>
 <p class="updated" id="updatedAt"></p>
 <p class="updated" id="accessInfo" style="padding:4px 0 90px"></p>
 <button class="fab" id="routeFab">📍 まとめて開く</button>
@@ -336,12 +382,13 @@ async function load(forceFresh = false) {
     courses = []; customers = []; loadedCourseIds = new Set(); allCustomersLoaded = false;
     showListLoading();
     try {
-      const snap = await getWithRetry(db.collection('cm_courses'));
+      const snap = await getWithRetry(db.collection('cm_courses').where('wasteType', 'in', WASTE_TYPES.map(w => w.key)));
       courses = snap.docs.filter(d => !d.id.startsWith('_')).map(normalizeDoc);
       saveCache();
       showUpdated(Date.now());
     } catch (e) { console.error(e); showListError('load(true)'); return; }
   }
+  await refreshOps();
   if (isLimited() && mode === 'search') {
     const firstAllowed = WASTE_TYPES.find(w => sortedCoursesOf(w.key).some(c => canView(c.id)));
     mode = firstAllowed ? firstAllowed.key : WASTE_TYPES[0].key;
@@ -483,12 +530,14 @@ async function renderList() {
   items.sort((a, b) => (findAssignment(a, mode, course.id).order ?? 0) - (findAssignment(b, mode, course.id).order ?? 0));
   if (dayFilter !== 'all') items = items.filter(c => { const a = findAssignment(c, mode, course.id); return a.days && a.days.includes(dayFilter); });
   if (q) items = items.filter(c => matchesQuery(c, q));
-  document.getElementById('meta').textContent = `${courseLabel(course)}${dayFilter !== 'all' ? '　' + dayFilter + '曜日のみ' : ''}　${items.length}件`;
+  const wRemain = weighRemaining(items);
+  document.getElementById('meta').textContent = `${courseLabel(course)}${dayFilter !== 'all' ? '　' + dayFilter + '曜日のみ' : ''}　${items.length}件${wRemain ? `　｜　本日の計量 残り${wRemain}件` : ''}`;
   if (!items.length) { list.innerHTML = `<div class="empty">${dayFilter !== 'all' ? `${dayFilter}曜日の得意先はありません。` : (q ? '該当する得意先がありません。' : 'このコースにはまだ得意先が登録されていません。')}</div>`; return; }
   list.innerHTML = items.map((cu, i) => {
     const it = withLegacyFallback(cu, findAssignment(cu, mode, course.id));
+    const op = cardOps(cu);
     return `
-    <div class="card" onclick="openSheet('${cu.id}')">
+    <div class="card${op.cls}" onclick="openSheet('${cu.id}')">
       <div class="num">${i + 1}</div>
       ${cu.hasPhoto || (cu.photos && cu.photos.length) ? `<div class="thumbwrap"><img class="thumb" src="${photoUrlFor(cu.id, customerPhotoIds(cu)[0])}" onclick="event.stopPropagation();openLightbox('${cu.id}')" onerror="this.parentElement.remove()">${customerPhotoIds(cu).length>1?`<span class="thumbcount">${customerPhotoIds(cu).length}</span>`:''}</div>` : ''}
       <div class="info">
@@ -498,6 +547,7 @@ async function renderList() {
           ${it.days && it.days.length ? `<span class="badge days">${it.days.join('')}</span>` : ''}
         </div>
         ${it.memo ? `<div class="addr">📝 ${esc(it.memo)}</div>` : ''}
+        ${op.html}
         ${customerTypeBadges(cu, mode)}
       </div>
       ${cu.address ? `<input type="checkbox" class="routecheck" data-route="${cu.id}" ${selectedIds.has(cu.id) ? 'checked' : ''}>` : ''}
@@ -563,6 +613,189 @@ document.getElementById('overlay').addEventListener('click', e => { if (e.target
 document.getElementById('search').addEventListener('input', renderList);
 
 const loadTimeout = setTimeout(() => showErr('読み込みに時間がかかっています。電波の良い場所で開き直すか、しばらくしてから再度お試しください。', false), 25000);
+function toast(msg) { const t = document.getElementById('vtoast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast._h); toast._h = setTimeout(() => t.style.display = 'none', 2200); }
+/* ==== 計量・お知らせ（ドライバー側） ==== */
+const SIZES = ['45L', '70L', '90L', '120L'];
+const WMODES = { both: '袋数と重さ', bags: '袋数のみ', kg: '重さのみ' };
+const WDAYS = ['日', '月', '火', '水', '木', '金', '土'];
+const OPS_CACHE_KEY = 'cm_view_ops_v1';
+let alerts = [];          // editorで登録したお知らせ・計量の設定
+let todayLog = {};        // 今日の計量記録 { 得意先ID__品目: {...} }
+let todayLogDay = '';
+let opsFetchedAt = 0;
+const pad2 = n => String(n).padStart(2, '0');
+const ymdOf = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const todayStr = () => ymdOf(new Date());
+const fmtDay = s => { if (!s) return ''; const d = new Date(s + 'T00:00:00'); return `${d.getMonth() + 1}/${d.getDate()}(${WDAYS[d.getDay()]})`; };
+const fmtMonth = s => { const [y, m] = s.split('-'); return `${y}年${+m}月`; };
+const logDocId = day => '_wl_' + day.replace(/-/g, '');
+const logKey = (cid, type) => `${cid}__${type}`;
+const bagSum = b => b ? SIZES.reduce((s, k) => s + (b[k] || 0), 0) : 0;
+const bagText = b => !b ? '' : (SIZES.filter(k => b[k]).map(k => `${k}×${b[k]}`).join('・') || '0袋');
+const kgText = k => k == null ? '' : `${Number(k).toFixed(1)}kg`;
+const entryText = e => [e.bags ? `${bagSum(e.bags)}袋` : '', kgText(e.kg)].filter(Boolean).join('・') || '0';
+function driverLabel(c) { return c ? (c.group || c.name || '') : ''; }
+function activeAlerts(cid, type, day = todayStr()) { return alerts.filter(a => a.cid === cid && a.type === type && a.from <= day && (!a.to || day <= a.to)); }
+function weighSetting(cid, type, day = todayStr()) { return activeAlerts(cid, type, day).find(a => a.kind === 'weigh') || null; }
+
+(function readOpsCache() {
+  try {
+    const c = JSON.parse(localStorage.getItem(OPS_CACHE_KEY) || 'null');
+    if (c) { alerts = c.alerts || []; if (c.day === todayStr()) { todayLog = c.todayLog || {}; todayLogDay = c.day; } }
+  } catch (e) {}
+})();
+function saveOpsCache() { try { localStorage.setItem(OPS_CACHE_KEY, JSON.stringify({ alerts, todayLog, day: todayLogDay })); } catch (e) {} }
+async function refreshOps() {
+  const day = todayStr();
+  try {
+    const [al, lg] = await Promise.all([
+      getWithRetry(db.collection('cm_courses').doc('_alerts'), 2),
+      getWithRetry(db.collection('cm_courses').doc(logDocId(day)), 2),
+    ]);
+    alerts = al.exists ? (al.data().items || []) : [];
+    todayLog = lg.exists ? (lg.data().entries || {}) : {};
+    todayLogDay = day; opsFetchedAt = Date.now();
+    saveOpsCache();
+  } catch (e) { console.error('お知らせ・計量の読み込みに失敗（前回の内容で表示）', e); }
+}
+// アプリを開きっぱなしでも、戻ってきた時に日付が変わっていたり時間が経っていたら最新にする
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState !== 'visible' || !unlocked) return;
+  if (todayLogDay !== todayStr() || Date.now() - opsFetchedAt > 10 * 60 * 1000) { await refreshOps(); renderList(); }
+});
+
+/* --- 一覧カード --- */
+function cardOps(cu) {
+  if (mode === 'search') return { cls: '', html: '' };
+  const day = todayStr();
+  const list = activeAlerts(cu.id, mode, day);
+  const notices = list.filter(a => a.kind === 'notice');
+  const w = list.find(a => a.kind === 'weigh');
+  const done = w ? todayLog[logKey(cu.id, mode)] : null;
+  let html = notices.map(n => `<div class="opnotice">📢 ${esc(n.text)}<small>${fmtDay(n.from)}〜${fmtDay(n.to)}</small></div>`).join('');
+  if (w) {
+    html += `<div class="opweigh">⚖️ 計量${w.to ? `（${fmtDay(w.to)}まで）` : '（継続）'}・${WMODES[w.mode]}${w.memo ? `<small>${esc(w.memo)}</small>` : ''}</div>`;
+    html += done
+      ? `<div class="wdone" onclick="event.stopPropagation();openWeigh('${cu.id}')"><span>✓ 本日入力済　${esc(entryText(done))}</span><span class="wfix">修正</span></div>`
+      : `<button class="wbtn" onclick="event.stopPropagation();openWeigh('${cu.id}')">⚖️ ${w.mode === 'bags' ? '袋数' : w.mode === 'kg' ? '重さ' : '計量'}を入力する</button>`;
+  }
+  const cls = (notices.length || (w && !done)) ? ' alert' : (w && done ? ' done' : '');
+  return { cls, html };
+}
+function weighRemaining(items) {
+  if (mode === 'search') return 0;
+  return items.filter(cu => weighSetting(cu.id, mode) && !todayLog[logKey(cu.id, mode)]).length;
+}
+
+/* --- 計量入力シート --- */
+let wstate = null;
+async function openWeigh(cid) {
+  const cu = customers.find(c => c.id === cid);
+  const course = courses.find(c => c.id === activeCourseId);
+  const day = todayStr();
+  const cur = todayLog[logKey(cid, mode)] || null;
+  wstate = { cid, type: mode, course, date: day, cur, bags: cur && cur.bags ? { ...cur.bags } : {}, kg: cur && cur.kg != null ? String(cur.kg) : '', month: null, saving: false };
+  document.getElementById('wOverlay').classList.add('show');
+  drawWeigh();
+  loadMonthHistory();
+}
+function closeWeigh() { document.getElementById('wOverlay').classList.remove('show'); wstate = null; }
+async function loadMonthHistory() {
+  if (!wstate) return;
+  const ym = wstate.date.slice(0, 7), key = logKey(wstate.cid, wstate.type), st = wstate;
+  try {
+    const snap = await getWithRetry(db.collection('cm_courses').where('logMonth', '==', ym), 2);
+    const list = [];
+    snap.docs.forEach(d => { const e = (d.data().entries || {})[key]; if (e) list.push(e); });
+    list.sort((a, b) => a.date < b.date ? 1 : -1);
+    if (wstate === st) { st.month = { ym, list }; drawWeigh(); }
+  } catch (e) { if (wstate === st) { st.month = { ym, list: null }; drawWeigh(); } }
+}
+function drawWeigh() {
+  const s = wstate; if (!s) return;
+  const cu = customers.find(c => c.id === s.cid);
+  const w = weighSetting(s.cid, s.type, s.date) || weighSetting(s.cid, s.type) || { mode: 'both' };
+  const useB = w.mode !== 'kg', useK = w.mode !== 'bags';
+  const m = s.month;
+  const tB = m && m.list ? m.list.reduce((t, e) => t + bagSum(e.bags), 0) : 0, tK = m && m.list ? m.list.reduce((t, e) => t + (e.kg || 0), 0) : 0;
+  document.getElementById('wName').textContent = cu ? cu.name : '';
+  document.getElementById('wBody').innerHTML = `
+    <div class="wsub">${(WASTE_TYPES.find(x => x.key === s.type) || {}).icon || ''} ${esc(courseLabel(s.course))}　｜　${WMODES[w.mode]}${w.memo ? `<br>${esc(w.memo)}` : ''}</div>
+    <div class="wdate">回収日 <input type="date" id="wDate" value="${s.date}" max="${todayStr()}"></div>
+    ${useB ? `<div class="wlbl">袋の数（サイズごとに＋で数える）</div>
+    <div class="wsizes">${SIZES.map(z => `<div class="wsrow${s.bags[z] ? ' has' : ''}"><span class="wsz">${z}</span>
+      <div class="wstep"><button data-wm="${z}" aria-label="${z}を減らす">−</button><output id="wo${z}">${s.bags[z] || 0}</output><button data-wp="${z}" aria-label="${z}を増やす">＋</button></div></div>`).join('')}</div>` : ''}
+    ${useK ? `<div class="wlbl">重さ（はかりの数字）</div>
+    <div class="wkg"><input id="wKg" type="text" inputmode="decimal" placeholder="0.0" value="${esc(s.kg)}" autocomplete="off"><span>kg</span></div>` : ''}
+    <div class="wquick"><button id="wNone">今日は出ていない（0）</button>${useB ? `<span id="wTotal">合計 ${bagSum(s.bags)}袋</span>` : ''}</div>
+    <div id="wErr"></div>
+    <div class="wactions">${s.cur ? '<button class="wbtn2 danger" id="wDel">削除</button>' : ''}<button class="wbtn2 primary" id="wSave">${s.saving ? '保存中…' : '保存する'}</button></div>
+    <div class="whist"><div class="whh"><span>${fmtMonth(s.date.slice(0, 7))}の記録</span><span>${m && m.list ? `${m.list.length}回${useB ? '・' + tB + '袋' : ''}${useK ? '・' + tK.toFixed(1) + 'kg' : ''}` : ''}</span></div>
+      ${!m ? '<div class="wnote">読み込み中…</div>' : !m.list ? '<div class="wnote">記録を読み込めませんでした。</div>'
+        : m.list.map(e => `<div class="whr"><span>${fmtDay(e.date)}</span><span>${esc([bagText(e.bags), kgText(e.kg)].filter(Boolean).join('　') || '0')}</span></div>`).join('') || '<div class="wnote">まだ記録がありません。</div>'}
+    </div>`;
+  const upd = () => {
+    if (!useB) return;
+    SIZES.forEach(z => { const o = document.getElementById('wo' + z); o.textContent = s.bags[z] || 0; o.closest('.wsrow').classList.toggle('has', !!s.bags[z]); });
+    document.getElementById('wTotal').textContent = `合計 ${bagSum(s.bags)}袋`;
+  };
+  document.querySelectorAll('[data-wp]').forEach(b => b.onclick = () => { s.bags[b.dataset.wp] = (s.bags[b.dataset.wp] || 0) + 1; upd(); });
+  document.querySelectorAll('[data-wm]').forEach(b => b.onclick = () => { s.bags[b.dataset.wm] = Math.max(0, (s.bags[b.dataset.wm] || 0) - 1); upd(); });
+  if (document.getElementById('wKg')) document.getElementById('wKg').oninput = e => { s.kg = e.target.value; };
+  document.getElementById('wNone').onclick = () => { s.bags = {}; s.kg = '0'; if (document.getElementById('wKg')) document.getElementById('wKg').value = '0'; upd(); };
+  document.getElementById('wDate').onchange = async e => {
+    const d = e.target.value || todayStr();
+    if (d > todayStr()) { e.target.value = s.date; return; }
+    s.date = d; s.cur = null; s.bags = {}; s.kg = '';
+    try {
+      const doc = await getWithRetry(db.collection('cm_courses').doc(logDocId(d)), 2);
+      const ex = doc.exists ? (doc.data().entries || {})[logKey(s.cid, s.type)] : null;
+      if (ex) { s.cur = ex; s.bags = ex.bags ? { ...ex.bags } : {}; s.kg = ex.kg != null ? String(ex.kg) : ''; }
+    } catch (err) {}
+    if (!s.month || s.month.ym !== d.slice(0, 7)) { s.month = null; loadMonthHistory(); }
+    drawWeigh();
+  };
+  if (document.getElementById('wDel')) document.getElementById('wDel').onclick = () => {
+    document.getElementById('wErr').innerHTML = `<div class="werr">この日の記録を削除しますか？　<button class="wbtn2 danger sm" id="wDelOk">削除する</button></div>`;
+    document.getElementById('wDelOk').onclick = async () => {
+      try {
+        await db.collection('cm_courses').doc(logDocId(s.date)).set({ entries: { [logKey(s.cid, s.type)]: firebase.firestore.FieldValue.delete() } }, { merge: true });
+        if (s.date === todayStr()) { delete todayLog[logKey(s.cid, s.type)]; saveOpsCache(); }
+        closeWeigh(); renderList(); toast('削除しました');
+      } catch (err) { console.error(err); document.getElementById('wErr').innerHTML = '<div class="werr">削除できませんでした。電波の良い場所でもう一度お試しください。</div>'; }
+    };
+  };
+  document.getElementById('wSave').onclick = async () => {
+    if (s.saving) return;
+    const fail = msg => { document.getElementById('wErr').innerHTML = `<div class="werr">${msg}</div>`; };
+    let kg = null;
+    if (useK) {
+      const kgStr = String(s.kg).replace(/[０-９．，]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0)).replace(/,/g, '.').replace(/\s/g, '');
+      kg = /^\d+(\.\d+)?$/.test(kgStr) ? parseFloat(kgStr) : NaN;
+      if (isNaN(kg) || kg < 0) return fail('重さ(kg)を数字で入力してください。出ていない日は「今日は出ていない」を押してください。');
+      kg = Math.round(kg * 10) / 10;
+    }
+    if (useB && useK && kg > 0 && bagSum(s.bags) === 0) return fail('袋の数が0のままです。サイズの＋で袋の数を入れてください。');
+    const entry = {
+      cid: s.cid, type: s.type, date: s.date, name: cu ? cu.name : '', mgmtNo: cu ? (cu.mgmtNo || '') : '',
+      courseId: s.course ? s.course.id : '', course: courseLabel(s.course), by: driverLabel(s.course),
+      bags: useB ? Object.fromEntries(SIZES.map(z => [z, s.bags[z] || 0])) : null, kg,
+      at: firebase.firestore.FieldValue.serverTimestamp(),
+    };
+    s.saving = true; drawWeigh();
+    try {
+      const write = db.collection('cm_courses').doc(logDocId(s.date)).set({ logMonth: s.date.slice(0, 7), logDate: s.date, entries: { [logKey(s.cid, s.type)]: entry } }, { merge: true });
+      await Promise.race([write, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 20000))]);
+      if (s.date === todayStr()) { todayLog[logKey(s.cid, s.type)] = { ...entry, at: null }; todayLogDay = todayStr(); saveOpsCache(); }
+      closeWeigh(); renderList(); toast('保存しました');
+    } catch (err) {
+      console.error(err); s.saving = false; drawWeigh();
+      fail('保存できませんでした。電波の良い場所でもう一度「保存する」を押してください。');
+    }
+  };
+}
+document.getElementById('wOverlay').addEventListener('click', e => { if (e.target.id === 'wOverlay') closeWeigh(); });
+
 document.getElementById('reloadBtn').onclick = async () => {
   const btn = document.getElementById('reloadBtn'); btn.disabled = true;
   await load(true);
