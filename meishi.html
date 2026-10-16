@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="名刺管理">
+<meta name="theme-color" content="#ffffff">
+<title>名刺管理</title>
+<style>
+:root{
+  --bg:#ffffff;--bg2:#f4f5f7;--card:#ffffff;--line:#e2e4e8;--text:#1d1f23;--sub:#6b7079;
+  --accent:#1a6fd1;--accent-bg:#e8f1fc;--danger:#d23b3b;--star:#f0a500;--ok:#1f9d55;
+  --shadow:0 2px 10px rgba(0,0,0,.08);
+}
+:root[data-theme="dark"]{
+  --bg:#15171b;--bg2:#1e2127;--card:#22262d;--line:#33373f;--text:#e9ebee;--sub:#9aa0a9;
+  --accent:#5aa2f0;--accent-bg:#1f2f44;--danger:#f06a6a;--star:#ffc23d;--ok:#4cc985;
+  --shadow:0 2px 10px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;font-size:15px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.hidden{display:none!important}
+
+/* ロック画面 */
+#lock{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:100;padding:24px}
+#lock h1{font-size:22px;margin:0}
+#lock input{width:220px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg2);text-align:center;font-size:18px}
+#lock .err{color:var(--danger);font-size:13px;min-height:18px}
+
+/* ヘッダー */
+header{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--line);padding:calc(env(safe-area-inset-top) + 8px) 12px 8px}
+.hrow{display:flex;align-items:center;gap:6px}
+.hrow h1{font-size:17px;margin:0 auto 0 0;white-space:nowrap}
+.icon-btn{border:none;background:var(--bg2);border-radius:9px;width:36px;height:36px;font-size:17px;display:flex;align-items:center;justify-content:center}
+.search{margin-top:8px;position:relative}
+.search input{width:100%;padding:10px 34px 10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg2);font-size:16px}
+.search .clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:none;background:none;color:var(--sub);font-size:18px}
+.filters{display:flex;gap:6px;margin-top:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.filters::-webkit-scrollbar{display:none}
+.filters select,.chip{flex:none;border:1px solid var(--line);background:var(--card);border-radius:18px;padding:6px 10px;font-size:13px}
+.chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.countline{font-size:12px;color:var(--sub);margin-top:6px;display:flex;justify-content:space-between}
+
+/* 一覧 */
+main{padding:0 34px 120px 12px}
+.sec-h{position:sticky;top:var(--hh,150px);z-index:5;background:var(--bg2);color:var(--sub);font-weight:700;font-size:13px;padding:4px 10px;margin:10px -34px 6px -12px}
+.row{display:flex;gap:10px;align-items:center;padding:8px 4px;border-bottom:1px solid var(--line)}
+.row .th{width:92px;height:56px;border-radius:6px;background:var(--bg2);object-fit:cover;flex:none;border:1px solid var(--line)}
+.row .info{min-width:0;flex:1}
+.row .nm{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .kn{font-size:11px;color:var(--sub);font-weight:400;margin-left:4px}
+.row .co{font-size:13px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .meta{display:flex;gap:4px;margin-top:3px;flex-wrap:wrap}
+.tag{font-size:11px;padding:1px 6px;border-radius:5px;background:var(--accent-bg);color:var(--accent)}
+.tag.cust{background:#e7f6ec;color:#1f7a43}
+:root[data-theme="dark"] .tag.cust{background:#1d3626;color:#6fd69a}
+.tag.fu{background:#fdecec;color:var(--danger)}
+.stars{color:var(--star);font-size:12px;letter-spacing:-1px}
+.empty{text-align:center;color:var(--sub);padding:60px 10px;line-height:1.8}
+
+/* 五十音インデックス */
+#idx{position:fixed;right:2px;top:50%;transform:translateY(-50%);z-index:30;display:flex;flex-direction:column;align-items:center;background:var(--bg2);border-radius:14px;padding:6px 2px;touch-action:none;user-select:none;-webkit-user-select:none}
+#idx span{font-size:12px;font-weight:700;color:var(--accent);padding:3px 6px;line-height:1.15}
+#idx span.off{color:var(--line)}
+#bubble{position:fixed;left:50%;top:45%;transform:translate(-50%,-50%);width:84px;height:84px;border-radius:18px;background:rgba(0,0,0,.65);color:#fff;font-size:44px;font-weight:700;display:flex;align-items:center;justify-content:center;z-index:90;pointer-events:none}
+
+/* FAB */
+.fab{position:fixed;right:44px;bottom:calc(env(safe-area-inset-bottom) + 18px);z-index:25;border:none;background:var(--accent);color:#fff;border-radius:28px;padding:14px 20px;font-size:15px;font-weight:700;box-shadow:var(--shadow)}
+.fab2{right:auto;left:14px;background:var(--card);color:var(--text);border:1px solid var(--line)}
+
+/* スライド表示 */
+#slider{position:fixed;inset:0;background:#0f1013;z-index:60;display:flex;flex-direction:column}
+#slider .top{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;color:#fff}
+#slider .top .gy{font-size:22px;font-weight:700;min-width:36px}
+#slider .top .pos{font-size:13px;color:#aaa;margin-right:auto}
+#slider .top button{background:#2a2d33;color:#fff;border:none;border-radius:9px;padding:8px 12px}
+#track{flex:1;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+#track::-webkit-scrollbar{display:none}
+.slide{flex:none;width:100vw;scroll-snap-align:center;scroll-snap-stop:normal;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 18px 20px;gap:12px}
+.slide .imgwrap{width:100%;max-width:560px;aspect-ratio:91/55;background:#22252b;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.slide img{max-width:100%;max-height:100%;object-fit:contain}
+.slide .noimg{color:#777;font-size:13px}
+.slide .cap{color:#fff;text-align:center}
+.slide .cap .n{font-size:20px;font-weight:700}
+.slide .cap .c{font-size:14px;color:#bbb;margin-top:2px}
+.slide .cap .hint{font-size:11px;color:#777;margin-top:6px}
+.slide .open{background:#fff;color:#111;border:none;border-radius:20px;padding:8px 22px;font-weight:700}
+#slider #idx2{position:absolute;right:2px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;background:rgba(255,255,255,.08);border-radius:14px;padding:6px 2px;touch-action:none;user-select:none;-webkit-user-select:none}
+#idx2 span{font-size:12px;font-weight:700;color:#8fc0ff;padding:3px 6px;line-height:1.15}
+#idx2 span.off{color:#444}
+
+/* モーダル */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:70;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:640px;max-height:94vh;overflow-y:auto;border-radius:16px 16px 0 0;padding:14px 16px calc(env(safe-area-inset-bottom) + 20px)}
+@media(min-width:700px){.modal{align-items:center}.sheet{border-radius:16px}}
+.sheet-h{display:flex;align-items:center;gap:8px;margin-bottom:10px;position:sticky;top:-14px;background:var(--bg);padding:6px 0;z-index:2}
+.sheet-h h2{font-size:17px;margin:0 auto 0 0}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:9px 14px;font-size:14px}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+.btn.dng{color:var(--danger)}
+.btn.sm{padding:6px 10px;font-size:13px}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+
+/* 詳細 */
+.dimg{position:relative;width:100%;aspect-ratio:91/55;background:var(--bg2);border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;border:1px solid var(--line)}
+.dimg img{max-width:100%;max-height:100%;object-fit:contain}
+.dimg .flip{position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:14px;padding:5px 10px;font-size:12px}
+.dname{font-size:22px;font-weight:700;margin-top:12px}
+.dkana{font-size:12px;color:var(--sub)}
+.dco{font-size:15px;margin-top:4px}
+.dtitle{font-size:13px;color:var(--sub)}
+.dl{margin-top:12px;border-top:1px solid var(--line)}
+.dl .it{display:flex;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line);align-items:flex-start}
+.dl .k{width:76px;flex:none;color:var(--sub);font-size:12px;padding-top:2px}
+.dl .v{flex:1;word-break:break-all;white-space:pre-wrap}
+.dl .v a{color:var(--accent);text-decoration:none}
+.dl .act{flex:none;border:none;background:var(--bg2);border-radius:7px;padding:4px 8px;font-size:12px}
+details.raw{margin-top:10px;font-size:13px;color:var(--sub)}
+details.raw pre{white-space:pre-wrap;background:var(--bg2);padding:10px;border-radius:8px;font-family:inherit}
+
+/* 編集 */
+.slots{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.slot{border:2px dashed var(--line);border-radius:10px;aspect-ratio:91/55;display:flex;align-items:center;justify-content:center;flex-direction:column;position:relative;overflow:hidden;background:var(--bg2);color:var(--sub);font-size:13px;text-align:center}
+.slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:var(--bg2)}
+.slot .ctl{position:absolute;bottom:4px;right:4px;display:flex;gap:4px;z-index:2}
+.slot .ctl button{border:none;background:rgba(0,0,0,.6);color:#fff;border-radius:7px;padding:4px 7px;font-size:12px}
+.slot input{position:absolute;inset:0;opacity:0;z-index:1}
+.ocrbar{display:flex;gap:8px;align-items:center;margin:10px 0;flex-wrap:wrap}
+.ocrbar .msg{font-size:12px;color:var(--sub);flex:1}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px}
+.f{display:flex;flex-direction:column;gap:3px}
+.f.full{grid-column:1/-1}
+.f label{font-size:12px;color:var(--sub)}
+.f input,.f select,.f textarea{border:1px solid var(--line);background:var(--bg2);border-radius:8px;padding:9px 10px;font-size:16px;width:100%}
+.f textarea{min-height:64px;resize:vertical}
+.f .hl{font-size:11px;color:var(--sub)}
+.stars-in{display:flex;gap:4px}
+.stars-in button{border:1px solid var(--line);background:var(--bg2);border-radius:8px;padding:6px 10px;font-size:13px}
+.stars-in button.on{background:var(--star);border-color:var(--star);color:#fff}
+.groupt{grid-column:1/-1;font-size:13px;font-weight:700;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.sug{position:relative}
+.sugbox{position:absolute;left:0;right:0;top:100%;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);z-index:5;max-height:220px;overflow-y:auto}
+.sugbox div{padding:9px 10px;border-bottom:1px solid var(--line);font-size:14px}
+.sugbox div small{display:block;color:var(--sub);font-size:11px}
+.warn{background:#fff6e0;color:#8a5a00;border-radius:8px;padding:8px 10px;font-size:13px;margin-top:8px}
+:root[data-theme="dark"] .warn{background:#3a2f12;color:#ffd277}
+
+/* 読み込み */
+#busy{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:95;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:#fff}
+.spin{width:42px;height:42px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:rgba(0,0,0,.8);color:#fff;padding:9px 16px;border-radius:20px;font-size:13px;z-index:99;max-width:90vw;text-align:center}
+#zoom{position:fixed;inset:0;background:#000;z-index:98;display:flex;align-items:center;justify-content:center;overflow:auto}
+#zoom img{max-width:100%;max-height:100%;touch-action:pinch-zoom}
+#zoom button{position:fixed;top:calc(env(safe-area-inset-top) + 10px);right:12px;background:#333;color:#fff;border:none;border-radius:20px;padding:8px 14px}
+.set-sec{border-top:1px solid var(--line);padding:12px 0}
+.set-sec h3{font-size:14px;margin:0 0 8px}
+.set-sec p{font-size:12px;color:var(--sub);margin:4px 0 8px;line-height:1.6}
+.listedit{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.listedit span{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:4px 6px 4px 10px;font-size:13px;display:flex;align-items:center;gap:4px}
+.listedit span button{border:none;background:none;color:var(--sub);font-size:14px;padding:0 2px}
+.inl{display:flex;gap:6px}
+.inl input,.inl select{flex:1;border:1px solid var(--line);background:var(--bg2);border-radius:8px;padding:8px 10px;font-size:16px;min-width:0}
+</style>
+</head>
+<body>
+
+<!-- ロック -->
+<div id="lock">
+  <div style="font-size:40px">📇</div>
+  <h1>名刺管理</h1>
+  <input id="passIn" type="password" inputmode="text" placeholder="パスコード" autocomplete="current-password">
+  <button class="btn pri" id="passBtn" style="width:220px">開く</button>
+  <div class="err" id="passErr"></div>
+</div>
+
+<header id="hdr">
+  <div class="hrow">
+    <h1>📇 名刺管理</h1>
+    <button class="icon-btn" id="btnSlide" title="スライドで探す">🃏</button>
+    <button class="icon-btn" id="btnReload" title="最新化">🔄</button>
+    <button class="icon-btn" id="btnTheme" title="表示切替">🌙</button>
+    <button class="icon-btn" id="btnSet" title="設定">⚙️</button>
+  </div>
+  <div class="search">
+    <input id="q" type="search" placeholder="名前・会社・住所・電話・メモ… 何でも検索" autocomplete="off">
+    <button class="clear hidden" id="qClear">✕</button>
+  </div>
+  <div class="filters">
+    <select id="fSort">
+      <option value="kana">人名 あいうえお順</option>
+      <option value="company">会社名 あいうえお順</option>
+      <option value="date">交換日 新しい順</option>
+      <option value="imp">重要度 高い順</option>
+    </select>
+    <select id="fCat"><option value="">分類：すべて</option></select>
+    <select id="fOwner"><option value="">担当：すべて</option></select>
+    <select id="fImp">
+      <option value="">重要度：すべて</option>
+      <option value="3">★★★のみ</option>
+      <option value="2">★★以上</option>
+    </select>
+    <button class="chip" id="fFollow">🔔 要フォロー</button>
+    <button class="chip" id="fNoCust">得意先未設定</button>
+  </div>
+  <div class="countline"><span id="count"></span><span id="loadedAt"></span></div>
+</header>
+
+<main id="list"></main>
+<div id="idx"></div>
+
+<button class="fab fab2" id="fabSlide">🃏 めくって探す</button>
+<button class="fab" id="fabAdd">＋ 名刺を追加</button>
+
+<!-- スライド -->
+<div id="slider" class="hidden">
+  <div class="top">
+    <span class="gy" id="slGy">あ</span>
+    <span class="pos" id="slPos"></span>
+    <button id="slClose">✕ 閉じる</button>
+  </div>
+  <div id="track"></div>
+  <div id="idx2"></div>
+</div>
+
+<!-- 詳細 -->
+<div class="modal hidden" id="mDetail"><div class="sheet" id="detailBody"></div></div>
+<!-- 編集 -->
+<div class="modal hidden" id="mEdit"><div class="sheet" id="editBody"></div></div>
+<!-- 設定 -->
+<div class="modal hidden" id="mSet"><div class="sheet" id="setBody"></div></div>
+
+<div id="busy" class="hidden"><div class="spin"></div><div id="busyMsg">処理中…</div></div>
+<div id="bubble" class="hidden"></div>
+<div id="toast" class="hidden"></div>
+<div id="zoom" class="hidden"><button id="zoomClose">✕ 閉じる</button><img id="zoomImg" alt=""></div>
+
+<script type="module">
+/* =========================================================
+   名刺管理アプリ  meishi.html
+   ・Firebase(コース表と同じプロジェクト)  Firestore: mc_cards / mc_settings
+   ・画像: Storage の meishi/ 以下
+   ・文字起こし: Google Gemini API(キーはこの端末にだけ保存)
+   ========================================================= */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, doc, getDocs, getDoc, setDoc, deleteDoc, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+
+/* ★★★ ここだけ設定 ★★★
+   apiKey / authDomain は editor.html の firebaseConfig と同じ値を貼ってください */
+const firebaseConfig = {
+  apiKey: "AIzaSyD8JW9526h0TKa9_hEaGrmlpVG8NeW4c3Q",
+  authDomain: "hirataku1102.firebaseapp.com",
+  projectId: "hirataku1102",
+  storageBucket: "hirataku1102.firebasestorage.app",
+  messagingSenderId: "219252490669",
+  appId: "1:219252490669:web:bb3d9dc019a17a5a01e124"
+};
+const PASSCODE = "meishi2026";          // 開くときのパスコード(変更OK)
+const PASS_HOURS = 24;                  // 再入力までの時間
+const COL_CARDS = "mc_cards";
+const COL_SET = "mc_settings";
+const COL_CUSTOMERS = "cm_customers";   // コース表の得意先(読むだけ)
+const DEFAULT_MODEL = "gemini-flash-latest";
+const DEFAULT_CATS = ["管理会社","直営顧客","元請・ゼネコン","協力業者・同業","行政・組合","見込み客","その他"];
+const DEFAULT_OWNERS = ["Takuya"];
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const st = getStorage(app);
+
+/* ---------- 小物 ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem("mc_"+k); return v===null? d : JSON.parse(v);}catch{ return d; } },
+  set(k, v){ try{ localStorage.setItem("mc_"+k, JSON.stringify(v)); }catch{} }
+};
+function toast(msg, ms=2200){ const t=$("#toast"); t.textContent=msg; t.classList.remove("hidden"); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.add("hidden"), ms); }
+function busy(on, msg="処理中…"){ $("#busyMsg").textContent=msg; $("#busy").classList.toggle("hidden", !on); }
+const today = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+const toHira = s => String(s||"").replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0)-0x60));
+const norm = s => toHira(String(s||"").normalize("NFKC").toLowerCase()).replace(/[\s\-‐ー−―‑()（）・.,、。]/g, m => m==="ー" ? "ー" : "");
+const digits = s => String(s||"").normalize("NFKC").replace(/\D/g,"");
+
+/* 五十音の行 */
+const ROWS = [["あ","あいうえお"],["か","かきくけこ"],["さ","さしすせそ"],["た","たちつてと"],["な","なにぬねの"],["は","はひふへほ"],["ま","まみむめも"],["や","やゆよ"],["ら","らりるれろ"],["わ","わをん"]];
+const ROW_KEYS = [...ROWS.map(r=>r[0]), "A", "他"];
+const SMALL = {"ぁ":"あ","ぃ":"い","ぅ":"う","ぇ":"え","ぉ":"お","っ":"つ","ゃ":"や","ゅ":"ゆ","ょ":"よ","ゎ":"わ","ゕ":"か","ゖ":"け"};
+function rowOf(s){
+  let c = toHira(String(s||"").normalize("NFKC").trim()).charAt(0);
+  if(!c) return "他";
+  c = c.normalize("NFD").charAt(0);
+  c = SMALL[c] || c;
+  for(const [k,chars] of ROWS) if(chars.includes(c)) return k;
+  if(/[a-z]/i.test(c)) return "A";
+  return "他";
+}
+const collator = new Intl.Collator("ja");
+
+/* ---------- 状態 ---------- */
+let cards = [];           // 全名刺
+let settings = { categories: DEFAULT_CATS.slice(), owners: DEFAULT_OWNERS.slice() };
+let customers = null;     // 得意先(必要時に読む)
+let view = [];            // 表示中(絞り込み後)
+let onlyFollow = false, onlyNoCust = false;
+
+/* ---------- パスコード ---------- */
+function unlocked(){ const t = LS.get("unlockAt", 0); return Date.now() - t < PASS_HOURS*3600*1000; }
+function tryPass(){
+  if($("#passIn").value === PASSCODE){ LS.set("unlockAt", Date.now()); $("#lock").classList.add("hidden"); start(); }
+  else { $("#passErr").textContent = "パスコードが違います"; }
+}
+$("#passBtn").onclick = tryPass;
+$("#passIn").addEventListener("keydown", e => { if(e.key==="Enter") tryPass(); });
+
+/* ---------- テーマ ---------- */
+function applyTheme(){
+  const t = LS.get("theme","light");
+  document.documentElement.dataset.theme = t;
+  $("#btnTheme").textContent = t==="dark" ? "☀️" : "🌙";
+  document.querySelector('meta[name="theme-color"]').content = t==="dark" ? "#15171b" : "#ffffff";
+}
+$("#btnTheme").onclick = () => { LS.set("theme", LS.get("theme","light")==="dark"?"light":"dark"); applyTheme(); };
+applyTheme();
+
+/* ---------- 読み込み ---------- */
+async function loadAll(){
+  busy(true, "名刺を読み込み中…");
+  try{
+    const [snap, sdoc] = await Promise.all([ getDocs(collection(db, COL_CARDS)), getDoc(doc(db, COL_SET, "main")) ]);
+    cards = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    if(sdoc.exists()){
+      const s = sdoc.data();
+      if(Array.isArray(s.categories) && s.categories.length) settings.categories = s.categories;
+      if(Array.isArray(s.owners) && s.owners.length) settings.owners = s.owners;
+    }
+    const d = new Date();
+    $("#loadedAt").textContent = `${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")} 読込`;
+  }catch(e){
+    console.error(e);
+    alert("読み込みに失敗しました。\n・firebaseConfig の apiKey\n・Firestore のルール(mc_cards の読み書き許可)\nを確認してください。\n\n" + e.message);
+  }
+  busy(false);
+  fillFilterOptions();
+  render();
+}
+async function saveSettings(){
+  await setDoc(doc(db, COL_SET, "main"), { categories: settings.categories, owners: settings.owners, updatedAt: serverTimestamp() }, { merge:true });
+}
+async function loadCustomers(){
+  if(customers) return customers;
+  try{
+    const cached = sessionStorage.getItem("mc_customers");
+    if(cached){ customers = JSON.parse(cached); return customers; }
+  }catch{}
+  busy(true, "得意先リストを読み込み中…");
+  try{
+    const snap = await getDocs(collection(db, COL_CUSTOMERS));
+    customers = snap.docs.map(d => {
+      const x = d.data();
+      const name = x.name ?? x.customerName ?? x.title ?? "";
+      return { id:d.id, name, address: x.address ?? "", code: x.code ?? x.kanriNo ?? x.managementNo ?? "" };
+    }).filter(c => c.name);
+    try{ sessionStorage.setItem("mc_customers", JSON.stringify(customers)); }catch{}
+  }catch(e){ console.error(e); customers = []; toast("得意先リストを読めませんでした(手入力はできます)"); }
+  busy(false);
+  return customers;
+}
+
+/* ---------- 検索・並び替え ---------- */
+function searchText(c){
+  return norm([c.name,c.kana,c.company,c.companyKana,c.dept,c.title,c.zip,c.address,c.tel,c.mobile,c.fax,c.email,c.url,c.other,c.rawText,
+    c.category,c.customerName,c.owner,c.memo,c.place,(c.tags||[]).join(" ")].join(" ")) + " " + digits([c.tel,c.mobile,c.fax,c.zip].join(" "));
+}
+function sortKey(c, mode){
+  if(mode==="company") return toHira((c.companyKana || c.company || c.kana || c.name || "").normalize("NFKC"));
+  return toHira((c.kana || c.name || c.companyKana || c.company || "").normalize("NFKC"));
+}
+function computeView(){
+  const q = norm($("#q").value).trim();
+  const terms = $("#q").value.trim() ? $("#q").value.trim().split(/[\s　]+/).map(t => ({ t: norm(t), d: digits(t) })) : [];
+  const cat = $("#fCat").value, owner = $("#fOwner").value, imp = +$("#fImp").value || 0;
+  const mode = $("#fSort").value;
+  const td = today();
+  let v = cards.filter(c => {
+    if(cat && c.category !== cat) return false;
+    if(owner && c.owner !== owner) return false;
+    if(imp && (c.importance||0) < imp) return false;
+    if(onlyFollow && !(c.followUp && c.followUp <= td)) return false;
+    if(onlyNoCust && c.customerName) return false;
+    if(terms.length){
+      const s = c._s || (c._s = searchText(c));
+      return terms.every(({t,d}) => (t && s.includes(t)) || (d.length>=3 && s.includes(d)));
+    }
+    return true;
+  });
+  if(mode==="date") v.sort((a,b) => (b.exchangedAt||"").localeCompare(a.exchangedAt||"") || collator.compare(sortKey(a,"kana"), sortKey(b,"kana")));
+  else if(mode==="imp") v.sort((a,b) => (b.importance||0)-(a.importance||0) || collator.compare(sortKey(a,"kana"), sortKey(b,"kana")));
+  else v.sort((a,b) => {
+    const ra = ROW_KEYS.indexOf(rowOf(sortKey(a,mode))), rb = ROW_KEYS.indexOf(rowOf(sortKey(b,mode)));
+    return ra - rb || collator.compare(sortKey(a,mode), sortKey(b,mode));
+  });
+  return v;
+}
+const stars = n => n ? "★".repeat(n) + `<span style="opacity:.25">${"★".repeat(3-n)}</span>` : "";
+
+function groupLabel(c){
+  const mode = $("#fSort").value;
+  if(mode==="date"){ return c.exchangedAt ? c.exchangedAt.slice(0,7).replace("-","年") + "月" : "交換日なし"; }
+  if(mode==="imp"){ return c.importance ? "★".repeat(c.importance) : "重要度なし"; }
+  const r = rowOf(sortKey(c, mode));
+  return r==="A" ? "英数字" : r==="他" ? "その他" : r + "行";
+}
+
+/* ---------- 一覧描画 ---------- */
+function render(){
+  view = computeView();
+  for(const c of view) c._row = rowOf(sortKey(c, $("#fSort").value==="company" ? "company" : "kana"));
+  $("#count").textContent = `${view.length}件` + (view.length!==cards.length ? ` / 全${cards.length}件` : "");
+  const list = $("#list");
+  if(!cards.length){
+    list.innerHTML = `<div class="empty">まだ名刺がありません。<br>右下の「＋ 名刺を追加」から撮影してください。<br><br><small>文字起こしを使うには ⚙️設定 で Gemini APIキーを入れてください</small></div>`;
+  }else if(!view.length){
+    list.innerHTML = `<div class="empty">該当する名刺がありません</div>`;
+  }else{
+    let html = "", last = null; const td = today();
+    for(const c of view){
+      const g = groupLabel(c);
+      if(g !== last){ html += `<div class="sec-h" data-row="${esc(c._row)}">${esc(g)}</div>`; last = g; }
+      const fu = c.followUp && c.followUp <= td;
+      html += `<div class="row" data-id="${c.id}">
+        ${c.thumbUrl ? `<img class="th" loading="lazy" src="${esc(c.thumbUrl)}" alt="">` : `<div class="th"></div>`}
+        <div class="info">
+          <div class="nm">${esc(c.name || "(名前なし)")}<span class="kn">${esc(c.kana||"")}</span></div>
+          <div class="co">${esc([c.company, c.title].filter(Boolean).join("　"))}</div>
+          <div class="meta">
+            ${c.importance ? `<span class="stars">${stars(c.importance)}</span>` : ""}
+            ${c.category ? `<span class="tag">${esc(c.category)}</span>` : ""}
+            ${c.customerName ? `<span class="tag cust">得:${esc(c.customerName)}</span>` : ""}
+            ${fu ? `<span class="tag fu">🔔フォロー</span>` : ""}
+          </div>
+        </div>
+      </div>`;
+    }
+    list.innerHTML = html;
+  }
+  document.documentElement.style.setProperty("--hh", $("#hdr").offsetHeight + "px");
+  buildIndex($("#idx"), jumpList);
+}
+$("#list").addEventListener("click", e => { const r = e.target.closest(".row"); if(r) openDetail(r.dataset.id); });
+
+/* ---------- 五十音インデックス(指でなぞってジャンプ) ---------- */
+function buildIndex(el, onJump){
+  const kanaMode = ["kana","company"].includes($("#fSort").value);
+  el.classList.toggle("hidden", !kanaMode || !view.length);
+  if(!kanaMode) return;
+  const has = new Set(view.map(c => c._row));
+  el.innerHTML = ROW_KEYS.map(k => `<span data-k="${k}" class="${has.has(k)?"":"off"}">${k==="A"?"A":k}</span>`).join("");
+  const pick = (x,y) => { const t = document.elementFromPoint(x,y); const k = t && t.dataset && t.dataset.k; if(k){ showBubble(k==="A"?"A":k); onJump(k); } };
+  el.ontouchstart = el.ontouchmove = e => { e.preventDefault(); const p = e.touches[0]; pick(p.clientX, p.clientY); };
+  el.ontouchend = () => hideBubble();
+  el.onclick = e => { const k = e.target.dataset.k; if(k){ showBubble(k); onJump(k); setTimeout(hideBubble, 500); } };
+}
+function showBubble(k){ const b=$("#bubble"); b.textContent=k; b.classList.remove("hidden"); }
+function hideBubble(){ setTimeout(()=>$("#bubble").classList.add("hidden"), 250); }
+function nearestRowIndex(k){
+  let i = ROW_KEYS.indexOf(k);
+  for(let j=i; j<ROW_KEYS.length; j++){ const idx = view.findIndex(c => c._row === ROW_KEYS[j]); if(idx>=0) return idx; }
+  for(let j=i-1; j>=0; j--){ const idx = view.findIndex(c => c._row === ROW_KEYS[j]); if(idx>=0) return idx; }
+  return -1;
+}
+function jumpList(k){
+  const i = nearestRowIndex(k); if(i<0) return;
+  const el = document.querySelector(`.row[data-id="${view[i].id}"]`);
+  if(el){ const sec = el.previousElementSibling && el.previousElementSibling.classList.contains("sec-h") ? el.previousElementSibling : el;
+    window.scrollTo({ top: sec.getBoundingClientRect().top + window.scrollY - $("#hdr").offsetHeight, behavior:"auto" }); }
+}
+
+/* ---------- フィルター ---------- */
+function fillFilterOptions(){
+  const fc = $("#fCat"), fo = $("#fOwner"), vc = fc.value, vo = fo.value;
+  fc.innerHTML = `<option value="">分類：すべて</option>` + settings.categories.map(c=>`<option>${esc(c)}</option>`).join("");
+  fo.innerHTML = `<option value="">担当：すべて</option>` + settings.owners.map(c=>`<option>${esc(c)}</option>`).join("");
+  fc.value = vc; fo.value = vo;
+}
+let qTimer;
+$("#q").addEventListener("input", () => { $("#qClear").classList.toggle("hidden", !$("#q").value); clearTimeout(qTimer); qTimer = setTimeout(render, 150); });
+$("#qClear").onclick = () => { $("#q").value=""; $("#qClear").classList.add("hidden"); render(); };
+["#fSort","#fCat","#fOwner","#fImp"].forEach(s => $(s).addEventListener("change", () => { if(s==="#fSort") LS.set("sort", $("#fSort").value); render(); }));
+$("#fFollow").onclick = () => { onlyFollow = !onlyFollow; $("#fFollow").classList.toggle("on", onlyFollow); render(); };
+$("#fNoCust").onclick = () => { onlyNoCust = !onlyNoCust; $("#fNoCust").classList.toggle("on", onlyNoCust); render(); };
+$("#btnReload").onclick = () => { customers = null; try{ sessionStorage.removeItem("mc_customers"); }catch{} loadAll(); };
+
+/* ---------- スライド(しゅっしゅっとめくる) ---------- */
+function openSlider(startId){
+  if(!view.length){ toast("表示する名刺がありません"); return; }
+  const tr = $("#track");
+  tr.innerHTML = view.map(c => `<div class="slide" data-id="${c.id}">
+      <div class="imgwrap" data-act="flip">${c.frontUrl ? `<img loading="lazy" src="${esc(c.frontUrl)}" data-front="${esc(c.frontUrl)}" data-back="${esc(c.backUrl||"")}" alt="">` : `<span class="noimg">画像なし</span>`}</div>
+      <div class="cap"><div class="n">${esc(c.name||"(名前なし)")}</div><div class="c">${esc([c.company,c.title].filter(Boolean).join("　"))}</div>
+      ${c.backUrl ? `<div class="hint">画像タップで裏面</div>` : ""}</div>
+      <button class="open" data-act="open">詳細を見る</button>
+    </div>`).join("");
+  $("#slider").classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+  const kanaMode = ["kana","company"].includes($("#fSort").value);
+  const idx2 = $("#idx2");
+  if(kanaMode){
+    idx2.classList.remove("hidden");
+    const has = new Set(view.map(c => c._row));
+    idx2.innerHTML = ROW_KEYS.map(k => `<span data-k="${k}" class="${has.has(k)?"":"off"}">${k}</span>`).join("");
+    const pick = (x,y) => { const t = document.elementFromPoint(x,y); const k = t && t.dataset && t.dataset.k; if(k){ showBubble(k); jumpSlide(k); } };
+    idx2.ontouchstart = idx2.ontouchmove = e => { e.preventDefault(); const p=e.touches[0]; pick(p.clientX,p.clientY); };
+    idx2.ontouchend = () => hideBubble();
+    idx2.onclick = e => { const k=e.target.dataset.k; if(k){ showBubble(k); jumpSlide(k); setTimeout(hideBubble,500);} };
+  } else idx2.classList.add("hidden");
+  const i = startId ? Math.max(0, view.findIndex(c => c.id===startId)) : 0;
+  requestAnimationFrame(() => { tr.scrollLeft = i * tr.clientWidth; updateSlidePos(); });
+}
+function jumpSlide(k){ const i = nearestRowIndex(k); if(i>=0){ const tr=$("#track"); tr.scrollLeft = i*tr.clientWidth; updateSlidePos(); } }
+function updateSlidePos(){
+  const tr = $("#track"); const i = Math.round(tr.scrollLeft / Math.max(1,tr.clientWidth));
+  const c = view[i]; if(!c) return;
+  $("#slPos").textContent = `${i+1} / ${view.length}`;
+  const g = groupLabel(c);
+  $("#slGy").textContent = ["kana","company"].includes($("#fSort").value) ? (c._row==="他"?"他":c._row) : g;
+}
+$("#track").addEventListener("scroll", () => { cancelAnimationFrame(updateSlidePos._r); updateSlidePos._r = requestAnimationFrame(updateSlidePos); }, { passive:true });
+$("#track").addEventListener("click", e => {
+  const s = e.target.closest(".slide"); if(!s) return;
+  const act = e.target.closest("[data-act]")?.dataset.act;
+  if(act==="open") openDetail(s.dataset.id);
+  else if(act==="flip"){ const img = s.querySelector("img"); if(img && img.dataset.back){ img.src = img.src===img.dataset.back ? img.dataset.front : img.dataset.back; } }
+});
+function closeSlider(){ $("#slider").classList.add("hidden"); document.body.style.overflow = ""; $("#track").innerHTML=""; }
+$("#slClose").onclick = closeSlider;
+$("#btnSlide").onclick = () => openSlider();
+$("#fabSlide").onclick = () => openSlider();
+
+/* ---------- 詳細 ---------- */
+function openModal(id){ $(id).classList.remove("hidden"); document.body.style.overflow="hidden"; }
+function closeModal(id){ $(id).classList.add("hidden"); if($("#slider").classList.contains("hidden") && [...document.querySelectorAll(".modal")].every(m=>m.classList.contains("hidden"))) document.body.style.overflow=""; }
+document.querySelectorAll(".modal").forEach(m => m.addEventListener("click", e => { if(e.target===m) closeModal("#"+m.id); }));
+
+function openDetail(id){
+  const c = cards.find(x => x.id===id); if(!c) return;
+  const tel = (v,label) => v ? `<div class="it"><div class="k">${label}</div><div class="v"><a href="tel:${esc(digits(v))}">${esc(v)}</a></div><button class="act" data-copy="${esc(v)}">コピー</button></div>` : "";
+  const it = (label,v,extra="") => v ? `<div class="it"><div class="k">${label}</div><div class="v">${extra || esc(v)}</div><button class="act" data-copy="${esc(v)}">コピー</button></div>` : "";
+  const sameCo = c.company ? cards.filter(x => x.id!==c.id && norm(x.company)===norm(c.company)) : [];
+  const td = today();
+  $("#detailBody").innerHTML = `
+    <div class="sheet-h"><h2>名刺の詳細</h2><button class="btn sm" data-a="edit">✏️ 編集</button><button class="btn sm" data-a="close">✕</button></div>
+    <div class="dimg" id="dimg">${c.frontUrl ? `<img src="${esc(c.frontUrl)}" alt="" data-a="zoom">` : `<span style="color:var(--sub)">画像なし</span>`}
+      ${c.backUrl ? `<button class="flip" data-a="flip">裏面を見る</button>` : ""}</div>
+    <div class="dname">${esc(c.name||"(名前なし)")}</div>
+    <div class="dkana">${esc(c.kana||"")}</div>
+    <div class="dco">${esc(c.company||"")}${c.companyKana?`<span class="dkana">　${esc(c.companyKana)}</span>`:""}</div>
+    <div class="dtitle">${esc([c.dept,c.title].filter(Boolean).join("　"))}</div>
+    <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+      ${c.importance?`<span class="stars" style="font-size:16px">${stars(c.importance)}</span>`:""}
+      ${c.category?`<span class="tag">${esc(c.category)}</span>`:""}
+      ${c.customerName?`<span class="tag cust">得意先:${esc(c.customerName)}</span>`:""}
+      ${(c.tags||[]).map(t=>`<span class="tag">#${esc(t)}</span>`).join("")}
+    </div>
+    <div class="dl">
+      ${tel(c.mobile,"携帯")}${tel(c.tel,"電話")}${tel(c.fax,"FAX")}
+      ${it("メール", c.email, c.email?`<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`:"")}
+      ${c.address ? `<div class="it"><div class="k">住所</div><div class="v">${c.zip?"〒"+esc(c.zip)+"<br>":""}<a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address)}">${esc(c.address)}</a></div><button class="act" data-copy="${esc((c.zip?"〒"+c.zip+" ":"")+c.address)}">コピー</button></div>` : ""}
+      ${it("Web", c.url, c.url?`<a target="_blank" rel="noopener" href="${esc(/^https?:/.test(c.url)?c.url:"https://"+c.url)}">${esc(c.url)}</a>`:"")}
+      ${it("その他", c.other)}
+      ${it("交換日", c.exchangedAt)}
+      ${it("交換場所", c.place)}
+      ${it("担当者", c.owner)}
+      ${c.followUp ? `<div class="it"><div class="k">フォロー</div><div class="v" style="${c.followUp<=td?"color:var(--danger);font-weight:700":""}">${esc(c.followUp)}${c.followUp<=td?" (期日到来)":""}</div></div>`:""}
+      ${it("メモ", c.memo)}
+    </div>
+    ${c.rawText ? `<details class="raw"><summary>読み取った全文を見る</summary><pre>${esc(c.rawText)}</pre></details>` : ""}
+    <div class="btns" style="margin-top:14px">
+      <button class="btn" data-a="vcf">📱 連絡先に保存</button>
+      ${sameCo.length ? `<button class="btn" data-a="sameco">🏢 同じ会社 ${sameCo.length}件</button>` : ""}
+      ${c.customerName ? `<button class="btn" data-a="samecust">🔗 この得意先の名刺</button>` : ""}
+      <button class="btn" data-a="fudone">${c.followUp ? "✅ フォロー完了" : "🔔 1週間後にフォロー"}</button>
+      <button class="btn dng" data-a="del">🗑 削除</button>
+    </div>
+    <div style="font-size:11px;color:var(--sub);margin-top:12px">登録: ${c.createdAt?.toDate ? c.createdAt.toDate().toLocaleString("ja-JP") : "-"}</div>
+  `;
+  const body = $("#detailBody");
+  body.onclick = async e => {
+    const cp = e.target.dataset.copy;
+    if(cp){ try{ await navigator.clipboard.writeText(cp); toast("コピーしました"); }catch{ toast("コピーできませんでした"); } return; }
+    const a = e.target.dataset.a; if(!a) return;
+    if(a==="close") closeModal("#mDetail");
+    if(a==="edit"){ closeModal("#mDetail"); openEdit(c.id); }
+    if(a==="zoom"){ $("#zoomImg").src = e.target.src; $("#zoom").classList.remove("hidden"); }
+    if(a==="flip"){ const img = $("#dimg img"); const back = img.src===c.backUrl; img.src = back ? c.frontUrl : c.backUrl; e.target.textContent = back ? "裏面を見る" : "表面を見る"; }
+    if(a==="vcf") downloadVcf(c);
+    if(a==="sameco"){ closeModal("#mDetail"); closeSlider(); $("#q").value = c.company; $("#qClear").classList.remove("hidden"); render(); window.scrollTo(0,0); }
+    if(a==="samecust"){ closeModal("#mDetail"); closeSlider(); $("#q").value = c.customerName; $("#qClear").classList.remove("hidden"); render(); window.scrollTo(0,0); }
+    if(a==="fudone"){
+      const d = new Date(); d.setDate(d.getDate()+7);
+      const v = c.followUp ? "" : `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+      await saveCardFields(c.id, { followUp: v }); toast(v ? `${v} にフォロー設定` : "フォロー完了"); openDetail(c.id);
+    }
+    if(a==="del"){
+      if(!confirm(`「${c.name||c.company||"この名刺"}」を削除しますか?\n元に戻せません。`)) return;
+      busy(true,"削除中…");
+      try{
+        for(const p of [c.frontPath, c.thumbPath, c.backPath]) if(p) await deleteObject(ref(st, p)).catch(()=>{});
+        await deleteDoc(doc(db, COL_CARDS, c.id));
+        cards = cards.filter(x => x.id!==c.id);
+        closeModal("#mDetail"); if(!$("#slider").classList.contains("hidden")) closeSlider(); render(); toast("削除しました");
+      }catch(err){ alert("削除に失敗: "+err.message); }
+      busy(false);
+    }
+  };
+  openModal("#mDetail");
+}
+$("#zoomClose").onclick = () => $("#zoom").classList.add("hidden");
+
+async function saveCardFields(id, fields){
+  await setDoc(doc(db, COL_CARDS, id), { ...fields, updatedAt: serverTimestamp() }, { merge:true });
+  const c = cards.find(x=>x.id===id); Object.assign(c, fields); delete c._s; render();
+}
+
+/* vCard(iPhoneの連絡先に追加) */
+function downloadVcf(c){
+  const e = s => String(s||"").replace(/([,;\\])/g,"\\$1").replace(/\n/g,"\\n");
+  const n = (c.name||"").split(/[\s　]+/), k = (c.kana||"").split(/[\s　]+/);
+  const lines = ["BEGIN:VCARD","VERSION:3.0",
+    `N:${e(n[0]||"")};${e(n.slice(1).join(" "))};;;`, `FN:${e(c.name||c.company||"")}`,
+    c.kana ? `X-PHONETIC-LAST-NAME:${e(k[0]||"")}` : "", c.kana && k[1] ? `X-PHONETIC-FIRST-NAME:${e(k.slice(1).join(" "))}` : "",
+    c.company ? `ORG:${e(c.company)}${c.dept?";"+e(c.dept):""}` : "", c.title ? `TITLE:${e(c.title)}` : "",
+    c.mobile ? `TEL;TYPE=CELL:${e(c.mobile)}` : "", c.tel ? `TEL;TYPE=WORK,VOICE:${e(c.tel)}` : "", c.fax ? `TEL;TYPE=WORK,FAX:${e(c.fax)}` : "",
+    c.email ? `EMAIL;TYPE=WORK:${e(c.email)}` : "", c.address ? `ADR;TYPE=WORK:;;${e(c.address)};;;${e(c.zip||"")};日本` : "",
+    c.url ? `URL:${e(c.url)}` : "", `NOTE:${e(["名刺交換 "+(c.exchangedAt||""), c.memo].filter(Boolean).join("\n"))}`, "END:VCARD"].filter(Boolean);
+  const blob = new Blob([lines.join("\r\n")], { type:"text/vcard" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${c.name||c.company||"meishi"}.vcf`; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+}
+
+/* ---------- 画像処理 ---------- */
+function loadImage(src){ return new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=src; }); }
+async function fileToCanvas(file, maxSide=1600){
+  const url = URL.createObjectURL(file);
+  try{
+    const img = await loadImage(url);
+    const s = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+    const cv = document.createElement("canvas"); cv.width = Math.round(img.naturalWidth*s); cv.height = Math.round(img.naturalHeight*s);
+    cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height); return cv;
+  } finally { URL.revokeObjectURL(url); }
+}
+function rotateCanvas(cv){
+  const r = document.createElement("canvas"); r.width = cv.height; r.height = cv.width;
+  const g = r.getContext("2d"); g.translate(r.width,0); g.rotate(Math.PI/2); g.drawImage(cv,0,0); return r;
+}
+function scaled(cv, maxSide){
+  const s = Math.min(1, maxSide/Math.max(cv.width,cv.height)); if(s===1) return cv;
+  const r = document.createElement("canvas"); r.width=Math.round(cv.width*s); r.height=Math.round(cv.height*s);
+  r.getContext("2d").drawImage(cv,0,0,r.width,r.height); return r;
+}
+const toBlob = (cv,q=.85) => new Promise(r => cv.toBlob(r, "image/jpeg", q));
+const toB64 = cv => cv.toDataURL("image/jpeg", .85).split(",")[1];
+
+/* ---------- Gemini で文字起こし ---------- */
+const OCR_PROMPT = `あなたは日本の名刺を正確に読み取るOCRです。画像(1枚目が表面、2枚目があれば裏面)から情報を読み取り、次のJSONだけを返してください。
+{
+ "name": "氏名(姓と名の間に半角スペース)",
+ "kana": "氏名のよみ(ひらがな、姓と名の間に半角スペース。ふりがな・ローマ字表記があればそれを優先、なければ一般的な読みを推定)",
+ "company": "会社名・団体名(株式会社等も含め表記どおり)",
+ "companyKana": "会社名のよみ(ひらがな。株式会社・有限会社・(株)などの法人格は除いた部分の読み)",
+ "dept": "部署",
+ "title": "役職",
+ "zip": "郵便番号(数字とハイフン)",
+ "address": "住所(ビル名含む。複数あれば本社/主たるもの)",
+ "tel": "代表・会社電話",
+ "mobile": "携帯電話",
+ "fax": "FAX",
+ "email": "メールアドレス",
+ "url": "WebサイトURL",
+ "other": "上記以外の重要な情報(資格・許可番号・営業所・SNS・2つ目の住所など)を改行区切り",
+ "rawText": "名刺に書かれている文字をすべて、読める順に改行区切りで書き起こしたもの"
+}
+読めない項目は空文字""にしてください。推測で作らないこと(よみは除く)。縦書きにも対応してください。`;
+
+async function geminiOCR(canvases){
+  const key = LS.get("geminiKey",""); if(!key) throw new Error("Gemini APIキーが未設定です(⚙️設定から入力)");
+  const model = LS.get("geminiModel", DEFAULT_MODEL) || DEFAULT_MODEL;
+  const parts = [{ text: OCR_PROMPT }, ...canvases.map(cv => ({ inline_data: { mime_type:"image/jpeg", data: toB64(scaled(cv,1600)) } }))];
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+    method:"POST", headers:{ "Content-Type":"application/json", "x-goog-api-key": key },
+    body: JSON.stringify({ contents:[{ role:"user", parts }], generationConfig:{ temperature:0, responseMimeType:"application/json" } })
+  });
+  const js = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error((js.error && js.error.message) || ("HTTP "+res.status));
+  const text = (js.candidates?.[0]?.content?.parts || []).map(p => p.text || "").join("");
+  const clean = text.replace(/^```(?:json)?\s*/i,"").replace(/```\s*$/,"").trim();
+  const obj = JSON.parse(clean);
+  return Array.isArray(obj) ? obj[0] : obj;
+}
+
+/* ---------- 編集・新規登録 ---------- */
+const FIELDS = [
+  ["name","氏名","",1],["kana","よみ(ひらがな)","あいうえお順に使います",1],
+  ["company","会社名","",1],["companyKana","会社名よみ","株式会社などを除いた読み",1],
+  ["dept","部署"],["title","役職"],
+  ["mobile","携帯","",0,"tel"],["tel","電話","",0,"tel"],
+  ["fax","FAX","",0,"tel"],["email","メール","",0,"email"],
+  ["zip","郵便番号"],["url","Web"],
+  ["address","住所","",2],["other","その他の記載","",3]
+];
+let edit = null; // { id, isNew, front:{cv,changed}, back:{cv,changed}, data }
+
+function openEdit(id, keepCount){
+  const c = id ? cards.find(x=>x.id===id) : null;
+  edit = { id: c ? c.id : doc(collection(db, COL_CARDS)).id, isNew: !c, front:{ cv:null, url:c?.frontUrl||"", changed:false }, back:{ cv:null, url:c?.backUrl||"", changed:false },
+    data: c ? { ...c } : { exchangedAt: today(), owner: LS.get("lastOwner", settings.owners[0]||""), category: LS.get("lastCat",""), importance: 0 }, keepCount: keepCount||0 };
+  renderEdit();
+  openModal("#mEdit");
+}
+function slotHTML(side){
+  const s = edit[side]; const src = s.cv ? s.cv.toDataURL("image/jpeg",.7) : s.url;
+  return `<div class="slot" id="slot-${side}">
+    ${src ? `<img src="${esc(src)}" alt="">` : `<div>📷<br>${side==="front"?"表面を撮影 / 選択":"裏面(任意)"}</div>`}
+    <input type="file" accept="image/*" data-side="${side}">
+    ${src ? `<div class="ctl"><button data-rot="${side}">↻ 回転</button>${side==="back"?`<button data-rm="back">✕</button>`:""}</div>` : ""}
+  </div>`;
+}
+function renderEdit(){
+  const d = edit.data;
+  const opt = (arr,v) => `<option value="">(未選択)</option>` + arr.map(x=>`<option ${x===v?"selected":""}>${esc(x)}</option>`).join("");
+  $("#editBody").innerHTML = `
+    <div class="sheet-h"><h2>${edit.isNew ? "名刺を追加" : "名刺を編集"}${edit.keepCount?` <small style="color:var(--sub);font-weight:400">(連続 ${edit.keepCount+1}枚目)</small>`:""}</h2>
+      <button class="btn sm" data-a="cancel">キャンセル</button><button class="btn sm pri" data-a="save">保存</button></div>
+    <div class="slots">${slotHTML("front")}${slotHTML("back")}</div>
+    <div class="ocrbar">
+      <button class="btn pri sm" data-a="ocr">🤖 AIで読み取る</button>
+      <span class="msg" id="ocrMsg">${LS.get("geminiKey","") ? "表面を撮ると自動で読み取ります。名刺を画面いっぱいに、まっすぐ撮るのがコツ" : "⚙️設定で Gemini APIキーを入れると自動で文字起こしできます"}</span>
+    </div>
+    <div id="dupWarn"></div>
+    <div class="fgrid">
+      ${FIELDS.map(([k,l,h,w,t]) => `<div class="f ${w>=2?"full":""}"><label>${l}</label>
+        ${w===3 ? `<textarea data-k="${k}">${esc(d[k]||"")}</textarea>` : `<input data-k="${k}" type="${t||"text"}" value="${esc(d[k]||"")}" ${t==="tel"?'inputmode="tel"':""}>`}
+        ${h?`<span class="hl">${h}</span>`:""}</div>`).join("")}
+      <div class="groupt">営業管理</div>
+      <div class="f"><label>分類</label><select data-k="category">${opt(settings.categories, d.category)}</select></div>
+      <div class="f"><label>担当者</label><select data-k="owner">${opt(settings.owners, d.owner)}</select></div>
+      <div class="f"><label>交換日</label><input data-k="exchangedAt" type="date" value="${esc(d.exchangedAt||"")}"></div>
+      <div class="f"><label>交換場所・きっかけ</label><input data-k="place" value="${esc(d.place||"")}" placeholder="例:現場訪問、紹介、展示会"></div>
+      <div class="f full"><label>重要度</label><div class="stars-in" id="impIn">
+        ${[0,1,2,3].map(n=>`<button data-imp="${n}" class="${(d.importance||0)===n?"on":""}">${n?"★".repeat(n):"なし"}</button>`).join("")}</div></div>
+      <div class="f full sug"><label>得意先名(コース表の得意先から選べます / 手入力も可)</label>
+        <input data-k="customerName" value="${esc(d.customerName||"")}" placeholder="タップすると候補を表示" autocomplete="off">
+        <span class="hl" id="custLink">${d.customerId ? "🔗 得意先データと紐付け済み" : ""}</span>
+        <div class="sugbox hidden" id="sugbox"></div></div>
+      <div class="f"><label>フォロー予定日</label><input data-k="followUp" type="date" value="${esc(d.followUp||"")}"></div>
+      <div class="f"><label>タグ(空白区切り)</label><input data-k="tags" value="${esc((d.tags||[]).join(" "))}" placeholder="例:堺市 紹介"></div>
+      <div class="f full"><label>メモ</label><textarea data-k="memo" placeholder="話した内容、提案内容、相手の特徴など">${esc(d.memo||"")}</textarea></div>
+    </div>
+    <div class="btns" style="margin-top:14px;justify-content:flex-end">
+      ${edit.isNew ? `<button class="btn" data-a="savenext">保存して次を撮る</button>` : ""}
+      <button class="btn pri" data-a="save">保存</button>
+    </div>`;
+  bindEdit();
+  checkDup();
+}
+function readForm(){
+  const d = edit.data;
+  $("#editBody").querySelectorAll("[data-k]").forEach(el => {
+    const k = el.dataset.k; let v = el.value.trim();
+    if(k==="tags") d.tags = v ? v.split(/[\s　,、]+/).filter(Boolean) : [];
+    else d[k] = v;
+  });
+  return d;
+}
+function bindEdit(){
+  const body = $("#editBody");
+  body.querySelectorAll('input[type="file"]').forEach(inp => inp.onchange = async e => {
+    const f = e.target.files[0]; if(!f) return; const side = inp.dataset.side;
+    readForm();
+    busy(true,"画像を準備中…");
+    try{ edit[side].cv = await fileToCanvas(f); edit[side].changed = true; }catch{ alert("画像を読み込めませんでした"); }
+    busy(false);
+    renderEdit();
+    if(side==="front" && LS.get("geminiKey","") && (edit.isNew && !edit.data.name)) runOCR();
+  });
+  body.onclick = async e => {
+    const t = e.target;
+    if(t.dataset.rot){ e.preventDefault(); readForm(); const s = edit[t.dataset.rot];
+      if(!s.cv && s.url){ busy(true,"画像を準備中…"); try{ const blob = await (await fetch(s.url)).blob(); s.cv = await fileToCanvas(blob); }catch{ busy(false); alert("この画像は回転できません(撮り直してください)"); return; } busy(false); }
+      if(s.cv){ s.cv = rotateCanvas(s.cv); s.changed = true; renderEdit(); } return; }
+    if(t.dataset.rm){ e.preventDefault(); readForm(); edit.back = { cv:null, url:"", changed:true, removed:true }; renderEdit(); return; }
+    if(t.dataset.imp!==undefined){ edit.data.importance = +t.dataset.imp; body.querySelectorAll("#impIn button").forEach(b=>b.classList.toggle("on", b===t)); return; }
+    const a = t.dataset.a; if(!a) return;
+    if(a==="cancel"){ if(confirm("入力内容を破棄して閉じますか?")) closeModal("#mEdit"); }
+    if(a==="ocr") runOCR();
+    if(a==="save") saveEdit(false);
+    if(a==="savenext") saveEdit(true);
+  };
+  // 重複チェック
+  ["name","company","email","mobile","tel"].forEach(k => body.querySelector(`[data-k="${k}"]`).addEventListener("change", () => { readForm(); checkDup(); }));
+  // 得意先候補
+  const ci = body.querySelector('[data-k="customerName"]'), box = $("#sugbox");
+  const showSug = async () => {
+    const list = await loadCustomers(); const q = norm(ci.value);
+    const co = norm(edit.data.company||body.querySelector('[data-k="company"]').value);
+    let hits = list.filter(c => !q || norm(c.name).includes(q) || norm(c.address).includes(q) || String(c.code).includes(q));
+    if(!q && co) hits = list.filter(c => norm(c.name).includes(co.replace(/株式会社|有限会社|\(株\)|\(有\)/g,"")) );
+    hits = hits.slice(0,30);
+    box.innerHTML = hits.length ? hits.map(c=>`<div data-cid="${esc(c.id)}">${esc(c.name)}<small>${esc(c.address||"")}</small></div>`).join("") : `<div style="color:var(--sub)">${q?"該当なし(このまま手入力で保存できます)":"入力すると候補を絞り込みます"}</div>`;
+    box.classList.remove("hidden");
+  };
+  ci.addEventListener("focus", showSug);
+  ci.addEventListener("input", () => { edit.data.customerId = ""; $("#custLink").textContent=""; clearTimeout(ci._t); ci._t=setTimeout(showSug,150); });
+  ci.addEventListener("blur", () => setTimeout(()=>box.classList.add("hidden"), 200));
+  box.addEventListener("mousedown", e => e.preventDefault());
+  box.addEventListener("click", e => { const el = e.target.closest("[data-cid]"); if(!el) return;
+    const c = customers.find(x=>x.id===el.dataset.cid); ci.value = c.name; edit.data.customerName = c.name; edit.data.customerId = c.id;
+    $("#custLink").textContent = "🔗 得意先データと紐付け済み"; box.classList.add("hidden"); });
+}
+function checkDup(){
+  const d = edit.data; const w = $("#dupWarn"); if(!w) return;
+  const em = (d.email||"").toLowerCase(), mb = digits(d.mobile), tl = digits(d.tel), nc = norm(d.name)+"|"+norm(d.company);
+  const hits = cards.filter(c => c.id!==edit.id && (
+    (em && (c.email||"").toLowerCase()===em) || (mb.length>=10 && digits(c.mobile)===mb) ||
+    (d.name && d.company && norm(c.name)+"|"+norm(c.company)===nc)));
+  w.innerHTML = hits.length ? `<div class="warn">⚠️ 似た名刺が登録済みです:${hits.slice(0,3).map(c=>esc(`${c.name||""}(${c.company||""}・${c.exchangedAt||"日付なし"})`)).join("、")}<br>役職変更などで新しい名刺なら、そのまま保存してOKです。</div>` : "";
+}
+async function runOCR(){
+  if(!edit.front.cv && !edit.front.url){ toast("先に表面の画像を入れてください"); return; }
+  readForm();
+  busy(true,"🤖 名刺を読み取り中…(数秒〜十数秒)");
+  try{
+    const cvs = [];
+    for(const side of ["front","back"]){
+      const s = edit[side];
+      if(s.cv) cvs.push(s.cv);
+      else if(s.url){ const blob = await (await fetch(s.url)).blob(); cvs.push(await fileToCanvas(blob)); }
+    }
+    const r = await geminiOCR(cvs);
+    let filled = 0;
+    for(const [k] of FIELDS){
+      const v = (r[k]||"").toString().trim();
+      if(v && (!edit.data[k] || edit.isNew)){ edit.data[k] = v; filled++; }
+    }
+    if(r.rawText) edit.data.rawText = String(r.rawText);
+    busy(false); renderEdit();
+    $("#ocrMsg").textContent = `✅ 読み取りました(${filled}項目)。間違いがないか確認してください`;
+  }catch(err){
+    busy(false); console.error(err);
+    alert("読み取りに失敗しました。\n" + err.message + "\n\n手入力で登録することもできます。");
+  }
+}
+async function saveEdit(next){
+  const d = readForm();
+  if(!d.name && !d.company && !edit.front.cv && !edit.front.url){ alert("氏名・会社名・画像のどれかは入れてください"); return; }
+  busy(true,"保存中…");
+  try{
+    const id = edit.id; const out = {};
+    for(const k of ["name","kana","company","companyKana","dept","title","zip","address","tel","mobile","fax","email","url","other","rawText",
+      "category","owner","exchangedAt","place","customerName","customerId","followUp","memo"]) out[k] = d[k] || "";
+    out.kana = toHira(out.kana); out.companyKana = toHira(out.companyKana);
+    out.tags = d.tags || []; out.importance = d.importance || 0;
+    if(edit.front.changed && edit.front.cv){
+      const fp = `meishi/${id}/front.jpg`, tp = `meishi/${id}/thumb.jpg`;
+      await uploadBytes(ref(st, fp), await toBlob(scaled(edit.front.cv,1600)), { contentType:"image/jpeg" });
+      await uploadBytes(ref(st, tp), await toBlob(scaled(edit.front.cv,360),.7), { contentType:"image/jpeg" });
+      out.frontPath = fp; out.thumbPath = tp;
+      out.frontUrl = await getDownloadURL(ref(st, fp)); out.thumbUrl = await getDownloadURL(ref(st, tp));
+    }
+    if(edit.back.changed){
+      const bp = `meishi/${id}/back.jpg`;
+      if(edit.back.cv){
+        await uploadBytes(ref(st, bp), await toBlob(scaled(edit.back.cv,1600)), { contentType:"image/jpeg" });
+        out.backPath = bp; out.backUrl = await getDownloadURL(ref(st, bp));
+      } else if(edit.back.removed){ await deleteObject(ref(st, bp)).catch(()=>{}); out.backPath = ""; out.backUrl = ""; }
+    }
+    if(edit.isNew) out.createdAt = serverTimestamp();
+    out.updatedAt = serverTimestamp();
+    await setDoc(doc(db, COL_CARDS, id), out, { merge:true });
+    const local = { ...(cards.find(c=>c.id===id)||{ id }), ...out };
+    if(edit.isNew) local.createdAt = { toDate: () => new Date() };
+    delete local._s;
+    cards = cards.filter(c=>c.id!==id).concat(local);
+    if(out.owner) LS.set("lastOwner", out.owner);
+    LS.set("lastCat", out.category);
+    busy(false); toast("保存しました");
+    const kc = edit.keepCount;
+    closeModal("#mEdit"); render();
+    if(next) openEdit(null, kc+1);
+  }catch(err){ busy(false); console.error(err); alert("保存に失敗しました。\n" + err.message); }
+}
+$("#fabAdd").onclick = () => openEdit(null);
+
+/* ---------- 設定 ---------- */
+function openSettings(){
+  const key = LS.get("geminiKey",""), model = LS.get("geminiModel", DEFAULT_MODEL);
+  const chips = (arr, kind) => arr.map((x,i)=>`<span>${esc(x)}<button data-del="${kind}" data-i="${i}">✕</button></span>`).join("");
+  $("#setBody").innerHTML = `
+    <div class="sheet-h"><h2>⚙️ 設定</h2><button class="btn sm" data-a="close">✕</button></div>
+    <div class="set-sec"><h3>🤖 文字起こし(Gemini API)</h3>
+      <p>Google AI Studio(aistudio.google.com)で無料のAPIキーを作って貼ってください。キーはこの端末の中にだけ保存され、GitHubには載りません。</p>
+      <div class="inl"><input id="sKey" type="password" value="${esc(key)}" placeholder="APIキー" autocomplete="off"><button class="btn sm" data-a="showkey">👁</button></div>
+      <div class="inl" style="margin-top:6px"><input id="sModel" value="${esc(model)}" list="modelList" placeholder="${DEFAULT_MODEL}"><datalist id="modelList"></datalist><button class="btn sm" data-a="models">一覧取得</button></div>
+      <p id="mMsg">モデルは通常「${DEFAULT_MODEL}」(常に最新のFlash)でOK。エラーが出たら「一覧取得」から flash を含むものを選んでください。</p>
+      <button class="btn pri sm" data-a="savekey">保存</button>
+    </div>
+    <div class="set-sec"><h3>分類</h3><div class="listedit">${chips(settings.categories,"cat")}</div>
+      <div class="inl"><input id="newCat" placeholder="分類を追加"><button class="btn sm" data-a="addcat">追加</button></div></div>
+    <div class="set-sec"><h3>担当者</h3><div class="listedit">${chips(settings.owners,"owner")}</div>
+      <div class="inl"><input id="newOwner" placeholder="担当者を追加"><button class="btn sm" data-a="addowner">追加</button></div></div>
+    <div class="set-sec"><h3>書き出し(バックアップ)</h3>
+      <p>Excelで開けるCSVと、全データのバックアップ(JSON)を保存できます。</p>
+      <div class="btns"><button class="btn sm" data-a="csv">📊 CSV(Excel用)</button><button class="btn sm" data-a="json">💾 JSON</button><button class="btn sm" data-a="vcfall">📱 表示中を連絡先(vcf)</button></div></div>
+    <div class="set-sec"><h3>その他</h3>
+      <div class="btns"><button class="btn sm" data-a="lock">🔒 ロックする</button></div>
+      <p>登録 ${cards.length}件 / 画像あり ${cards.filter(c=>c.frontUrl).length}件</p></div>`;
+  $("#setBody").onclick = async e => {
+    const t = e.target;
+    if(t.dataset.del){ const arr = t.dataset.del==="cat" ? settings.categories : settings.owners; if(!confirm(`「${arr[+t.dataset.i]}」を一覧から外しますか?(登録済みの名刺はそのまま)`)) return; arr.splice(+t.dataset.i,1); await saveSettings(); fillFilterOptions(); openSettings(); return; }
+    const a = t.dataset.a; if(!a) return;
+    if(a==="close") closeModal("#mSet");
+    if(a==="showkey"){ const k=$("#sKey"); k.type = k.type==="password"?"text":"password"; }
+    if(a==="savekey"){ LS.set("geminiKey", $("#sKey").value.trim()); LS.set("geminiModel", $("#sModel").value.trim() || DEFAULT_MODEL); toast("保存しました"); }
+    if(a==="models"){
+      const k = $("#sKey").value.trim(); if(!k){ toast("先にAPIキーを入れてください"); return; }
+      $("#mMsg").textContent = "取得中…";
+      try{
+        const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", { headers:{ "x-goog-api-key": k } });
+        const js = await r.json(); if(!r.ok) throw new Error(js.error?.message || r.status);
+        const names = (js.models||[]).filter(m => (m.supportedGenerationMethods||[]).includes("generateContent")).map(m => m.name.replace(/^models\//,"")).filter(n=>/gemini/.test(n));
+        $("#modelList").innerHTML = names.map(n=>`<option value="${esc(n)}">`).join("");
+        $("#mMsg").textContent = "使えるモデル: " + names.filter(n=>/flash/.test(n)).slice(0,12).join(" / ") + "  (入力欄をタップすると選べます)";
+      }catch(err){ $("#mMsg").textContent = "取得失敗: " + err.message; }
+    }
+    if(a==="addcat"||a==="addowner"){ const inp = a==="addcat"?$("#newCat"):$("#newOwner"); const v = inp.value.trim(); if(!v) return;
+      const arr = a==="addcat"?settings.categories:settings.owners; if(!arr.includes(v)) arr.push(v); await saveSettings(); fillFilterOptions(); openSettings(); }
+    if(a==="csv") exportCSV();
+    if(a==="json") dl(new Blob([JSON.stringify(cards.map(({_s,_row,...c})=>({...c, createdAt: c.createdAt?.toDate?.()?.toISOString?.()||"", updatedAt: c.updatedAt?.toDate?.()?.toISOString?.()||""})),null,2)],{type:"application/json"}), `名刺バックアップ_${today()}.json`);
+    if(a==="vcfall"){ if(!view.length) return; dl(new Blob([view.map(vcfText).join("\r\n")],{type:"text/vcard"}), `名刺_${view.length}件.vcf`); }
+    if(a==="lock"){ LS.set("unlockAt",0); location.reload(); }
+  };
+  openModal("#mSet");
+}
+function vcfText(c){
+  const e = s => String(s||"").replace(/([,;\\])/g,"\\$1").replace(/\n/g,"\\n");
+  const n = (c.name||"").split(/[\s　]+/);
+  return ["BEGIN:VCARD","VERSION:3.0",`N:${e(n[0]||"")};${e(n.slice(1).join(" "))};;;`,`FN:${e(c.name||c.company||"")}`,
+    c.company?`ORG:${e(c.company)}`:"", c.title?`TITLE:${e(c.title)}`:"", c.mobile?`TEL;TYPE=CELL:${e(c.mobile)}`:"", c.tel?`TEL;TYPE=WORK:${e(c.tel)}`:"",
+    c.email?`EMAIL:${e(c.email)}`:"", c.address?`ADR;TYPE=WORK:;;${e(c.address)};;;${e(c.zip||"")};日本`:"", "END:VCARD"].filter(Boolean).join("\r\n");
+}
+function dl(blob, name){ const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); }
+function exportCSV(){
+  const cols = [["name","氏名"],["kana","よみ"],["company","会社名"],["companyKana","会社よみ"],["dept","部署"],["title","役職"],["zip","郵便番号"],["address","住所"],
+    ["tel","電話"],["mobile","携帯"],["fax","FAX"],["email","メール"],["url","Web"],["category","分類"],["customerName","得意先名"],["importance","重要度"],
+    ["owner","担当者"],["exchangedAt","交換日"],["place","交換場所"],["followUp","フォロー予定"],["tags","タグ"],["memo","メモ"],["other","その他"]];
+  const q = v => `"${String(Array.isArray(v)?v.join(" "):(v??"")).replace(/"/g,'""')}"`;
+  const rows = [cols.map(c=>q(c[1])).join(",")].concat(view.map(c => cols.map(([k]) => q(c[k])).join(",")));
+  dl(new Blob(["﻿"+rows.join("\r\n")],{type:"text/csv"}), `名刺一覧_${today()}.csv`);
+}
+$("#btnSet").onclick = openSettings;
+
+/* ---------- 起動 ---------- */
+function start(){
+  $("#fSort").value = LS.get("sort","kana");
+  loadAll();
+}
+if(unlocked()){ $("#lock").classList.add("hidden"); start(); } else { setTimeout(()=>$("#passIn").focus(), 100); }
+window.addEventListener("resize", () => document.documentElement.style.setProperty("--hh", $("#hdr").offsetHeight + "px"));
+</script>
+</body>
+</html>
