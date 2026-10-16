@@ -149,7 +149,7 @@ canvas{display:block;width:100%;height:100%}
 <div class="app">
   <div class="hud">
     <div class="cell"><small>LV</small><b id="lv">1</b></div>
-    <div class="cell score"><small>SCORE</small><b id="sc">0</b></div>
+    <div class="cell score" id="scoreCell"><small>SCORE</small><b id="sc">0</b></div>
     <div class="cell life"><small>LIFE</small><span class="lives" id="lf"></span></div>
     <button class="snd" id="snd" aria-pressed="true">🔊 ON</button>
   </div>
@@ -441,7 +441,28 @@ function toast(t,ms=1300){const el=$("toast");el.textContent=t;el.style.opacity=
 function flash(b,cls){if(!b)return;b.classList.remove(cls);void b.offsetWidth;b.classList.add(cls);setTimeout(()=>b.classList.remove(cls),300)}
 
 /* ===== ゲームの流れ ===== */
+/* ===== アクセス集計(隠しコマンド:SCOREの所を2秒以内に5回タップ) =====
+   無料の匿名カウンター abacus.jasoncameron.dev を利用。個人を特定する情報は送らない */
+const STAT_NS="hirataku1102-bunbetsu-hr";
+const STAT_KEYS=[["access","アクセス数"],["visitors","訪問者数(端末ごと)"],["plays","プレイ数"],["hell","地獄モード到達"],["clear","完全クリア"]];
+function statHit(k){try{fetch(`https://abacus.jasoncameron.dev/hit/${STAT_NS}/${k}`,{mode:"cors",keepalive:true}).catch(()=>{})}catch(e){}}
+function myCount(k,add){let v=0;try{v=+localStorage.getItem("bunbetsu-hr-my-"+k)||0;if(add){v++;localStorage.setItem("bunbetsu-hr-my-"+k,v)}}catch(e){}return v}
+statHit("access");
+try{if(!localStorage.getItem("bunbetsu-hr-visited")){localStorage.setItem("bunbetsu-hr-visited","1");statHit("visitors")}}catch(e){}
+{let taps=[];$("scoreCell").addEventListener("pointerdown",()=>{const n=performance.now();taps=taps.filter(x=>n-x<2000);taps.push(n);if(taps.length>=5){taps=[];showStats()}});}
+async function showStats(){
+  if(!$("modal").hidden)return;
+  const wasPlay=S&&S.state==="play";if(wasPlay){S.state="pause";Snd.bgmStop()}
+  const resume=()=>{if(wasPlay){S.state="play";Snd.bgmStart();last=performance.now();requestAnimationFrame(loop)}};
+  showModal({eyebrow:"🔒 管理者メニュー",title:"アクセス集計",body:"集計を読み込み中…",color:"#2ec6ff",onClose:resume});
+  const rows=await Promise.all(STAT_KEYS.map(async([k,n])=>{
+    try{const r=await fetch(`https://abacus.jasoncameron.dev/get/${STAT_NS}/${k}`);if(r.status===404)return`${n}:0`;const j=await r.json();return`${n}:${(j.value??0).toLocaleString()}`}
+    catch(e){return`${n}:取得できませんでした`}}));
+  if($("modal").hidden)return;
+  $("mBody").textContent=rows.join("\n")+`\n\n(この端末で遊んだ回数:${myCount("plays")}回)`;
+}
 function start(){
+  statHit("plays");myCount("plays",true);
   resize();
   S={lv:1,fire:false,hell:false,fireSeen:new Set(),score:0,life:3,state:"intro",seen:new Set(),fx:[],parts:[],trail:[],shake:0,flashT:null,fenceT:null,banner:null,swingT:9,clock:0};
   $("ov").hidden=true;renderBins();hud();
@@ -598,7 +619,7 @@ function levelEnd(){
   const stats=`<div class="stats">${[["hr","ホームラン"],["b3","3塁打"],["b2","2塁打"],["b1","ヒット"],["out","アウト"]].map(([k,n])=>`<span style="--c:${KCOL[k]}"><b>${st[k]}</b>${n}</span>`).join("")}</div>`;
   if(ok){
     Snd.level();
-    if(S.lv>=MAX_LV&&S.fire&&S.hell){S.state="allclear";return end(true,stats)}
+    if(S.lv>=MAX_LV&&S.fire&&S.hell){S.state="allclear";statHit("clear");return end(true,stats)}
     S.state="clear";
     if(S.lv>=MAX_LV&&S.fire){ // 1周目クリア → 地獄モードへ
       r.innerHTML=`<div class="over clear">1周目 CLEAR!</div><div class="sub">闘志モードのプロ野球選手も打ち崩した!</div>`+
@@ -979,7 +1000,7 @@ function drawScene(){
 
 function go(){
   if(!$("modal").hidden)return;
-  if(S&&S.state==="clear"){if(S.fire){S.fire=false;if(S.lv>=MAX_LV){S.hell=true;S.lv=1;S.life=3;S.fireSeen=new Set()}else S.lv++}else S.fire=true;beginLevel()}
+  if(S&&S.state==="clear"){if(S.fire){S.fire=false;if(S.lv>=MAX_LV){S.hell=true;S.lv=1;S.life=3;S.fireSeen=new Set();statHit("hell")}else S.lv++}else S.fire=true;beginLevel()}
   else if(S&&S.state==="fail")beginLevel();
   else start();
 }
