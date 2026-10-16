@@ -349,6 +349,7 @@ async function loadAll(){
   busy(false);
   fillFilterOptions();
   render();
+  backupReminder();
 }
 async function saveSettings(){
   await setDoc(doc(db, COL_SET, "main"), { categories: settings.categories, owners: settings.owners, updatedAt: serverTimestamp() }, { merge:true });
@@ -914,9 +915,16 @@ function openSettings(){
       <div class="inl"><input id="newCat" placeholder="分類を追加"><button class="btn sm" data-a="addcat">追加</button></div></div>
     <div class="set-sec"><h3>担当者</h3><div class="listedit">${chips(settings.owners,"owner")}</div>
       <div class="inl"><input id="newOwner" placeholder="担当者を追加"><button class="btn sm" data-a="addowner">追加</button></div></div>
-    <div class="set-sec"><h3>書き出し(バックアップ)</h3>
-      <p>Excelで開けるCSVと、全データのバックアップ(JSON)を保存できます。</p>
-      <div class="btns"><button class="btn sm" data-a="csv">📊 CSV(Excel用)</button><button class="btn sm" data-a="json">💾 JSON</button><button class="btn sm" data-a="vcfall">📱 表示中を連絡先(vcf)</button></div></div>
+    <div class="set-sec"><h3>💾 バックアップ</h3>
+      <p>名刺の全データ・分類・担当者を1つのファイルに保存します。「写真も含める」は写真も丸ごと入るので、Firebaseの写真が消えても元に戻せます(ファイルは大きくなります)。<br>
+      前回のバックアップ: <b>${lastBackupText()}</b></p>
+      <div class="btns"><button class="btn sm pri" data-a="bkdata">💾 データだけ</button><button class="btn sm pri" data-a="bkfull">📦 写真も含める</button></div>
+      <p style="margin-top:10px">バックアップファイルから元に戻します。今のデータは消えません(同じ名刺は選んだ方法で処理します)。</p>
+      <div class="btns"><button class="btn sm" data-a="restore">♻️ バックアップから復元</button></div>
+      <input type="file" id="restoreFile" accept=".json,application/json" style="display:none"></div>
+    <div class="set-sec"><h3>書き出し</h3>
+      <p>Excelで開けるCSVや、スマホの連絡先に入れるファイルを保存できます(表示中の名刺が対象)。</p>
+      <div class="btns"><button class="btn sm" data-a="csv">📊 CSV(Excel用)</button><button class="btn sm" data-a="vcfall">📱 表示中を連絡先(vcf)</button></div></div>
     <div class="set-sec"><h3>その他</h3>
       <div class="btns"><button class="btn sm" data-a="lock">🔒 ロックする</button></div>
       <p>登録 ${cards.length}件 / 画像あり ${cards.filter(c=>c.frontUrl).length}件</p></div>`;
@@ -941,7 +949,9 @@ function openSettings(){
     if(a==="addcat"||a==="addowner"){ const inp = a==="addcat"?$("#newCat"):$("#newOwner"); const v = inp.value.trim(); if(!v) return;
       const arr = a==="addcat"?settings.categories:settings.owners; if(!arr.includes(v)) arr.push(v); await saveSettings(); fillFilterOptions(); openSettings(); }
     if(a==="csv") exportCSV();
-    if(a==="json") dl(new Blob([JSON.stringify(cards.map(({_s,_row,...c})=>({...c, createdAt: c.createdAt?.toDate?.()?.toISOString?.()||"", updatedAt: c.updatedAt?.toDate?.()?.toISOString?.()||""})),null,2)],{type:"application/json"}), `名刺バックアップ_${today()}.json`);
+    if(a==="bkdata") await makeBackup(false);
+    if(a==="bkfull") await makeBackup(true);
+    if(a==="restore"){ const f = $("#restoreFile"); f.value = ""; f.onchange = () => { if(f.files[0]) restoreBackup(f.files[0]); }; f.click(); }
     if(a==="vcfall"){ if(!view.length) return; dl(new Blob([view.map(vcfText).join("\r\n")],{type:"text/vcard"}), `名刺_${view.length}件.vcf`); }
     if(a==="lock"){ LS.set("unlockAt",0); location.reload(); }
   };
@@ -962,6 +972,128 @@ function exportCSV(){
   const q = v => `"${String(Array.isArray(v)?v.join(" "):(v??"")).replace(/"/g,'""')}"`;
   const rows = [cols.map(c=>q(c[1])).join(",")].concat(view.map(c => cols.map(([k]) => q(c[k])).join(",")));
   dl(new Blob(["﻿"+rows.join("\r\n")],{type:"text/csv"}), `名刺一覧_${today()}.csv`);
+}
+/* ---------- バックアップ / 復元 ---------- */
+const BACKUP_APP = "meishi-backup";
+const BACKUP_REMIND_DAYS = 30;          // この日数を過ぎたら起動時にお知らせ
+function lastBackupText(){
+  const t = LS.get("lastBackupAt", 0);
+  if(!t) return "まだありません";
+  const d = new Date(t), days = Math.floor((Date.now()-t)/86400000);
+  return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}(${days ? days+"日前" : "今日"})`;
+}
+const isoOf = v => v?.toDate?.()?.toISOString?.() || (typeof v==="string" ? v : "");
+function cleanCard({_s,_row,...c}){ return { ...c, createdAt: isoOf(c.createdAt), updatedAt: isoOf(c.updatedAt) }; }
+function blobToDataURL(b){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(b); }); }
+async function urlToDataURL(url){
+  const r = await fetch(url); if(!r.ok) throw new Error("HTTP "+r.status);
+  return blobToDataURL(await r.blob());
+}
+async function makeBackup(withPhotos){
+  if(!cards.length){ toast("まだ名刺がありません"); return; }
+  const out = cards.map(cleanCard);
+  let ok = 0, ng = 0;
+  if(withPhotos){
+    const total = out.filter(c=>c.frontUrl||c.backUrl).length;
+    let n = 0;
+    for(const c of out){
+      if(!(c.frontUrl||c.backUrl)) continue;
+      busy(true, `写真を集めています… ${++n}/${total}`);
+      const img = {};
+      for(const side of ["front","back","thumb"]){
+        const u = c[side+"Url"]; if(!u) continue;
+        try{ img[side] = await urlToDataURL(u); ok++; }
+        catch(e){
+          ng++; console.warn(e);
+          if(ok===0 && ng===1){
+            busy(false);
+            if(!confirm("写真を取り込めませんでした(Firebaseの設定で写真のダウンロードが制限されている可能性があります)。\n\n写真なし(データだけ)でバックアップしますか?")) return;
+            withPhotos = false; break;
+          }
+        }
+      }
+      if(!withPhotos) break;
+      if(Object.keys(img).length) c._img = img;
+    }
+    if(!withPhotos) out.forEach(c=>delete c._img);
+  }
+  busy(true, "ファイルを作成中…");
+  const file = { app: BACKUP_APP, version: 2, exportedAt: new Date().toISOString(), count: out.length, withPhotos,
+    settings: { categories: settings.categories, owners: settings.owners }, cards: out };
+  const blob = new Blob([JSON.stringify(file)], { type:"application/json" });
+  busy(false);
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = `名刺バックアップ_${today()}${withPhotos?"_写真あり":""}.json`; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 120000);
+  LS.set("lastBackupAt", Date.now());
+  const mb = (blob.size/1024/1024).toFixed(1);
+  alert(`バックアップを作成しました(${out.length}件・${mb}MB${withPhotos?"・写真あり":""})。\n${ng&&withPhotos?`※写真${ng}枚は取り込めませんでした。\n`:""}\niPhoneでは「ファイル」アプリの「ダウンロード」に保存されます。iCloud Driveやパソコンにも移しておくと安心です。`);
+  if($("#mSet") && !$("#mSet").classList.contains("hidden")) openSettings();
+}
+function dataURLToBlob(du){ return fetch(du).then(r=>r.blob()); }
+async function restoreBackup(f){
+  let js;
+  try{ js = JSON.parse(await f.text()); }catch{ alert("ファイルを読み込めませんでした。名刺アプリのバックアップ(.json)を選んでください。"); return; }
+  const list = Array.isArray(js) ? js : (js && js.app===BACKUP_APP && Array.isArray(js.cards) ? js.cards : null);
+  if(!list){ alert("名刺アプリのバックアップファイルではないようです。"); return; }
+  const valid = list.filter(c => c && typeof c.id==="string" && /^[A-Za-z0-9_-]{1,100}$/.test(c.id));
+  if(!valid.length){ alert("復元できる名刺が入っていませんでした。"); return; }
+  const have = new Set(cards.map(c=>c.id));
+  const dup = valid.filter(c=>have.has(c.id)).length;
+  const hasPhotos = valid.some(c=>c._img);
+  const when = js.exportedAt ? new Date(js.exportedAt).toLocaleString("ja-JP") : "不明";
+  if(!confirm(`バックアップ(${when}作成)から ${valid.length}件 を復元します。${hasPhotos?"\n写真も含まれています。":""}\n\n今あるデータは消えません。続けますか?`)) return;
+  let overwrite = false;
+  if(dup){
+    overwrite = confirm(`このうち ${dup}件 は今のアプリにもある名刺です。\n\nOK = バックアップの内容で上書きする\nキャンセル = 今のデータを残す(足りない ${valid.length-dup}件 だけ戻す)`);
+  }
+  const todo = valid.filter(c => overwrite || !have.has(c.id));
+  if(!todo.length){ toast("戻す名刺はありませんでした(すべて登録済み)"); return; }
+  let done = 0, fail = 0;
+  for(const c of todo){
+    busy(true, `復元中… ${done+fail+1}/${todo.length}`);
+    try{
+      const { id, _img, _s, _row, ...data } = c;
+      for(const k of ["createdAt","updatedAt"]){
+        const d = data[k] ? new Date(data[k]) : null;
+        if(d && !isNaN(d)) data[k] = d; else delete data[k];
+      }
+      if(_img){
+        const paths = { front:`meishi/${id}/front.jpg`, back:`meishi/${id}/back.jpg`, thumb:`meishi/${id}/thumb.jpg` };
+        for(const side of ["front","back","thumb"]){
+          if(!_img[side]) continue;
+          const r = ref(st, paths[side]);
+          await uploadBytes(r, await dataURLToBlob(_img[side]), { contentType:"image/jpeg" });
+          data[side+"Path"] = paths[side]; data[side+"Url"] = await getDownloadURL(r);
+        }
+      }
+      if(!data.updatedAt) data.updatedAt = serverTimestamp();
+      await setDoc(doc(db, COL_CARDS, id), data, { merge: !overwrite });
+      done++;
+    }catch(e){ fail++; console.error(e); }
+  }
+  // 分類・担当者は今の一覧に足す(消さない)
+  if(js.settings){
+    for(const k of ["categories","owners"]){
+      const add = Array.isArray(js.settings[k]) ? js.settings[k].filter(x=>typeof x==="string" && x && !settings[k].includes(x)) : [];
+      settings[k].push(...add);
+    }
+    try{ await saveSettings(); }catch(e){ console.error(e); }
+  }
+  busy(false);
+  closeModal("#mSet");
+  await loadAll();
+  alert(`復元しました:${done}件${fail?`\n失敗:${fail}件(通信状況を確認して、もう一度復元すると続きを戻せます)`:""}`);
+}
+function backupReminder(){
+  if(cards.length < 1) return;
+  const t = LS.get("lastBackupAt", 0);
+  const days = t ? (Date.now()-t)/86400000 : Infinity;
+  const shown = LS.get("backupNagAt", 0);
+  if(days >= BACKUP_REMIND_DAYS && Date.now()-shown > 86400000){
+    LS.set("backupNagAt", Date.now());
+    toast(t ? `前回のバックアップから${Math.floor(days)}日たちました。⚙️設定から保存できます` : "⚙️設定からバックアップを保存しておくと安心です", 5000);
+  }
 }
 $("#btnSet").onclick = openSettings;
 
