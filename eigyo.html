@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>営業活動可視化ツール</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Roboto+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: 上に期間・担当者フィルタと4つの数字、中央に大きなグラフ、下に「記録する」と「記録一覧」を2列(スマホは1列) */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --line:rgba(21,40,38,.13); --fg:#14211f; --sub:#4b5b58; --muted:#7d8b88;
+  --accent:#16687f; --accent-ink:#ffffff; --accent-soft:rgba(22,104,127,.10);
+  --warn:#b4412b; --ok:#2f7d4a;
+  --r1:#16687f; --r2:#d47a1f; --r3:#8a68c2; --r4:#3f9254; --r5:#9b9a8f;
+  --grid:rgba(20,33,31,.08);
+  --f-display:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
+  --f-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
+  --f-num:"Roboto Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#101615; --surface:#182120; --line:rgba(220,235,232,.14); --fg:#e5ecea; --sub:#b2c0bd; --muted:#82918e;
+  --accent:#4fb3cc; --accent-ink:#0b1a1e; --accent-soft:rgba(79,179,204,.14);
+  --warn:#ee7f68; --ok:#6cc488;
+  --r1:#4fb3cc; --r2:#f0a052; --r3:#b195e6; --r4:#71c286; --r5:#a8a79c;
+  --grid:rgba(229,236,234,.09); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101615; --surface:#182120; --line:rgba(220,235,232,.14); --fg:#e5ecea; --sub:#b2c0bd; --muted:#82918e;
+  --accent:#4fb3cc; --accent-ink:#0b1a1e; --accent-soft:rgba(79,179,204,.14);
+  --warn:#ee7f68; --ok:#6cc488;
+  --r1:#4fb3cc; --r2:#f0a052; --r3:#b195e6; --r4:#71c286; --r5:#a8a79c;
+  --grid:rgba(229,236,234,.09); color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.6}
+.wrap{max-width:1120px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-family:var(--f-display);font-weight:900;font-size:24px;letter-spacing:.02em;margin:0;text-wrap:balance}
+.org{font-size:12px;color:var(--muted);letter-spacing:.08em}
+h2{font-size:15px;font-weight:700;margin:0}
+.lbl{font-size:11px;color:var(--muted);letter-spacing:.08em}
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--surface)}
+.seg button{font:inherit;font-size:13px;border:0;background:transparent;color:var(--sub);padding:7px 12px;cursor:pointer;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--accent);color:var(--accent-ink);font-weight:700}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+select,input,textarea{font:inherit;font-size:14px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+.filters select{width:auto}
+.filters input[type=date]{width:auto}
+.custom{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.banner{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:var(--accent-soft);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--sub)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.kpi{padding:14px 18px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:2px;min-width:0}
+.kpi:last-child{border-right:0}
+.kpi .v{font-family:var(--f-num);font-size:24px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .v small{font-family:var(--f-body);font-size:13px;font-weight:500;color:var(--sub);margin-left:2px}
+.kpi .s{font-size:12px;color:var(--muted)}
+.meter{height:6px;border-radius:3px;background:var(--grid);overflow:hidden;margin-top:6px}
+.meter i{display:block;height:100%;background:var(--r1)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.ptop{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+#lg{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--sub)}
+#lg span{display:inline-flex;align-items:center;gap:5px}
+#lg i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.chart{position:relative;width:100%;height:320px}
+.empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted);font-size:13px;padding:20px}
+.cols{display:grid;grid-template-columns:minmax(300px,360px) 1fr;gap:18px;align-items:start}
+form{display:flex;flex-direction:column;gap:10px}
+.f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.f label{font-size:12px;color:var(--sub);font-weight:500}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.calc{font-size:13px;color:var(--sub);font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.calc b{color:var(--ok)}
+.calc b.neg{color:var(--warn)}
+.btn{font:inherit;font-size:14px;font-weight:700;padding:10px 14px;border-radius:9px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.sm{font-size:12px;padding:5px 10px;font-weight:500}
+.btn.danger{border-color:var(--warn);background:var(--warn);color:var(--surface)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.msg{font-size:12px;min-height:18px;color:var(--sub)}
+.msg.err{color:var(--warn)}
+.staff{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:3px 4px 3px 10px;font-size:13px}
+.chip button{font:inherit;font-size:12px;border:0;background:transparent;color:var(--muted);cursor:pointer;padding:2px 6px;border-radius:999px}
+.chip button.arm{background:var(--warn);color:var(--surface)}
+hr{border:0;border-top:1px solid var(--line);margin:4px 0}
+.tbl{overflow-x:auto;margin:0 -4px}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:640px}
+th{font-size:11px;font-weight:500;color:var(--muted);letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+td.n,th.n{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+td.d{font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--sub)}
+td.memo{color:var(--sub);max-width:220px;overflow-wrap:anywhere}
+.tag{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.tag i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.kind{font-size:12px;padding:1px 7px;border-radius:5px;border:1px solid var(--line);white-space:nowrap;color:var(--sub)}
+.ex{font-size:10px;padding:0 5px;border-radius:4px;background:var(--accent-soft);color:var(--accent);margin-left:4px;vertical-align:1px}
+.acts{white-space:nowrap;text-align:right}
+.acts button{font:inherit;font-size:12px;border:0;background:transparent;color:var(--accent);cursor:pointer;padding:2px 6px;border-radius:5px}
+.acts button.arm{background:var(--warn);color:var(--surface)}
+.tfoot{font-size:12px;color:var(--muted)}
+.ro{font-size:13px;color:var(--muted)}
+@media (max-width:860px){.cols{grid-template-columns:1fr}}
+@media (max-width:640px){.kpis{grid-template-columns:1fr 1fr}.kpi:nth-child(2){border-right:0}.kpi:nth-child(-n+2){border-bottom:1px solid var(--line)}.kpi .v{font-size:20px}.chart{height:280px}h1{font-size:20px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="org">株式会社ディブレイク　営業</div>
+      <h1>営業活動可視化ツール</h1>
+    </div>
+    <div class="filters">
+      <div class="seg" id="per">
+        <button data-p="month">今月</button><button data-p="fy">今年度</button><button data-p="all">全期間</button><button data-p="custom">期間指定</button>
+      </div>
+      <div class="custom" id="custom" hidden>
+        <input type="date" id="from" aria-label="開始日"><span class="lbl">〜</span><input type="date" id="to" aria-label="終了日">
+      </div>
+      <select id="who" aria-label="担当者で絞り込み"><option value="all">全員</option></select>
+    </div>
+  </header>
+
+  <div class="banner" id="exBanner" hidden>
+    <span>見本用のファイルです。数字はすべて仮のデータです。追加・編集した内容は、このパソコンのブラウザの中だけに残ります。</span>
+    <button class="btn ghost sm" id="clearEx">最初の状態に戻す</button>
+  </div>
+
+  <section class="kpis" aria-label="期間の集計">
+    <div class="kpi"><span class="lbl">成果の件数</span><span class="v" id="k1">0<small>件</small></span><span class="s" id="k1s">　</span></div>
+    <div class="kpi"><span class="lbl">月額の増加</span><span class="v" id="k2">¥0</span><span class="s">新規＋改定＋追加</span></div>
+    <div class="kpi"><span class="lbl">自力開拓の割合</span><span class="v" id="k3">—</span><div class="meter"><i id="k3m" style="width:0"></i></div></div>
+    <div class="kpi"><span class="lbl">料金改定の値上げ額</span><span class="v" id="k4">¥0</span><span class="s" id="k4s">　</span></div>
+  </section>
+
+  <section class="panel">
+    <div class="ptop">
+      <div class="seg" id="vw">
+        <button data-v="0">担当者別</button><button data-v="1">経路の割合</button><button data-v="2">月の推移</button><button data-v="3">値上げ額</button>
+      </div>
+      <div class="seg" id="mt">
+        <button data-m="0">件数</button><button data-m="1">月額(万円)</button>
+      </div>
+    </div>
+    <div id="lg"></div>
+    <div class="chart"><div id="c" style="position:absolute;inset:0"></div><div class="empty" id="cEmpty" hidden></div></div>
+  </section>
+
+  <div class="cols">
+    <section class="panel" aria-labelledby="fh">
+      <div class="ptop"><h2 id="fh">成果を記録する</h2><button class="btn ghost sm" id="cancelEdit" type="button" hidden>編集をやめる</button></div>
+      <div class="ro" id="roNote" hidden>この画面は閲覧のみです。記録の追加は編集できる人が行います。</div>
+      <form id="frm" novalidate>
+        <div class="two">
+          <div class="f"><label for="fDate">日付</label><input type="date" id="fDate" required></div>
+          <div class="f"><label for="fStaff">担当者</label><select id="fStaff"></select></div>
+        </div>
+        <div class="two">
+          <div class="f"><label for="fKind">成果の種類</label><select id="fKind"></select></div>
+          <div class="f"><label for="fRoute">獲得経路</label><select id="fRoute"></select></div>
+        </div>
+        <div class="f"><label for="fClient">取引先名</label><input id="fClient" autocomplete="off" placeholder="例：〇〇マンション管理組合"></div>
+        <div class="f" id="amtBox"><label for="fAmt">月額（円）</label><input id="fAmt" inputmode="numeric" placeholder="例：35000"></div>
+        <div id="revBox" hidden>
+          <div class="two">
+            <div class="f"><label for="fBefore">改定前の月額（円）</label><input id="fBefore" inputmode="numeric" placeholder="30000"></div>
+            <div class="f"><label for="fAfter">改定後の月額（円）</label><input id="fAfter" inputmode="numeric" placeholder="36000"></div>
+          </div>
+          <div class="calc" id="calc">上がった額：—</div>
+        </div>
+        <div class="f"><label for="fMemo">メモ</label><textarea id="fMemo" rows="2" placeholder="品目、回数、きっかけなど"></textarea></div>
+        <button class="btn" id="saveBtn" type="submit">記録する</button>
+        <div class="msg" id="fMsg" role="status"></div>
+      </form>
+      <hr>
+      <div class="f">
+        <label for="newStaff">担当者の登録</label>
+        <div class="staff" id="staffChips"></div>
+        <div class="row"><input id="newStaff" placeholder="名前を入力" style="flex:1"><button class="btn ghost sm" id="addStaff" type="button">追加</button></div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="th">
+      <div class="ptop"><h2 id="th">記録一覧</h2><span class="tfoot" id="tCount"></span></div>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>日付</th><th>担当</th><th>種類</th><th>経路</th><th>取引先</th><th class="n">月額の増加</th><th>メモ</th><th></th></tr></thead>
+          <tbody id="tb"></tbody>
+        </table>
+      </div>
+      <div class="ro" id="tEmpty" hidden></div>
+    </section>
+  </div>
+</div>
+
+<script>
+const ROUTES=['自力開拓','管理会社紹介','社内紹介','既存客紹介','問い合わせ'];
+const KINDS=['新規獲得','料金改定','回数・品目追加'];
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const yen=n=>(n<0?'−¥':'¥')+Math.abs(Math.round(n)).toLocaleString('ja-JP');
+const man=n=>Math.round(n/1000)/10;
+const num=s=>{const v=String(s||'').replace(/[,，¥円\s]/g,'').replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248));return v===''?NaN:Number(v)};
+const pad=n=>String(n).padStart(2,'0');
+const todayStr=()=>{const t=new Date();return `${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`};
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const rColor=i=>css('--r'+(i+1));
+
+let db=null,canWrite=true,records=[],staff=[],ready={r:false,s:false},connected=false;
+const ui={period:'fy',who:'all',m:0,v:0,editId:null};
+try{const s=JSON.parse(localStorage.getItem('eigyo-ui')||'{}');Object.assign(ui,{period:s.period||'fy',m:s.m|0,v:s.v|0})}catch(e){}
+const saveUi=()=>{try{localStorage.setItem('eigyo-ui',JSON.stringify({period:ui.period,m:ui.m,v:ui.v}))}catch(e){}};
+
+/* ---------- 期間 ---------- */
+function range(){
+  const t=new Date(),y=t.getFullYear(),mo=t.getMonth()+1;
+  if(ui.period==='month')return[`${y}-${pad(mo)}-01`,`${y}-${pad(mo)}-31`];
+  if(ui.period==='fy'){const fy=mo>=4?y:y-1;return[`${fy}-04-01`,`${fy+1}-03-31`]}
+  if(ui.period==='custom')return[$('from').value||'0000-00-00',$('to').value||'9999-12-31'];
+  return['0000-00-00','9999-12-31'];
+}
+const inc=r=>r.kind==='料金改定'?(Number(r.after)||0)-(Number(r.before)||0):(Number(r.amount)||0);
+function filtered(){const[a,b]=range();return records.filter(r=>r.date>=a&&r.date<=b&&(ui.who==='all'||r.staff===ui.who))}
+function monthsFor(list){
+  const t=new Date(),cur=`${t.getFullYear()}-${pad(t.getMonth()+1)}`;
+  let[a,b]=range();a=a.slice(0,7);b=b.slice(0,7);
+  if(ui.period==='month'){const d=new Date(t.getFullYear(),t.getMonth()-5,1);a=`${d.getFullYear()}-${pad(d.getMonth()+1)}`}
+  if(a<'1900'||b>'9000'){const ds=records.map(r=>r.date.slice(0,7)).sort();if(!ds.length)return[cur];if(a<'1900')a=ds[0];if(b>'9000')b=ds[ds.length-1]>cur?ds[ds.length-1]:cur}
+  if(ui.period==='fy'&&b>cur)b=cur;
+  const out=[];let[y,m]=a.split('-').map(Number);
+  while(`${y}-${pad(m)}`<=b&&out.length<36){out.push(`${y}-${pad(m)}`);m++;if(m>12){m=1;y++}}
+  return out.length?out:[cur];
+}
+function staffNames(list){const names=staff.map(s=>s.name);list.forEach(r=>{if(r.staff&&!names.includes(r.staff))names.push(r.staff)});return ui.who==='all'?names:[ui.who]}
+
+/* ---------- 描画 ---------- */
+function render(){
+  const list=filtered();
+  // フィルタ
+  document.querySelectorAll('#per button').forEach(b=>b.classList.toggle('on',b.dataset.p===ui.period));
+  $('custom').hidden=ui.period!=='custom';
+  document.querySelectorAll('#vw button').forEach(b=>b.classList.toggle('on',+b.dataset.v===ui.v));
+  document.querySelectorAll('#mt button').forEach(b=>b.classList.toggle('on',+b.dataset.m===ui.m));
+  $('mt').style.visibility=ui.v===3?'hidden':'visible';
+  const whoSel=$('who'),names=staffNames(records);
+  const allNames=[...new Set([...staff.map(s=>s.name),...records.map(r=>r.staff).filter(Boolean)])];
+  whoSel.innerHTML='<option value="all">全員</option>'+allNames.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  if(ui.who!=='all'&&!allNames.includes(ui.who))ui.who='all';
+  whoSel.value=ui.who;
+  // KPI
+  const total=list.reduce((a,r)=>a+inc(r),0);
+  const self=list.filter(r=>r.route==='自力開拓');
+  const selfShare=ui.m===0?(list.length?self.length/list.length:null):(total>0?self.reduce((a,r)=>a+inc(r),0)/total:null);
+  const rev=list.filter(r=>r.kind==='料金改定');
+  $('k1').innerHTML=`${list.length}<small>件</small>`;
+  const nNew=list.filter(r=>r.kind==='新規獲得').length;
+  $('k1s').textContent=`新規 ${nNew}・改定 ${rev.length}・追加 ${list.length-nNew-rev.length}`;
+  $('k2').textContent=yen(total);
+  $('k3').innerHTML=selfShare==null?'—':`${Math.round(selfShare*100)}<small>%</small>`;
+  $('k3m').style.width=(selfShare==null?0:Math.max(0,Math.min(1,selfShare))*100)+'%';
+  $('k3').title=ui.m===0?'件数で計算':'月額で計算';
+  $('k4').textContent=yen(rev.reduce((a,r)=>a+inc(r),0));
+  $('k4s').textContent=`${rev.length}件の改定`;
+  // サンプル表示
+  $('exBanner').hidden=false;
+  drawChart(list);
+  renderTable(list);
+  renderForm();
+}
+
+function niceScale(max){if(!(max>0))max=1;const raw=max/4,p=Math.pow(10,Math.floor(Math.log10(raw))),f=raw/p,st=(f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p;const top=Math.ceil(max/st)*st;const t=[];for(let v=0;v<=top+st/2;v+=st)t.push(+v.toFixed(6));return{top,ticks:t}}
+const fmtTick=v=>Number.isInteger(v)?String(v):String(Math.round(v*10)/10);
+const SVGNS='http://www.w3.org/2000/svg';
+function drawChart(list){
+  const box=$('c'),empty=$('cEmpty'),lg=$('lg');box.innerHTML='';
+  const tc=css('--muted'),gc=css('--grid'),fg=css('--fg'),surf=css('--surface');
+  const val=r=>ui.m===0?1:inc(r)/10000;
+  const unit=ui.m===0?'件':'万円';
+  const fmt=v=>ui.m===0?Math.round(v)+'件':(Math.round(v*10)/10)+'万円';
+  if(!list.length){empty.hidden=false;empty.textContent='この期間・担当者の記録はありません。期間を広げてみてください。';lg.innerHTML='';return}
+  empty.hidden=true;
+  const W=Math.max(280,box.clientWidth),H=box.clientHeight||320;
+  let s='';
+  const txt=(x,y,t,o={})=>`<text x="${x}" y="${y}" fill="${o.c||tc}" font-size="${o.s||11}" text-anchor="${o.a||'middle'}" font-family="${o.f||"'Roboto Mono',ui-monospace,monospace"}" ${o.w?`font-weight="${o.w}"`:''} dominant-baseline="${o.b||'auto'}">${esc(t)}</text>`;
+  const yAxis=(L,T,PW,PH,sc,suffix)=>{let o='';sc.ticks.forEach(v=>{const y=T+PH-v/sc.top*PH;o+=`<line x1="${L}" x2="${L+PW}" y1="${y}" y2="${y}" stroke="${gc}"/>`+txt(L-8,y,fmtTick(v),{a:'end',b:'middle'})});o+=txt(L-8,T-12,suffix,{a:'end'});return o};
+  const jp="'Zen Kaku Gothic New','Hiragino Sans',sans-serif";
+  if(ui.v===0){
+    const P=staffNames(list);
+    lg.innerHTML=ROUTES.map((r,i)=>`<span><i style="background:${rColor(i)}"></i>${r}</span>`).join('');
+    const M=P.map(p=>ROUTES.map(r=>list.filter(x=>x.staff===p&&x.route===r).reduce((a,x)=>a+val(x),0)));
+    const tot=M.map(a=>a.reduce((x,y)=>x+Math.max(0,y),0));
+    const sc=niceScale(Math.max(...tot));
+    const L=48,T=26,R=12,B=34,PW=W-L-R,PH=H-T-B;
+    s+=yAxis(L,T,PW,PH,sc,unit);
+    const slot=PW/P.length,bw=Math.min(64,slot*.5);
+    P.forEach((p,i)=>{const cx=L+slot*(i+.5);let y=T+PH;
+      M[i].forEach((v,k)=>{if(v<=0)return;const h=v/sc.top*PH;y-=h;s+=`<rect x="${cx-bw/2}" y="${y}" width="${bw}" height="${Math.max(0,h-1)}" fill="${rColor(k)}"><title>${esc(p)}・${ROUTES[k]}：${fmt(v)}</title></rect>`});
+      s+=txt(cx,y-6,fmt(tot[i]),{c:fg,s:11,w:600});
+      s+=txt(cx,T+PH+20,p,{c:fg,s:13,f:jp,w:500});
+    });
+  }else if(ui.v===1){
+    const t=ROUTES.map(r=>Math.max(0,list.filter(x=>x.route===r).reduce((a,x)=>a+val(x),0))),sum=t.reduce((a,b)=>a+b,0)||1;
+    lg.innerHTML=ROUTES.map((r,i)=>`<span><i style="background:${rColor(i)}"></i>${r} ${Math.round(t[i]/sum*100)}%</span>`).join('');
+    const cx=W/2,cy=H/2,Ro=Math.min(W,H)/2-14,Ri=Ro*.58;let a0=-Math.PI/2;
+    t.forEach((v,i)=>{if(v<=0)return;const a1=a0+v/sum*Math.PI*2,lg2=(a1-a0)>Math.PI?1:0;
+      const p=(r,a)=>`${cx+r*Math.cos(a)},${cy+r*Math.sin(a)}`;
+      const d=(a1-a0)>=Math.PI*2-1e-6?`M${p(Ro,0)}A${Ro},${Ro} 0 1 1 ${p(Ro,Math.PI)}A${Ro},${Ro} 0 1 1 ${p(Ro,0)}M${p(Ri,0)}A${Ri},${Ri} 0 1 0 ${p(Ri,Math.PI)}A${Ri},${Ri} 0 1 0 ${p(Ri,0)}Z`:`M${p(Ro,a0)}A${Ro},${Ro} 0 ${lg2} 1 ${p(Ro,a1)}L${p(Ri,a1)}A${Ri},${Ri} 0 ${lg2} 0 ${p(Ri,a0)}Z`;
+      s+=`<path d="${d}" fill="${rColor(i)}" stroke="${surf}" stroke-width="2" fill-rule="evenodd"><title>${ROUTES[i]}：${fmt(v)}（${Math.round(v/sum*100)}%）</title></path>`;
+      const am=(a0+a1)/2,pct=Math.round(v/sum*100);
+      if(pct>=6)s+=txt(cx+(Ro+Ri)/2*Math.cos(am),cy+(Ro+Ri)/2*Math.sin(am),pct+'%',{c:'#fff',s:12,w:600,b:'middle'});
+      a0=a1});
+    const selfP=Math.round(t[0]/sum*100);
+    s+=txt(cx,cy-8,'自力開拓',{c:tc,s:12,f:jp,b:'middle'})+txt(cx,cy+16,selfP+'%',{c:fg,s:24,w:600,b:'middle'});
+  }else if(ui.v===2){
+    const P=staffNames(list),Ms=monthsFor(list),pc=['--r1','--r2','--r3','--r4','--r5'],dash=['','6 4','2 3','10 3 2 3','1 4'];
+    lg.innerHTML=P.map((p,i)=>`<span><i style="background:${css(pc[i%5])}"></i>${esc(p)}</span>`).join('');
+    const S=P.map(p=>Ms.map(m=>list.filter(r=>r.staff===p&&r.date.slice(0,7)===m).reduce((a,r)=>a+val(r),0)));
+    const sc=niceScale(Math.max(...S.flat()));
+    const L=48,T=26,R=18,B=30,PW=W-L-R,PH=H-T-B;
+    s+=yAxis(L,T,PW,PH,sc,unit);
+    const X=i=>Ms.length===1?L+PW/2:L+i*PW/(Ms.length-1),Y=v=>T+PH-Math.max(0,v)/sc.top*PH;
+    Ms.forEach((m,i)=>{s+=txt(X(i),T+PH+20,(+m.slice(5))+'月',{s:11})});
+    S.forEach((arr,k)=>{const c=css(pc[k%5]);
+      s+=`<polyline points="${arr.map((v,i)=>X(i)+','+Y(v)).join(' ')}" fill="none" stroke="${c}" stroke-width="2.2" stroke-dasharray="${dash[k%5]}" stroke-linejoin="round"/>`;
+      arr.forEach((v,i)=>{s+=`<circle cx="${X(i)}" cy="${Y(v)}" r="${i===arr.length-1?5:3.5}" fill="${i===arr.length-1?c:surf}" stroke="${c}" stroke-width="2"><title>${esc(P[k])}・${+Ms[i].slice(5)}月：${fmt(v)}</title></circle>`});
+    });
+  }else{
+    const P=staffNames(list),rev=list.filter(r=>r.kind==='料金改定');
+    lg.innerHTML=`<span><i style="background:${rColor(0)}"></i>料金改定で上がった月額の合計（万円）</span>`;
+    if(!rev.length){empty.hidden=false;empty.textContent='この期間の料金改定の記録はありません。';return}
+    const d=P.map(p=>rev.filter(r=>r.staff===p).reduce((a,r)=>a+inc(r),0)/10000);
+    const cnt=P.map(p=>rev.filter(r=>r.staff===p).length);
+    const sc=niceScale(Math.max(...d));
+    const L=64,T=24,R=70,B=26,PW=W-L-R,PH=H-T-B;
+    sc.ticks.forEach(v=>{const x=L+v/sc.top*PW;s+=`<line x1="${x}" x2="${x}" y1="${T}" y2="${T+PH}" stroke="${gc}"/>`+txt(x,T+PH+18,fmtTick(v))});
+    const slot=PH/P.length,bh=Math.min(40,slot*.5);
+    P.forEach((p,i)=>{const cy=T+slot*(i+.5),w=Math.max(0,d[i])/sc.top*PW;
+      s+=`<rect x="${L}" y="${cy-bh/2}" width="${w}" height="${bh}" rx="3" fill="${rColor(0)}"><title>${esc(p)}：${Math.round(d[i]*10)/10}万円（${cnt[i]}件）</title></rect>`;
+      s+=txt(L-10,cy,p,{a:'end',c:fg,s:13,f:jp,w:500,b:'middle'});
+      s+=txt(L+w+8,cy,(Math.round(d[i]*10)/10)+'万円',{a:'start',c:fg,s:12,w:600,b:'middle'});
+    });
+  }
+  box.innerHTML=`<svg xmlns="${SVGNS}" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="営業成績のグラフ" style="display:block">${s}</svg>`;
+}
+let rzT;addEventListener('resize',()=>{clearTimeout(rzT);rzT=setTimeout(()=>drawChart(filtered()),120)});
+
+let armedDel=null;
+function renderTable(list){
+  const rows=[...list].sort((a,b)=>(b.date+(b.createdAt||0)).localeCompare(a.date+(a.createdAt||0)));
+  $('tCount').textContent=list.length?`${list.length}件`:'';
+  $('tEmpty').hidden=!!rows.length;
+  $('tEmpty').textContent=records.length?'この期間・担当者の記録はありません。':'まだ記録がありません。';
+  $('tb').innerHTML=rows.map(r=>{
+    const ri=ROUTES.indexOf(r.route),v=inc(r);
+    const amt=r.kind==='料金改定'?`<span title="${yen(r.before)} → ${yen(r.after)}">${v>=0?'+':''}${yen(v)}</span>`:yen(v);
+    const acts=canWrite?`<td class="acts"><button data-edit="${esc(r.id)}">編集</button><button data-del="${esc(r.id)}" class="${armedDel===r.id?'arm':''}">${armedDel===r.id?'削除する':'削除'}</button></td>`:'<td></td>';
+    return `<tr><td class="d">${esc(r.date.slice(5).replace('-','/'))}</td><td>${esc(r.staff)}</td><td><span class="kind">${esc(r.kind)}</span></td><td><span class="tag"><i style="background:${ri>=0?rColor(ri):'var(--muted)'}"></i>${esc(r.route)}</span></td><td>${esc(r.client)}${r.sample?'<span class="ex">例</span>':''}</td><td class="n">${amt}</td><td class="memo">${esc(r.memo)}</td>${acts}</tr>`;
+  }).join('');
+}
+
+let armedStaff=null;
+function renderForm(){
+  $('frm').hidden=!canWrite;$('roNote').hidden=canWrite;
+  const fs=$('fStaff'),cur=fs.value;
+  const names=staff.map(s=>s.name);
+  fs.innerHTML=names.length?names.map(n=>`<option>${esc(n)}</option>`).join(''):'<option value="">先に下で担当者を登録</option>';
+  if(names.includes(cur))fs.value=cur;
+  $('staffChips').innerHTML=staff.map(s=>`<span class="chip">${esc(s.name)}${s.sample?'<span class="ex">例</span>':''}${canWrite?`<button data-rs="${esc(s.id)}" class="${armedStaff===s.id?'arm':''}" aria-label="${esc(s.name)}を外す">${armedStaff===s.id?'外す':'×'}</button>`:''}</span>`).join('')||'<span class="ro">まだ登録されていません</span>';
+  $('addStaff').disabled=!canWrite;$('newStaff').disabled=!canWrite;
+}
+
+/* ---------- フォーム ---------- */
+$('fKind').innerHTML=KINDS.map(k=>`<option>${k}</option>`).join('');
+$('fRoute').innerHTML=ROUTES.map(k=>`<option>${k}</option>`).join('');
+$('fDate').value=todayStr();
+function syncKind(){const rev=$('fKind').value==='料金改定';$('revBox').hidden=!rev;$('amtBox').hidden=rev;$('amtBox').querySelector('label').textContent=$('fKind').value==='新規獲得'?'月額（円）':'増えた月額（円）';calc()}
+function calc(){const b=num($('fBefore').value),a=num($('fAfter').value);
+  if(isNaN(a)||isNaN(b)){$('calc').innerHTML='上がった額：—';return}
+  const d=a-b;$('calc').innerHTML=`上がった額：<b class="${d<0?'neg':''}">${d>=0?'+':''}${yen(d)}</b> ／月`}
+$('fKind').onchange=syncKind;$('fBefore').oninput=calc;$('fAfter').oninput=calc;
+syncKind();
+function msg(t,err){$('fMsg').textContent=t;$('fMsg').className='msg'+(err?' err':'')}
+function resetForm(){ui.editId=null;const keep={staff:$('fStaff').value,route:$('fRoute').value};$('frm').reset();$('fDate').value=todayStr();$('fStaff').value=keep.staff;$('fRoute').value=keep.route;syncKind();$('saveBtn').textContent='記録する';$('cancelEdit').hidden=true}
+$('cancelEdit').onclick=()=>{resetForm();msg('')};
+$('frm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  if(!db){msg('保存先につながっていません。ページを開き直してください。',true);return}
+  const kind=$('fKind').value,date=$('fDate').value,st=$('fStaff').value,client=$('fClient').value.trim();
+  if(!st){msg('担当者を先に登録してください（フォームの下）。',true);return}
+  if(!date){msg('日付を入れてください。',true);return}
+  if(!client){msg('取引先名を入れてください。',true);$('fClient').focus();return}
+  const data={date,staff:st,kind,route:$('fRoute').value,client,memo:$('fMemo').value.trim(),updatedAt:Date.now()};
+  if(kind==='料金改定'){const b=num($('fBefore').value),a=num($('fAfter').value);
+    if(isNaN(b)||isNaN(a)){msg('改定前と改定後の月額を数字で入れてください。',true);return}
+    Object.assign(data,{before:b,after:a,amount:a-b});
+  }else{const v=num($('fAmt').value);if(isNaN(v)){msg('月額を数字で入れてください。',true);$('fAmt').focus();return}Object.assign(data,{amount:v})}
+  $('saveBtn').disabled=true;
+  try{
+    if(ui.editId){const old=records.find(r=>r.id===ui.editId);data.createdAt=old?.createdAt||Date.now();await db.collection('records').doc(ui.editId).set(data);msg('記録を直しました。')}
+    else{data.createdAt=Date.now();await db.collection('records').add(data);msg(`${client}を記録しました。`)}
+    resetForm();
+  }catch(err){msg(err?.code==='quota_exceeded'?'保存できる件数の上限に達しました。古い記録を消してから保存してください。':err?.code==='invalid_argument'?'保存する権限がありません。':'保存できませんでした。少し待ってからもう一度押してください。',true);if(err?.code==='invalid_argument'){canWrite=false;render()}}
+  finally{$('saveBtn').disabled=false}
+});
+
+/* ---------- 一覧・担当者の操作 ---------- */
+$('tb').addEventListener('click',async e=>{
+  const ed=e.target.closest('[data-edit]'),dl=e.target.closest('[data-del]');
+  if(ed){const r=records.find(x=>x.id===ed.dataset.edit);if(!r)return;ui.editId=r.id;
+    $('fDate').value=r.date;$('fStaff').value=r.staff;$('fKind').value=r.kind;$('fRoute').value=r.route;$('fClient').value=r.client||'';$('fMemo').value=r.memo||'';
+    $('fAmt').value=r.kind==='料金改定'?'':(r.amount??'');$('fBefore').value=r.before??'';$('fAfter').value=r.after??'';syncKind();
+    $('saveBtn').textContent='直した内容で保存';$('cancelEdit').hidden=false;msg(`「${r.client}」を編集中です。`);$('fh').scrollIntoView({behavior:'smooth',block:'start'});}
+  if(dl){const id=dl.dataset.del;
+    if(armedDel!==id){armedDel=id;renderTable(filtered());setTimeout(()=>{if(armedDel===id){armedDel=null;renderTable(filtered())}},4000);return}
+    armedDel=null;try{await db.collection('records').doc(id).delete();if(ui.editId===id)resetForm()}catch(err){msg('削除できませんでした。',true)}}
+});
+$('staffChips').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-rs]');if(!b)return;const id=b.dataset.rs;
+  if(armedStaff!==id){armedStaff=id;renderForm();setTimeout(()=>{if(armedStaff===id){armedStaff=null;renderForm()}},4000);return}
+  armedStaff=null;try{await db.collection('staff').doc(id).delete()}catch(err){msg('担当者を外せませんでした。',true)}
+});
+async function addStaff(){
+  const n=$('newStaff').value.trim();if(!n||!db)return;
+  if(staff.some(s=>s.name===n)){msg(`${n}さんはもう登録されています。`,true);return}
+  try{await db.collection('staff').add({name:n,order:Date.now()});$('newStaff').value='';msg(`${n}を担当者に追加しました。`)}catch(err){msg('担当者を追加できませんでした。',true)}
+}
+$('addStaff').onclick=addStaff;
+$('newStaff').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addStaff()}});
+$('clearEx').onclick=e=>{
+  const b=e.currentTarget;if(b.dataset.arm!=='1'){b.dataset.arm='1';b.textContent='追加した記録も消えます。もう一度押すと戻します';b.classList.add('danger');b.classList.remove('ghost');setTimeout(()=>{b.dataset.arm='';b.textContent='最初の状態に戻す';b.classList.remove('danger');b.classList.add('ghost')},5000);return}
+  b.dataset.arm='';b.textContent='最初の状態に戻す';b.classList.remove('danger');b.classList.add('ghost');
+  LOCAL.reset();resetForm();msg('最初の状態に戻しました。');
+};
+
+/* ---------- フィルタ ---------- */
+$('per').onclick=e=>{const b=e.target.closest('button');if(!b)return;ui.period=b.dataset.p;saveUi();render()};
+$('vw').onclick=e=>{const b=e.target.closest('button');if(!b)return;ui.v=+b.dataset.v;saveUi();render()};
+$('mt').onclick=e=>{const b=e.target.closest('button');if(!b)return;ui.m=+b.dataset.m;saveUi();render()};
+$('who').onchange=e=>{ui.who=e.target.value;render()};
+$('from').onchange=render;$('to').onchange=render;
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>drawChart(filtered()));
+new MutationObserver(()=>drawChart(filtered())).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+/* ---------- このファイルの中だけで動く保存先 ---------- */
+const SEED={"records": [{"amount": 28000, "client": "サンプル商店", "createdAt": 1, "date": "2026-08-05", "kind": "新規獲得", "memo": "飛び込みで獲得", "route": "自力開拓", "sample": true, "staff": "Aさん", "id": "ex01"}, {"amount": 45000, "client": "サンプルマンションA", "createdAt": 2, "date": "2026-08-19", "kind": "新規獲得", "memo": "", "route": "管理会社紹介", "sample": true, "staff": "Bさん", "id": "ex02"}, {"after": 36000, "amount": 6000, "before": 30000, "client": "サンプル工業", "createdAt": 3, "date": "2026-08-26", "kind": "料金改定", "memo": "処分費上昇の説明で了承", "route": "自力開拓", "sample": true, "staff": "Cさん", "id": "ex03"}, {"amount": 12000, "client": "サンプル飲食店", "createdAt": 4, "date": "2026-09-03", "kind": "回数・品目追加", "memo": "週2→週3", "route": "既存客紹介", "sample": true, "staff": "Aさん", "id": "ex04"}, {"amount": 52000, "client": "サンプルマンションB", "createdAt": 5, "date": "2026-09-11", "kind": "新規獲得", "memo": "", "route": "管理会社紹介", "sample": true, "staff": "Bさん", "id": "ex05"}, {"amount": 15000, "client": "サンプル歯科", "createdAt": 6, "date": "2026-09-17", "kind": "新規獲得", "memo": "HPからの問い合わせ", "route": "問い合わせ", "sample": true, "staff": "Cさん", "id": "ex06"}, {"after": 92000, "amount": 12000, "before": 80000, "client": "サンプル物流", "createdAt": 7, "date": "2026-09-24", "kind": "料金改定", "memo": "", "route": "自力開拓", "sample": true, "staff": "Aさん", "id": "ex07"}, {"amount": 38000, "client": "サンプル介護施設", "createdAt": 8, "date": "2026-10-02", "kind": "新規獲得", "memo": "ドライバーさんからの情報", "route": "社内紹介", "sample": true, "staff": "Bさん", "id": "ex08"}, {"amount": 64000, "client": "サンプル建設", "createdAt": 9, "date": "2026-10-08", "kind": "新規獲得", "memo": "現場の産廃", "route": "自力開拓", "sample": true, "staff": "Aさん", "id": "ex09"}, {"after": 121000, "amount": 11000, "before": 110000, "client": "サンプルスーパー", "createdAt": 10, "date": "2026-10-15", "kind": "料金改定", "memo": "", "route": "自力開拓", "sample": true, "staff": "Cさん", "id": "ex10"}, {"amount": 8000, "client": "サンプル居酒屋", "createdAt": 100, "date": "2026-04-02", "kind": "回数・品目追加", "memo": "週2→週3", "route": "管理会社紹介", "sample": true, "staff": "Bさん", "id": "ex11"}, {"after": 58000, "amount": 3000, "before": 55000, "client": "サンプルスーパー2号店", "createdAt": 101, "date": "2026-04-02", "kind": "料金改定", "memo": "量が増えていたため見直し", "route": "既存客紹介", "sample": true, "staff": "Cさん", "id": "ex12"}, {"amount": 60000, "client": "サンプル保育園", "createdAt": 102, "date": "2026-04-27", "kind": "新規獲得", "memo": "現場の産廃", "route": "自力開拓", "sample": true, "staff": "Aさん", "id": "ex13"}, {"amount": 22000, "client": "サンプルマンションD", "createdAt": 103, "date": "2026-04-19", "kind": "新規獲得", "memo": "", "route": "自力開拓", "sample": true, "staff": "Cさん", "id": "ex14"}, {"amount": 52000, "client": "サンプル印刷", "createdAt": 104, "date": "2026-04-14", "kind": "新規獲得", "memo": "", "route": "自力開拓", "sample": true, "staff": "Aさん", "id": "ex15"}, {"amount": 28000, "client": "サンプルホテル", "createdAt": 105, "date": "2026-05-04", "kind": "新規獲得", "memo": "現場の産廃", "route": "自力開拓", "sample": true, "staff": "Bさん", "id": "ex16"}, {"amount": 38000, "client": "サンプルマンションC", "createdAt": 106, "date": "2026-05-02", "kind": "新規獲得", "memo": "現場の産廃", "route": "自力開拓", "sample": true, "staff": "Aさん", "id": "ex17"}, {"amount": 28000, "client": "サンプルアパート", "createdAt": 107, "date": "2026-05-15", "kind": "新規獲得", "memo": "ドライバーさんからの情報", "route": "問い合わせ", "sample": true, "staff": "Cさん", "id": "ex18"}, {"amount": 52000, "client": "サンプル薬局", "createdAt": 108, "date": "2026-05-25", "kind": "新規獲得", "memo": "", "route": "管理会社紹介", "sample": true, "staff": "Bさん", "id": "ex19"}, {"amount": 52000, "client": "サンプル自動車整備", "createdAt": 109, "date": "2026-05-24", "kind": "新規獲得", "memo": "見積り2回で決定", "route": "社内紹介", "sample": true, "staff": "Bさん", "id": "ex20"}, {"amount": 38000, "client": "サンプル物流倉庫", "createdAt": 110, "date": "2026-05-25", "kind": "新規獲得", "memo": "飛び込みで獲得", "route": "自力開拓", "sample": true, "staff": "Aさん", "id": "ex21"}, {"amount": 28000, "client": "サンプル農園", "createdAt": 111, "date": "2026-06-25", "kind": "新規獲得", "memo": "他社からの切り替え", "route": "自力開拓", "sample": true, "staff": "Bさん", "id": "ex22"}, {"after": 123000, "amount": 3000, "before": 120000, "client": "サンプル食品工場", "createdAt": 112, "date": "2026-06-26", "kind": "料金改定", "memo": "", "route": "既存客紹介", "sample": true, "staff": "Cさん", "id": "ex23"}, {"amount": 25000, "client": "サンプル精肉店", "createdAt": 113, "date": "2026-06-02", "kind": "新規獲得", "memo": "ドライバーさんからの情報", "route": "自力開拓", "sample": true, "staff": "Bさん", "id": "ex24"}, {"after": 38000, "amount": 8000, "before": 30000, "client": "サンプル商業ビル", "createdAt": 114, "date": "2026-06-01", "kind": "料金改定", "memo": "契約更新のタイミングで改定", "route": "既存客紹介", "sample": true, "staff": "Cさん", "id": "ex25"}, {"amount": 32000, "client": "サンプル歯科", "createdAt": 115, "date": "2026-06-10", "kind": "新規獲得", "memo": "現場の産廃", "route": "自力開拓", "sample": true, "staff": "Aさん", "id": "ex26"}, {"amount": 12000, "client": "サンプル事務所", "createdAt": 116, "date": "2026-07-06", "kind": "回数・品目追加", "memo": "繁忙期だけ増便", "route": "管理会社紹介", "sample": true, "staff": "Bさん", "id": "ex27"}, {"amount": 8000, "client": "サンプルパン店", "createdAt": 117, "date": "2026-07-28", "kind": "回数・品目追加", "memo": "繁忙期だけ増便", "route": "社内紹介", "sample": true, "staff": "Bさん", "id": "ex28"}, {"amount": 6000, "client": "サンプルカフェ", "createdAt": 118, "date": "2026-07-05", "kind": "回数・品目追加", "memo": "ビン・缶を追加", "route": "管理会社紹介", "sample": true, "staff": "Cさん", "id": "ex29"}, {"after": 47000, "amount": 5000, "before": 42000, "client": "サンプル老人ホーム", "createdAt": 119, "date": "2026-07-27", "kind": "料金改定", "memo": "処分費上昇の説明で了承", "route": "自力開拓", "sample": true, "staff": "Aさん", "id": "ex30"}, {"amount": 18000, "client": "サンプル学習塾", "createdAt": 120, "date": "2026-07-20", "kind": "新規獲得", "memo": "他社からの切り替え", "route": "自力開拓", "sample": true, "staff": "Aさん", "id": "ex31"}, {"amount": 15000, "client": "サンプル塗装", "createdAt": 121, "date": "2026-07-21", "kind": "回数・品目追加", "memo": "繁忙期だけ増便", "route": "管理会社紹介", "sample": true, "staff": "Cさん", "id": "ex32"}, {"amount": 60000, "client": "サンプル食堂", "createdAt": 122, "date": "2026-08-13", "kind": "新規獲得", "memo": "ドライバーさんからの情報", "route": "自力開拓", "sample": true, "staff": "Aさん", "id": "ex33"}, {"amount": 15000, "client": "サンプル病院", "createdAt": 123, "date": "2026-08-07", "kind": "新規獲得", "memo": "飛び込みで獲得", "route": "管理会社紹介", "sample": true, "staff": "Bさん", "id": "ex34"}, {"amount": 28000, "client": "サンプル工務店", "createdAt": 124, "date": "2026-08-19", "kind": "新規獲得", "memo": "", "route": "管理会社紹介", "sample": true, "staff": "Bさん", "id": "ex35"}, {"after": 95000, "amount": 5000, "before": 90000, "client": "サンプルクリニック", "createdAt": 125, "date": "2026-08-20", "kind": "料金改定", "memo": "処分費上昇の説明で了承", "route": "問い合わせ", "sample": true, "staff": "Cさん", "id": "ex36"}, {"amount": 38000, "client": "サンプル美容室", "createdAt": 126, "date": "2026-08-04", "kind": "新規獲得", "memo": "ドライバーさんからの情報", "route": "管理会社紹介", "sample": true, "staff": "Bさん", "id": "ex37"}, {"amount": 38000, "client": "サンプル整骨院", "createdAt": 127, "date": "2026-09-24", "kind": "新規獲得", "memo": "見積り2回で決定", "route": "管理会社紹介", "sample": true, "staff": "Bさん", "id": "ex38"}, {"after": 40000, "amount": 10000, "before": 30000, "client": "サンプル給食センター", "createdAt": 128, "date": "2026-09-07", "kind": "料金改定", "memo": "契約更新のタイミングで改定", "route": "自力開拓", "sample": true, "staff": "Aさん", "id": "ex39"}, {"amount": 12000, "client": "サンプル倉庫", "createdAt": 129, "date": "2026-09-10", "kind": "回数・品目追加", "memo": "段ボール回収を追加", "route": "問い合わせ", "sample": true, "staff": "Cさん", "id": "ex40"}, {"amount": 15000, "client": "サンプル事務所", "createdAt": 130, "date": "2026-09-08", "kind": "回数・品目追加", "memo": "段ボール回収を追加", "route": "管理会社紹介", "sample": true, "staff": "Bさん", "id": "ex41"}, {"after": 126000, "amount": 6000, "before": 120000, "client": "サンプル製作所", "createdAt": 131, "date": "2026-09-25", "kind": "料金改定", "memo": "処分費上昇の説明で了承", "route": "既存客紹介", "sample": true, "staff": "Aさん", "id": "ex42"}, {"amount": 4000, "client": "サンプル塗装", "createdAt": 132, "date": "2026-09-16", "kind": "回数・品目追加", "memo": "週2→週3", "route": "自力開拓", "sample": true, "staff": "Cさん", "id": "ex43"}, {"amount": 75000, "client": "サンプルホテル", "createdAt": 133, "date": "2026-10-20", "kind": "新規獲得", "memo": "ドライバーさんからの情報", "route": "自力開拓", "sample": true, "staff": "Aさん", "id": "ex44"}, {"amount": 10000, "client": "サンプル居酒屋", "createdAt": 134, "date": "2026-10-08", "kind": "回数・品目追加", "memo": "ビン・缶を追加", "route": "管理会社紹介", "sample": true, "staff": "Bさん", "id": "ex45"}, {"amount": 60000, "client": "サンプル食堂", "createdAt": 135, "date": "2026-10-20", "kind": "新規獲得", "memo": "ドライバーさんからの情報", "route": "自力開拓", "sample": true, "staff": "Aさん", "id": "ex46"}, {"after": 59000, "amount": 4000, "before": 55000, "client": "サンプル寮", "createdAt": 136, "date": "2026-10-04", "kind": "料金改定", "memo": "処分費上昇の説明で了承", "route": "管理会社紹介", "sample": true, "staff": "Bさん", "id": "ex47"}, {"after": 93000, "amount": 3000, "before": 90000, "client": "サンプル老人ホーム", "createdAt": 137, "date": "2026-10-13", "kind": "料金改定", "memo": "量が増えていたため見直し", "route": "管理会社紹介", "sample": true, "staff": "Bさん", "id": "ex48"}], "staff": [{"id": "ex-a", "name": "Aさん", "order": 1, "sample": true}, {"id": "ex-b", "name": "Bさん", "order": 2, "sample": true}, {"id": "ex-c", "name": "Cさん", "order": 3, "sample": true}]};
+const KEY='eigyo-demo-v1';
+const LOCAL=(()=>{
+  let data;
+  try{data=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}
+  if(!data||!data.records)data=JSON.parse(JSON.stringify(SEED));
+  const subs={records:[],staff:[]};
+  const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}};
+  const snap=c=>{let list=data[c].map(x=>({...x}));if(c==='staff')list.sort((a,b)=>(a.order||0)-(b.order||0));return{docs:list.map(x=>({id:x.id,data:()=>{const {id,...rest}=x;return rest}}))}};
+  const emit=c=>{persist();const s=snap(c);subs[c].forEach(f=>f(s))};
+  const newId=()=>'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  function collection(c){
+    const api={
+      doc:id=>({
+        set:async body=>{const i=data[c].findIndex(x=>x.id===id),row={...body,id};if(i>=0)data[c][i]=row;else data[c].push(row);emit(c)},
+        delete:async()=>{data[c]=data[c].filter(x=>x.id!==id);emit(c)}
+      }),
+      add:async body=>{const id=newId();data[c].push({...body,id});emit(c);return{id}},
+      orderBy:()=>api,
+      onSnapshot:fn=>{subs[c].push(fn);fn(snap(c));return()=>{}}
+    };
+    return api;
+  }
+  return{collection,reset(){data=JSON.parse(JSON.stringify(SEED));try{localStorage.removeItem(KEY)}catch(e){}emit('records');emit('staff')}};
+})();
+db=LOCAL;connected=true;
+db.collection('records').onSnapshot(s=>{records=s.docs.map(x=>({id:x.id,...x.data()})).filter(r=>r.date);render()});
+db.collection('staff').orderBy('order').onSnapshot(s=>{staff=s.docs.map(x=>({id:x.id,...x.data()}));render()});
+</script>
+
+</body>
+</html>
