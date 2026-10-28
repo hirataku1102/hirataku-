@@ -373,7 +373,7 @@ dialog .db{padding:16px;display:flex;flex-direction:column;gap:16px}
       <div class="chips sm" id="sRange"></div>
     </div>
     <div class="f"><span class="lt">見本データ</span>
-      <div class="hint">説明用の見本を入れられます。会社名に「(見本)」が付き、あとでまとめて消せます。</div>
+      <div class="hint">説明用の見本（今年度4月〜今日、担当者ごとに毎月）を入れます。会社名に「(見本)」が付き、本物の記録を消さずにまとめて消せます。押し直すと入れ替わります。</div>
       <div class="row"><button class="btn ghost sm" id="sSample">見本データを入れる</button><button class="btn ghost sm" id="sSampleDel">見本データを消す</button><span class="msg" id="sSampleMsg"></span></div>
     </div>
   </div>
@@ -950,43 +950,102 @@ $('sSave').onclick=async()=>{
   S.settings={...DEF,...n};$('sMsg').textContent='保存しました';$('sMsg').className='msg ok';renderAll();
 };
 $('sRange').onclick=e=>{const b=e.target.closest('button');if(!b)return;S.range=b.dataset.r;LS.set('range',S.range);$('sRange').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));load()};
-/* 見本データ */
-$('sSample').onclick=async()=>{
+/* 見本データ（今年度4月〜今日まで、毎月の推移が見える量） */
+function buildSample(){
   const staff=S.settings.staff.length?S.settings.staff:DEF.staff;const R=S.settings.routes,IND=S.settings.industries;
-  let seed=11;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;const pick=a=>a[Math.floor(rnd()*a.length)];
-  const names=['さくら食堂','みなと歯科','こだま工務店','ひかり保育園','あおば薬局','つばさ印刷','やまと整骨院','はなまる精肉店','かもめ物流倉庫','そら美容室','いずみ自動車整備','ほたるホテル','けやきマンション','もみじ学習塾','なぎさクリニック','あさひ製作所','ゆうひスーパー','わかば老人ホーム','しおり事務所','ことぶき居酒屋','ひまわりカフェ','すずらんパン店'];
-  const needs=['回収回数を増やしたい','今の業者の対応が遅い','ダンボールの量が増えた','料金を見直したい','分別のやり方を教えてほしい','朝早い時間に回収してほしい',''];
-  const memos=['週3回→毎日回収で見積り','可燃とダンボールをセットで提案','オーナーに確認してから返事','現場写真を撮って社内で検討','他社より月2,000円安く提示',''];
-  const flows=[['未接触','担当者確認','商談中','見積提出','契約'],['担当者確認','見積提出','契約'],['商談中','見積提出','失注'],['担当者確認','商談中','見積提出'],['商談中','保留'],['見積提出','契約'],['担当者確認','商談中']];
-  const t=today();const deals=[],logs=[];let ts=Date.now()-1e8;
-  names.forEach((nm,i)=>{
-    const st=staff[i%staff.length],kubun=rnd()<.7?'新規':'既存',ind=pick(IND),route=rnd()<.45?R[0]:pick(R),flow=pick(flows);
-    let date=addDays(t,-Math.floor(rnd()*150)-10);if(date<fyStart())date=addDays(fyStart(),Math.floor(rnd()*20));
-    const exp=pick([8000,12000,15000,18000,22000,28000,35000,45000]);
-    const deal={id:'dsample'+i,company:nm+'(見本)',firstDate:date,createdAt:ts,logCount:0,increase:0,sample:true};
-    flow.forEach((stt,k)=>{
-      if(k)date=addDays(date,3+Math.floor(rnd()*12));if(date>t)date=t;
-      const l={id:`lsample${i}_${k}`,dealId:deal.id,date,staff:st,company:deal.company,kubun,industry:ind,method:k===0?pick(['訪問','訪問','電話','紹介']):pick(['訪問','電話','メール']),
-        content:kubun==='既存'?(rnd()<.5?'既存顧客への追加提案':'料金改定'):(stt==='見積提出'?'見積提出':stt==='契約'?'新規営業':'新規営業'),
-        status:stt,route:(stt==='契約'||k===0)?route:'',needs:k===0?pick(needs):'',memo:pick(memos),quote:['見積提出','契約'].includes(stt)?exp+1000:null,expected:exp,increase:stt==='契約'?exp:null,
-        nextAction:OPEN(stt)?pick(['見積りの返事を確認','担当者に再訪問','資料を送る']):'',nextDate:OPEN(stt)?addDays(date,5+Math.floor(rnd()*10)):'',check:pick(CHECKS),note:'',createdAt:ts++,sample:true};
-      if(OPEN(stt)&&k===flow.length-1){const nd=addDays(t,Math.floor(rnd()*14)-3);l.nextDate=nd>date?nd:addDays(date,2)}
-      logs.push(l);deal.logCount++;dealFromLog(deal,l);
+  let seed=20261028;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+  const pick=a=>a[Math.floor(rnd()*a.length)];
+  const wpick=o=>{const t=Object.values(o).reduce((a,b)=>a+b,0);let r=rnd()*t;for(const[k,v]of Object.entries(o)){r-=v;if(r<=0)return k}return Object.keys(o)[0]};
+  const ri=(a,b)=>a+Math.floor(rnd()*(b-a+1));
+  // 担当者ごとの特徴：1人目＝自力開拓が多い、2人目＝管理会社紹介が多い、3人目＝料金改定が得意
+  const PROFILE=[
+    {route:{[R[0]]:6,[R[3]||R[0]]:2,[R[4]||R[0]]:1,[R[2]||R[0]]:1},type:{new:7,add:2,rev:1},win:.42,per:[4,6]},
+    {route:{[R[1]||R[0]]:6,[R[0]]:2,[R[2]||R[0]]:1,[R[4]||R[0]]:1},type:{new:8,add:1,rev:1},win:.5,per:[4,6]},
+    {route:{[R[0]]:4,[R[3]||R[0]]:3,[R[4]||R[0]]:2},type:{new:3,add:2,rev:5},win:.55,per:[3,5]}
+  ];
+  const PFX=['さくら','みなと','こだま','ひかり','あおば','つばさ','やまと','はなまる','かもめ','そら','いずみ','ほたる','けやき','もみじ','なぎさ','あさひ','ゆうひ','わかば','しおり','ことぶき','ひまわり','すずらん','あかね','いろは','おおぞら','かえで','きらら','くすのき','さつき','しらさぎ','たちばな','つくし','とまと','なのはな','のぞみ','はやて','ふたば','まほろば','みずほ','むさし','めぐみ','やよい','ゆりかご','よつば','りんどう','わかたけ'];
+  const SFX={'飲食業':['食堂','居酒屋','カフェ','ラーメン','焼肉店'],'小売業':['スーパー','精肉店','パン店','ドラッグ','青果店'],'製造業':['製作所','工業','食品工場','印刷'],'建設業':['工務店','建設','塗装','設備'],
+    '医療・福祉':['クリニック','歯科','老人ホーム','デイサービス','整骨院'],'不動産・管理会社':['マンション','ハイツ','管理センター','ビル'],'事務所・オフィス':['事務所','会計事務所','商事','オフィス'],
+    '宿泊業':['ホテル','旅館','ゲストハウス'],'教育':['保育園','学習塾','幼稚園'],'サービス業':['美容室','自動車整備','クリーニング','スポーツクラブ'],'その他':['倉庫','物流センター','農園']};
+  const usedName=new Set();
+  const nameFor=ind=>{for(let i=0;i<50;i++){const n=pick(PFX)+pick(SFX[ind]||['商店']);if(!usedName.has(n)){usedName.add(n);return n}}return pick(PFX)+'商店'+usedName.size};
+  const NEEDS={new:['今の業者の回収時間が遅い','料金が高いので見直したい','ダンボールの量が増えて困っている','開店予定で業者を探している','分別のやり方を教えてほしい','毎日回収してほしい','産廃もまとめて頼みたい'],
+    add:['回収回数を増やしたい','ビン・缶も一緒に出したい','繁忙期だけ増便したい','段ボールの回収も頼みたい'],
+    rev:['処分費の値上げ説明を求められた','ごみの量が契約時より増えている','回収先が増えたので見直したい']};
+  const MEMOS={new:['週3回→毎日回収で見積り','可燃とダンボールをセットで提案','他社より月2,000円安く提示','オーナー確認待ち','現場を確認して容器の数を提案','管理会社の担当者と同行訪問'],
+    add:['週2→週3回で見積り','ビン・缶の回収を追加提案','年末だけ増便を提案'],
+    rev:['処分費上昇の資料を持参して説明','量の実測結果を提示','契約更新に合わせて改定を提案']};
+  const NEXT=['見積りの返事を確認','担当者に再訪問','資料を送る','オーナーに電話','契約書を持参'];
+  const t=today(),fy=fyStart(t);
+  const months=[];for(let m=fy.slice(0,7);m<=t.slice(0,7);m=shiftYm(m,1))months.push(m);
+  const deals=[],logs=[];let ts=Date.now()-5e9,n=0;
+  staff.forEach((st,si)=>{
+    const pf=PROFILE[si%PROFILE.length];
+    months.forEach((ym,mi)=>{
+      const cnt=ri(pf.per[0],pf.per[1])+(mi%3===1?1:0);
+      for(let j=0;j<cnt;j++){
+        const type=wpick(pf.type);const kubun=type==='new'?'新規':'既存';
+        const ind=pick(IND.filter(x=>SFX[x])),route=type==='new'?wpick(pf.route):(rnd()<.6?R[3]||R[0]:R[0]);
+        const last=ym===t.slice(0,7)?+t.slice(8,10):+monthEnd(ym).slice(8,10);
+        let date=`${ym}-${pad(ri(1,Math.max(1,last)))}`;if(date>t)date=t;
+        const exp=type==='new'?pick([8000,10000,12000,15000,18000,22000,25000,30000,38000,45000,55000,75000]):type==='add'?pick([3000,4000,6000,8000,10000,15000]):pick([3000,4000,5000,6000,8000,10000,12000]);
+        const age=(pd(t)-pd(date))/864e5;
+        // 結末：古い案件ほど決着している
+        let end=rnd()<pf.win?'契約':rnd()<.35?'失注':rnd()<.3?'保留':'open';
+        if(end==='open'&&age>75)end=rnd()<.5?'失注':'保留';
+        const flow=type==='rev'?(end==='open'?['担当者確認','商談中']:['担当者確認',end==='契約'?'契約':end]):
+          end==='契約'?pick([['担当者確認','商談中','見積提出','契約'],['商談中','見積提出','契約'],['見積提出','契約']]):
+          end==='open'?pick([['未接触','担当者確認'],['担当者確認','商談中'],['商談中','見積提出'],['担当者確認','商談中','見積提出']]):
+          pick([['担当者確認','商談中','見積提出',end],['商談中',end],['見積提出',end]]);
+        const company=nameFor(ind)+'(見本)';
+        const deal={id:'dsample'+(n++),company,firstDate:date,createdAt:ts,logCount:0,increase:0,sample:true};
+        let d=date;let stopped=false;
+        flow.forEach((stt,k)=>{
+          if(stopped)return;
+          if(k){const nd=addDays(d,ri(3,14));if(nd>t){stopped=true;return}d=nd}
+          const content=type==='rev'?'料金改定':type==='add'?'既存顧客への追加提案':stt==='見積提出'?'見積提出':stt==='契約'&&k>0&&rnd()<.3?'契約後フォロー':'新規営業';
+          const method=k===0?(route===R[1]||route===R[2]||route===R[3]?pick(['紹介','訪問','電話']):pick(['訪問','訪問','訪問','電話','メール'])):pick(['訪問','訪問','電話','メール','オンライン']);
+          const isLast=k===flow.length-1;
+          const l={id:`lsample${n}_${k}`,dealId:deal.id,date:d,staff:st,company,kubun,industry:ind,method,content,status:stt,
+            route:(k===0||stt==='契約')?route:'',needs:k===0?pick(NEEDS[type]):'',memo:stt==='失注'?pick(['他社のほうが安かった','今の業者を継続','オーナーの判断で見送り']):pick(MEMOS[type]),
+            quote:['見積提出','契約'].includes(stt)||(k>0&&type!=='new')?exp+pick([0,1000,2000]):null,expected:exp,increase:stt==='契約'?exp:null,
+            nextAction:OPEN(stt)?pick(NEXT):'',nextDate:'',check:age>14?pick(['確認済み','確認済み','確認済み','要相談']):pick(CHECKS),note:'',createdAt:ts++,sample:true};
+          if(OPEN(stt)){const nd=addDays(d,ri(4,12));l.nextDate=nd}
+          logs.push(l);deal.logCount++;dealFromLog(deal,l);
+        });
+        deals.push(deal);
+      }
     });
-    deals.push(deal);
   });
-  const ops=[...logs.map(l=>[C.logs,l]),...deals.map(d=>[C.deals,d])];
-  $('sSampleMsg').textContent='書き込み中…';
-  for(let i=0;i<ops.length;i+=400){const b=db.batch();ops.slice(i,i+400).forEach(([c,o])=>{const{id,...body}=o;b.set(db.collection(c).doc(id),body)});await commit(b)}
-  logs.forEach(l=>{if(!S.logs.find(x=>x.id===l.id))S.logs.push(l)});deals.forEach(d=>S.deals.set(d.id,d));
-  $('sSampleMsg').textContent=`見本を${logs.length}件入れました`;$('sSampleMsg').className='msg ok';renderAll();
+  // 先月までの振り返り（全員）
+  const reviews=months.slice(0,-1).map(ym=>({id:`${ym}__all`,good:'管理会社経由の紹介で新規が続いた。見積提出後のフォローが早くできた。',issue:'価格で他社に負けた案件があった。見積後の連絡が遅れた案件あり。',next:'見積提出中の案件を月初にまとめて追う。飲食店の多いエリアを重点的に回る。',comment:'',sample:true}));
+  return{logs,deals,reviews};
+}
+async function writeOps(ops){for(let i=0;i<ops.length;i+=400){const b=db.batch();ops.slice(i,i+400).forEach(([op,c,o])=>{if(op==='del')b.delete(db.collection(c).doc(o));else{const{id,...body}=o;b.set(db.collection(c).doc(id),body)}});await commit(b)}}
+async function removeSample(){
+  const ls=S.logs.filter(l=>l.sample),dd=[...S.deals.values()].filter(d=>d.sample);
+  const ops=[...ls.map(l=>['del',C.logs,l.id]),...dd.map(d=>['del',C.deals,d.id])];
+  // 見本の振り返りだけ消す（本物の振り返りは残す）
+  const t=today();for(let m=fyStart(t).slice(0,7);m<=t.slice(0,7);m=shiftYm(m,1)){try{const s=await db.collection(C.monthly).doc(`${m}__all`).get();if(s.exists&&s.data().sample)ops.push(['del',C.monthly,`${m}__all`])}catch(e){}}
+  await writeOps(ops);
+  S.logs=S.logs.filter(l=>!l.sample);dd.forEach(d=>S.deals.delete(d.id));rvKey=null;
+  return ls.length;
+}
+$('sSample').onclick=async()=>{
+  const btn=$('sSample');btn.disabled=true;$('sSampleMsg').textContent='書き込み中…（少し時間がかかります）';$('sSampleMsg').className='msg';
+  try{
+    await removeSample();
+    const{logs,deals,reviews}=buildSample();
+    await writeOps([...logs.map(l=>['set',C.logs,l]),...deals.map(d=>['set',C.deals,d]),...reviews.map(r=>['set',C.monthly,r])]);
+    logs.forEach(l=>S.logs.push(l));deals.forEach(d=>S.deals.set(d.id,d));rvKey=null;
+    const won=deals.filter(d=>d.status==='契約').length;
+    $('sSampleMsg').textContent=`見本を入れました（日報${logs.length}件・案件${deals.length}件・うち契約${won}件）`;$('sSampleMsg').className='msg ok';renderAll();
+  }catch(e){$('sSampleMsg').textContent='書き込めませんでした：'+(e.code||e.message);$('sSampleMsg').className='msg err'}
+  btn.disabled=false;
 };
 $('sSampleDel').onclick=async()=>{
-  const ls=S.logs.filter(l=>l.sample),dd=[...S.deals.values()].filter(d=>d.sample);
-  const ops=[...ls.map(l=>[C.logs,l.id]),...dd.map(d=>[C.deals,d.id])];
-  for(let i=0;i<ops.length;i+=400){const b=db.batch();ops.slice(i,i+400).forEach(([c,id])=>b.delete(db.collection(c).doc(id)));await commit(b)}
-  S.logs=S.logs.filter(l=>!l.sample);dd.forEach(d=>S.deals.delete(d.id));
-  $('sSampleMsg').textContent=`見本を消しました`;$('sSampleMsg').className='msg ok';renderAll();
+  $('sSampleMsg').textContent='削除中…';const n=await removeSample();
+  $('sSampleMsg').textContent=`見本を消しました（日報${n}件）`;$('sSampleMsg').className='msg ok';renderAll();
 };
 
 /* =========================================================
