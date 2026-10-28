@@ -8,6 +8,7 @@
 <meta name="theme-color" content="#16687f">
 <title>営業日報</title>
 <style>
+
 /* 白背景が基本。🌙でダーク切替。スマホは下に5つのタブ、PCは上にタブ */
 :root{
   --bg:#f3f5f4;--surface:#fff;--line:rgba(21,40,38,.14);--fg:#14211f;--sub:#4b5b58;--muted:#7d8b88;
@@ -188,6 +189,41 @@ dialog .db{padding:16px;display:flex;flex-direction:column;gap:16px}
 @media (min-width:601px){.banner img:not(.bg){-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}}
 #errbar{background:var(--warn);color:#fff;font-size:13px;padding:8px 14px;text-align:center}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+
+/* ---- v2 追加 ---- */
+.kindtag{font-size:11px;font-weight:800;border-radius:5px;padding:0 6px;white-space:nowrap}
+.k-営業{background:var(--accent-soft);color:var(--accent)}
+.k-社内{background:var(--amber-soft);color:var(--amber)}
+.st-受注{background:var(--ok-soft);color:var(--ok)}
+.st-完了{background:var(--ok-soft);color:var(--ok)}
+.st-未着手,.st-進行中{background:var(--amber-soft);color:var(--amber)}
+.card .title{font-size:13px;color:var(--sub);overflow-wrap:anywhere}
+.caselink{background:none;border:0;padding:0;color:inherit;font:inherit;text-align:left;cursor:pointer;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.pick{display:flex;flex-direction:column;gap:6px;max-height:330px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:6px;background:var(--bg)}
+.pick button.it{display:flex;flex-direction:column;gap:2px;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 10px}
+.pick button.it .l1{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.pick button.it b{font-size:14px}
+.pick button.it span.s{font-size:12px;color:var(--muted)}
+.picked{display:flex;flex-direction:column;gap:4px;border:2px solid var(--accent);border-radius:12px;padding:10px 12px;background:var(--accent-soft)}
+.picked .l1{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.picked b{font-size:15px}
+.tl{display:flex;flex-direction:column;gap:0;border-left:2px solid var(--line);margin-left:6px}
+.tl .ev{position:relative;padding:0 0 12px 14px}
+.tl .ev::before{content:"";position:absolute;left:-6px;top:6px;width:10px;height:10px;border-radius:50%;background:var(--surface);border:2px solid var(--accent)}
+.tl .ev .h{font-size:13px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.tl .ev .h .d{font-family:var(--mono);color:var(--sub)}
+.closebox{border:1px dashed var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.result{border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:4px}
+.result.ok{background:var(--ok-soft)}.result.ng{background:var(--warn-soft)}
+.btn.okb{background:var(--ok);border-color:var(--ok);color:#fff}
+.btn.ngb{background:transparent;border-color:var(--warn);color:var(--warn)}
+.newbtn{display:flex;align-items:center;gap:6px}
+.internal-strip{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:13px;color:var(--sub);background:var(--amber-soft);border-radius:10px;padding:8px 12px}
+.internal-strip b{color:var(--fg);font-family:var(--mono)}
+.switch{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--sub);cursor:pointer}
+.switch input{width:18px;height:18px;accent-color:var(--accent)}
+dialog.wide{width:min(760px,calc(100vw - 24px))}
+.secttl{font-size:13px;font-weight:800;color:var(--sub);letter-spacing:.04em}
 </style>
 </head>
 <body>
@@ -208,11 +244,11 @@ dialog .db{padding:16px;display:flex;flex-direction:column;gap:16px}
   <div class="hin">
     <div class="brand"><small>DAYBREAK 営業</small><b>営業日報</b></div>
     <nav class="tabs" id="tabs">
-      <button data-t="input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>入力</button>
-      <button data-t="logs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>日報</button>
-      <button data-t="deals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>案件</button>
-      <button data-t="stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>集計</button>
+      <button data-t="cases"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>案件</button>
+      <button data-t="input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>日報を書く</button>
+      <button data-t="logs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>日報一覧</button>
       <button data-t="week"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 5h16v11H8l-4 4z"/></svg>週報</button>
+      <button data-t="stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>集計</button>
     </nav>
     <span class="sync" id="sync"></span>
     <button class="icon" id="reloadBtn" title="最新のデータを読み込む" aria-label="最新のデータを読み込む">🔄</button>
@@ -222,61 +258,73 @@ dialog .db{padding:16px;display:flex;flex-direction:column;gap:16px}
 </header>
 
 <main>
-<!-- ============ 入力 ============ -->
-<section id="v-input" class="split">
+<!-- ============ ① 案件 ============ -->
+<section id="v-cases" hidden>
+  <div class="panel">
+    <div class="row"><h2>案件</h2><span class="muted" id="caseCount"></span><button class="btn sm sp newbtn" id="newCaseBtn">＋ 新しい案件</button></div>
+    <div class="filters">
+      <div class="seg" id="cGroup"></div>
+    </div>
+    <div class="filters">
+      <select id="cfStaff" aria-label="担当者"></select>
+      <select id="cfKind" aria-label="種類"></select>
+      <select id="cfType" aria-label="業務内容"></select>
+      <input type="search" id="cfQ" placeholder="会社名・内容で検索">
+    </div>
+  </div>
+  <div class="list" id="caseList"></div>
+</section>
+
+<!-- ============ ② 日報を書く ============ -->
+<section id="v-input" class="split" hidden>
   <form class="panel" id="frm" novalidate autocomplete="off">
-    <div class="row"><h2 id="fTitle">営業活動を記録</h2><button type="button" class="btn ghost sm sp" id="fCancel" hidden>編集をやめる</button></div>
+    <div class="row"><h2 id="fTitle">日報を書く</h2><button type="button" class="btn ghost sm sp" id="fCancel" hidden>編集をやめる</button></div>
     <div class="g2">
-      <div class="f"><label class="req" for="fDate">いつ（営業日）</label><input type="date" id="fDate"></div>
       <div class="f"><label class="req" for="fStaff">担当者</label><select id="fStaff"></select></div>
+      <div class="f"><label class="req" for="fDate">日付</label><input type="date" id="fDate"></div>
     </div>
     <div class="f"><span class="lt">時間</span>
       <div class="trow"><input type="time" id="fStart" aria-label="開始時刻" step="300"><span class="muted">〜</span><input type="time" id="fEnd" aria-label="終了時刻" step="300"></div>
     </div>
     <div class="f">
-      <label class="req" for="fCompany">どこへ（会社名・事業所名）</label>
-      <input id="fCompany" list="coList" placeholder="例：〇〇食堂 堺東店" enterkeyhint="next">
-      <datalist id="coList"></datalist>
-      <div class="dealbox" id="dealInfo" hidden></div>
+      <span class="lt req">どの案件？</span>
+      <div id="pickedBox" hidden></div>
+      <div id="pickArea">
+        <div class="row" style="margin-bottom:6px"><input type="search" id="pickQ" placeholder="案件を探す" style="flex:1"><button type="button" class="btn ghost sm" id="pickNew">＋ 新しい案件</button></div>
+        <div class="pick" id="pickList"></div>
+        <label class="switch" style="margin-top:6px"><input type="checkbox" id="pickAll">決着した案件も表示</label>
+      </div>
     </div>
-    <div class="g2">
-      <div class="f"><span class="lt">顧客区分</span><div class="chips" id="cKubun"></div></div>
-      <div class="f"><label for="fIndustry">業種</label><select id="fIndustry"></select></div>
-    </div>
-    <div class="f"><span class="lt req">どうやって（営業方法）</span><div class="chips" id="cMethod"></div></div>
-    <div class="f"><span class="lt req">なにを（営業内容）</span><div class="chips" id="cContent"></div></div>
-    <div class="f"><span class="lt req">結果（営業状況）</span><div class="chips" id="cStatus"></div></div>
-    <div class="f" id="routeBox"><span class="lt" id="routeLbl">獲得経路（どこからの話か）</span><div class="chips" id="cRoute"></div></div>
-    <div class="f"><label for="fNeeds">先方の困りごと・要望</label><textarea id="fNeeds" rows="2" placeholder="例：回収回数を増やしたい、今の業者の対応が遅い"></textarea></div>
-    <div class="f"><label for="fMemo">提案内容・商談メモ</label><textarea id="fMemo" rows="2" placeholder="例：週3回→毎日回収で見積り。来週オーナーに確認"></textarea></div>
-    <div class="g3">
+    <div class="f"><span class="lt req">どうやって</span><div class="chips" id="cMethod"></div></div>
+    <div class="f"><label class="req" for="fAction">何をしたか</label><textarea id="fAction" rows="3" placeholder="例：店長と面談。回収時間の不満あり。毎日回収の見積りを約束"></textarea></div>
+    <div class="f"><span class="lt">進み具合（案件の状況が変わります）</span><div class="chips" id="cProg"></div></div>
+    <div class="g2" id="amtRow">
       <div class="f"><label for="fQuote">見積提出額（月額・円）</label><input id="fQuote" inputmode="numeric" placeholder="0"></div>
-      <div class="f"><label for="fExpected">契約見込月額（円）</label><input id="fExpected" inputmode="numeric" placeholder="0"></div>
-      <div class="f" id="incBox"><label for="fIncrease">契約後の月額売上増加（円）</label><input id="fIncrease" inputmode="numeric" placeholder="0"></div>
+      <div class="f"><label for="fExpected">見込月額（円）</label><input id="fExpected" inputmode="numeric" placeholder="0"></div>
     </div>
     <div class="g2">
-      <div class="f"><label for="fNext">次回対応・宿題</label><input id="fNext" placeholder="例：見積りの返事を確認"></div>
-      <div class="f"><label for="fNextDate">次回連絡予定日</label><input type="date" id="fNextDate"></div>
+      <div class="f"><label for="fNext">次にやること</label><input id="fNext" placeholder="例：見積りの返事を確認"></div>
+      <div class="f"><label for="fNextDate">期限（次回連絡日）</label><input type="date" id="fNextDate"></div>
     </div>
     <details class="more" id="moreBox">
       <summary>上司確認・備考</summary>
       <div>
         <div class="f"><span class="lt">上司確認</span><div class="chips sm" id="cCheck"></div></div>
-        <div class="f"><label for="fNote">備考</label><textarea id="fNote" rows="2" placeholder="単発回収の補足など"></textarea></div>
+        <div class="f"><label for="fNote">備考</label><textarea id="fNote" rows="2"></textarea></div>
       </div>
     </details>
     <div class="stick">
-      <button class="btn wide" id="saveBtn" type="submit">記録する</button>
+      <button class="btn wide" id="saveBtn" type="submit">日報を追記する</button>
       <div class="msg" id="fMsg" role="status"></div>
     </div>
   </form>
   <div class="panel">
-    <div class="row"><h2>最近の記録</h2><span class="muted sp" id="recentWho"></span></div>
+    <div class="row"><h2>最近の日報</h2><span class="muted sp" id="recentWho"></span></div>
     <div class="list" id="recentList"></div>
   </div>
 </section>
 
-<!-- ============ 日報一覧 ============ -->
+<!-- ============ ③ 日報一覧 ============ -->
 <section id="v-logs" hidden>
   <div class="panel">
     <div class="row"><h2>日報一覧</h2><span class="muted" id="logCount"></span><button class="btn ghost sm sp" id="csvBtn">CSVで書き出す</button></div>
@@ -286,33 +334,34 @@ dialog .db{padding:16px;display:flex;flex-direction:column;gap:16px}
     </div>
     <div class="filters">
       <select id="lStaff" aria-label="担当者"></select>
-      <select id="lKubun" aria-label="顧客区分"></select>
-      <select id="lMethod" aria-label="営業方法"></select>
-      <select id="lContent" aria-label="営業内容"></select>
-      <select id="lStatus" aria-label="営業状況"></select>
-      <select id="lIndustry" aria-label="業種"></select>
+      <select id="lKind" aria-label="種類"></select>
+      <select id="lType" aria-label="業務内容"></select>
+      <select id="lMethod" aria-label="方法"></select>
       <select id="lCheck" aria-label="上司確認"></select>
-      <input type="search" id="lQ" placeholder="会社名・メモで検索">
+      <input type="search" id="lQ" placeholder="会社名・内容で検索">
     </div>
   </div>
   <div class="list" id="logList"></div>
 </section>
 
-<!-- ============ 案件 ============ -->
-<section id="v-deals" hidden>
+<!-- ============ ④ 週報 ============ -->
+<section id="v-week" hidden>
   <div class="panel">
-    <div class="row"><h2>案件</h2><span class="muted" id="dealCount"></span></div>
-    <div class="hint">同じ会社への営業は1つの案件にまとまります。金額は案件ごとに最新の値だけを数えるので、何度記録しても二重に計上されません。</div>
-    <div class="filters">
-      <div class="seg" id="dGroup"></div>
-      <select id="dStaff" aria-label="担当者"></select>
-      <input type="search" id="dQ" placeholder="会社名で検索">
+    <div class="row"><h2>週報（LINE WORKS用）</h2></div>
+    <div class="wkbar">
+      <button class="icon" id="wPrev" aria-label="前の週">‹</button>
+      <span class="wk" id="wLabel"></span>
+      <button class="icon" id="wNext" aria-label="次の週">›</button>
+      <select id="wStaff" aria-label="担当者" style="width:auto"></select>
+      <div class="seg" id="wDetail"></div>
     </div>
+    <textarea id="wkText" aria-label="週報の文章" spellcheck="false"></textarea>
+    <div class="row"><button class="btn" id="wCopy">文章をコピー</button><span class="msg" id="wMsg"></span></div>
+    <div class="hint">コピーしてLINE WORKSのトークに貼り付けてください。この欄で書き足すこともできます（書き足した内容は保存されません）。</div>
   </div>
-  <div class="list" id="dealList"></div>
 </section>
 
-<!-- ============ 集計 ============ -->
+<!-- ============ ⑤ 集計 ============ -->
 <section id="v-stats" hidden>
   <div class="panel">
     <div class="row"><h2>月間報告</h2>
@@ -323,17 +372,14 @@ dialog .db{padding:16px;display:flex;flex-direction:column;gap:16px}
         <select id="mStaff" aria-label="担当者" style="width:auto"></select>
       </div>
     </div>
+    <div class="row"><label class="switch"><input type="checkbox" id="incInternal">活動件数に社内作業を含める</label></div>
     <div class="kpis" id="kpis"></div>
+    <div class="internal-strip" id="internalStrip"></div>
     <div class="hint" id="kpiNote"></div>
   </div>
   <div class="panel">
-    <div class="row"><h2>成果のグラフ</h2>
-      <div class="seg sp" id="gPer"></div>
-    </div>
-    <div class="row">
-      <div class="seg" id="gView"></div>
-      <div class="seg sp" id="gMetric"></div>
-    </div>
+    <div class="row"><h2>グラフ</h2><div class="seg sp" id="gPer"></div></div>
+    <div class="row"><div class="seg" id="gView"></div><div class="seg sp" id="gMetric"></div></div>
     <div id="lg"></div>
     <div class="chart"><div id="chartBox" style="position:absolute;inset:0"></div><div class="empty" id="chartEmpty" hidden></div></div>
   </div>
@@ -348,27 +394,54 @@ dialog .db{padding:16px;display:flex;flex-direction:column;gap:16px}
     <div class="row"><button class="btn sm" id="rvSave">振り返りを保存</button><span class="msg" id="rvMsg"></span></div>
   </div>
 </section>
-
-<!-- ============ 週報 ============ -->
-<section id="v-week" hidden>
-  <div class="panel">
-    <div class="row"><h2>週報（LINE WORKS用）</h2></div>
-    <div class="wkbar">
-      <button class="icon" id="wPrev" aria-label="前の週">‹</button>
-      <span class="wk" id="wLabel"></span>
-      <button class="icon" id="wNext" aria-label="次の週">›</button>
-      <select id="wStaff" aria-label="担当者" style="width:auto"></select>
-      <div class="seg" id="wDetail"></div>
-    </div>
-    <textarea id="wkText" aria-label="週報の文章" spellcheck="false"></textarea>
-    <div class="row">
-      <button class="btn" id="wCopy">文章をコピー</button>
-      <span class="msg" id="wMsg"></span>
-    </div>
-    <div class="hint">コピーしてLINE WORKSのトークに貼り付けてください。送る前にこの欄で直接書き足すこともできます（書き足した内容は保存されません）。</div>
-  </div>
-</section>
 </main>
+
+<!-- 案件ダイアログ -->
+<dialog id="caseDlg" class="wide">
+  <div class="dh"><h2 id="cdTitle">新しい案件</h2><button class="icon sp" id="cdClose" aria-label="閉じる">✕</button></div>
+  <div class="db">
+    <div id="cdExisting" hidden style="display:flex;flex-direction:column;gap:16px">
+      <div class="card" id="cdSummary" style="background:var(--bg)"></div>
+      <div class="closebox" id="closeBox"></div>
+      <div class="row"><span class="secttl">経過（日報）</span><button class="btn sm sp" id="cdWrite">この案件の日報を書く</button></div>
+      <div class="tl" id="cdTimeline"></div>
+      <div class="row"><button class="btn ghost sm" id="cdDelete" style="color:var(--warn);border-color:var(--warn)">案件を削除</button><span class="hint">日報が1件もない案件だけ削除できます</span></div>
+    </div>
+    <details id="ccWrap" open><summary id="ccWrapSum" class="secttl" style="cursor:pointer;color:var(--accent)">案件の内容を直す</summary>
+    <form id="caseFrm" novalidate autocomplete="off" style="display:flex;flex-direction:column;gap:14px;margin-top:12px">
+      <div class="g2">
+        <div class="f"><span class="lt req">種類</span><div class="chips" id="ccKind"></div></div>
+        <div class="f"><label class="req" for="ccType">業務内容</label><select id="ccType"></select></div>
+      </div>
+      <div class="g2">
+        <div class="f"><label class="req" for="ccCompany" id="ccCompanyLbl">会社名・事業所名</label><input id="ccCompany" placeholder="例：〇〇食堂 堺東店"></div>
+        <div class="f"><label class="req" for="ccStaff">担当者</label><select id="ccStaff"></select></div>
+      </div>
+      <div class="f"><label for="ccTitle">案件の内容（ひとことで）</label><input id="ccTitle" placeholder="例：可燃・ダンボールの新規回収"></div>
+      <details class="more" id="ccMore">
+        <summary>くわしく（あとからでもOK）</summary>
+        <div>
+          <div class="g2 salesOnly">
+            <div class="f"><span class="lt">顧客区分</span><div class="chips" id="ccKubun"></div></div>
+            <div class="f"><label for="ccIndustry">業種</label><select id="ccIndustry"></select></div>
+          </div>
+          <div class="f salesOnly"><span class="lt">獲得経路（どこからの話か）</span><div class="chips" id="ccRoute"></div></div>
+          <div class="g2 salesOnly">
+            <div class="f"><label for="ccExpected">見込月額（円）</label><input id="ccExpected" inputmode="numeric" placeholder="0"></div>
+            <div class="f"><label for="ccQuote">見積提出額（月額・円）</label><input id="ccQuote" inputmode="numeric" placeholder="0"></div>
+          </div>
+          <div class="f"><label for="ccDetail">詳細・背景メモ</label><textarea id="ccDetail" rows="3" placeholder="例：管理会社の〇〇さんから紹介。今の業者の回収時間に不満"></textarea></div>
+          <div class="g2">
+            <div class="f"><label for="ccNext">次にやること</label><input id="ccNext" placeholder="例：初回訪問"></div>
+            <div class="f"><label for="ccNextDate">期限</label><input type="date" id="ccNextDate"></div>
+          </div>
+        </div>
+      </details>
+      <div class="row"><button class="btn" id="ccSave" type="submit">案件を登録</button><span class="msg" id="ccMsg"></span></div>
+    </form>
+    </details>
+  </div>
+</dialog>
 
 <!-- 設定 -->
 <dialog id="setDlg">
@@ -376,16 +449,18 @@ dialog .db{padding:16px;display:flex;flex-direction:column;gap:16px}
   <div class="db">
     <div class="f"><label for="sStaff">担当者（1行に1人）</label><textarea id="sStaff" rows="4"></textarea></div>
     <div class="f"><label for="sTarget">1人あたりの月間売上増加目標（円）</label><input id="sTarget" inputmode="numeric"></div>
-    <div class="f"><label for="sInd">業種の選択肢（1行に1つ）</label><textarea id="sInd" rows="5"></textarea></div>
-    <div class="f"><label for="sRoute">獲得経路の選択肢（1行に1つ）</label><textarea id="sRoute" rows="5"></textarea></div>
+    <div class="f"><label for="sSalesTypes">営業の業務内容（1行に1つ）</label><textarea id="sSalesTypes" rows="4"></textarea></div>
+    <div class="f"><label for="sInternalTypes">社内作業の業務内容（1行に1つ）</label><textarea id="sInternalTypes" rows="3"></textarea></div>
+    <div class="f"><label for="sInd">業種の選択肢（1行に1つ）</label><textarea id="sInd" rows="4"></textarea></div>
+    <div class="f"><label for="sRoute">獲得経路の選択肢（1行に1つ）</label><textarea id="sRoute" rows="4"></textarea></div>
     <div class="row"><button class="btn" id="sSave">設定を保存</button><span class="msg" id="sMsg"></span></div>
     <hr style="border:0;border-top:1px solid var(--line);width:100%;margin:0">
     <div class="f"><span class="lt">読み込む範囲</span>
-      <div class="hint">軽く動かすため、ふだんは今年度（4月〜）の日報だけを読み込みます。</div>
+      <div class="hint">軽く動かすため、ふだんは今年度（4月〜）の日報だけを読み込みます。案件はすべて読み込みます。</div>
       <div class="chips sm" id="sRange"></div>
     </div>
     <div class="f"><span class="lt">見本データ</span>
-      <div class="hint">説明用の見本（今年度4月〜今日、担当者ごとに毎月）を入れます。会社名に「(見本)」が付き、本物の記録を消さずにまとめて消せます。押し直すと入れ替わります。</div>
+      <div class="hint">説明用の見本（今年度4月〜今日、担当者ごと）を入れます。会社名に「(見本)」が付き、本物の記録を消さずにまとめて消せます。押し直すと入れ替わります。</div>
       <div class="row"><button class="btn ghost sm" id="sSample">見本データを入れる</button><button class="btn ghost sm" id="sSampleDel">見本データを消す</button><span class="msg" id="sSampleMsg"></span></div>
     </div>
   </div>
@@ -397,8 +472,9 @@ dialog .db{padding:16px;display:flex;flex-direction:column;gap:16px}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 /* =========================================================
-   営業日報  （GitHub Pages ＋ Firebase Firestore）
-   コレクション：sr_logs（日報1件）／ sr_deals（案件）／ sr_settings／ sr_monthly
+   営業日報 v2（案件が軸）  GitHub Pages ＋ Firebase Firestore
+   ① 案件を登録 → ② 日報は案件を選んで追記 → ③ 日報一覧 → ④ 週報 → ⑤ 集計
+   コレクション：sr_cases（案件）／ sr_reports（日報）／ sr_settings ／ sr_monthly
    ========================================================= */
 const PASSCODE='daybreak2026';           // ← パスコードはここで変更
 const firebaseConfig={
@@ -409,16 +485,17 @@ const firebaseConfig={
   messagingSenderId:"219252490669",
   appId:"1:219252490669:web:bb3d9dc019a17a5a01e124"
 };
-const C={logs:'sr_logs',deals:'sr_deals',settings:'sr_settings',monthly:'sr_monthly'};
+const C={cases:'sr_cases',reports:'sr_reports',settings:'sr_settings',monthly:'sr_monthly'};
 
-/* ---- 選択肢（エクセルのプルダウンと同じ。料金改定のみ追加） ---- */
+/* ---- 選択肢 ---- */
+const KINDS=['営業','社内'];
 const KUBUN=['新規','既存'];
-const METHODS=['電話','訪問','メール','オンライン','紹介','その他'];
-const CONTENTS=['新規営業','既存顧客への追加提案','料金改定','見積提出','契約後フォロー','その他'];
-const STATUSES=['未接触','担当者確認','商談中','見積提出','契約','失注','保留'];
+const METHODS=['訪問','電話','メール','オンライン','紹介','社内作業','その他'];
+const STAGES={'営業':['未接触','担当者確認','商談中','見積提出'],'社内':['未着手','進行中']};
 const CHECKS=['未確認','確認済み','要相談'];
-const OPEN=s=>!['契約','失注','保留'].includes(s);
 const DEF={staff:['平生','小柴'],target:100000,
+  salesTypes:['新規獲得','料金改定','追加提案（回数・品目）','その他営業'],
+  internalTypes:['許可更新','社内業務','その他'],
   industries:['飲食業','小売業','製造業','建設業','医療・福祉','不動産・管理会社','事務所・オフィス','宿泊業','教育','サービス業','その他'],
   routes:['自力開拓','管理会社紹介','社内紹介','既存客紹介','問い合わせ']};
 
@@ -427,39 +504,55 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pad=n=>String(n).padStart(2,'0');
 const ds=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-const pd=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const pd=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d||1)};
 const today=()=>ds(new Date());
 const addDays=(s,n)=>{const d=pd(s);d.setDate(d.getDate()+n);return ds(d)};
 const WD='日月火水木金土';
 const md=s=>s?`${+s.slice(5,7)}/${+s.slice(8,10)}(${WD[pd(s).getDay()]})`:'';
+const ymLabel=ym=>ym?`${ym.slice(0,4)}年${+ym.slice(5,7)}月`:'';
 const yen=n=>(n<0?'−':'')+'¥'+Math.abs(Math.round(n||0)).toLocaleString('ja-JP');
 const num=s=>{const v=String(s??'').replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)).replace(/[,，¥￥円\s]/g,'');return v===''?null:(isFinite(+v)?+v:NaN)};
 const norm=s=>String(s||'').replace(/[\s　]+/g,'').replace(/[Ａ-Ｚａ-ｚ０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)).toLowerCase();
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const LS={get(k,d){try{const v=localStorage.getItem('sr_'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('sr_'+k,JSON.stringify(v))}catch(e){}}};
+const LS={get(k,d){try{const v=localStorage.getItem('sr2_'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('sr2_'+k,JSON.stringify(v))}catch(e){}}};
 const sk=l=>l.date+(l.start||'99:99')+String(l.createdAt||0).padStart(15,'0');
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const tr=l=>l.start||l.end?` ${l.start||''}〜${l.end||''}`:'';
+const mins=l=>{if(!l.start||!l.end)return 0;const[a,b]=l.start.split(':').map(Number),[c,d]=l.end.split(':').map(Number);return Math.max(0,(c*60+d)-(a*60+b))};
+const hrs=m=>Math.round(m/6)/10;
 function toast(t){const el=$('toast');el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2600)}
 function showErr(t){$('errbar').textContent=t;$('errbar').hidden=false}
 window.addEventListener('error',e=>showErr('エラー：'+e.message));
 function fyStart(s){const d=pd(s||today());const y=d.getMonth()>=3?d.getFullYear():d.getFullYear()-1;return `${y}-04-01`}
 function weekStart(s){const d=pd(s);const w=(d.getDay()+6)%7;d.setDate(d.getDate()-w);return ds(d)}
 function monthEnd(ym){const[y,m]=ym.split('-').map(Number);return ds(new Date(y,m,0))}
+function shiftYm(ym,n){const[y,m]=ym.split('-').map(Number);const d=new Date(y,m-1+n,1);return `${d.getFullYear()}-${pad(d.getMonth()+1)}`}
+function fillSelect(el,list,first){el.innerHTML=(first!=null?`<option value="">${esc(first)}</option>`:'')+list.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('')}
+function keepSelect(el,list,first){const k=el.value;fillSelect(el,list,first);if(k&&list.includes(k))el.value=k}
+
+/* ---- 案件の状態 ---- */
+const isOpen=c=>!c.result;
+const stateOf=c=>c.result||c.status||(c.kind==='社内'?'未着手':'未接触');
+const typesOf=k=>k==='社内'?S.settings.internalTypes:k==='営業'?S.settings.salesTypes:[...S.settings.salesTypes,...S.settings.internalTypes];
+const caseName=c=>c?(c.company+(c.title?`｜${c.title}`:'')):'（案件なし）';
 
 /* ---- テーマ ---- */
 function applyTheme(t){document.documentElement.setAttribute('data-theme',t);$('themeBtn').textContent=t==='dark'?'☀️':'🌙';LS.set('theme',t);if(S.ready&&cur==='stats')drawChart()}
 
 /* ---- 状態 ---- */
-const S={ready:false,settings:{...DEF},deals:new Map(),logs:[],range:LS.get('range','fy'),loadedFrom:null};
-let cur='input';
+const S={ready:false,settings:{...DEF},cases:new Map(),reports:[],range:LS.get('range','fy')};
+let cur='cases';
 
 /* ---- Firebase ---- */
 let db=null;
 if(typeof firebase==='undefined'){showErr('データベースの読み込みに失敗しました。電波の良い場所でリロードしてください。')}
 else{firebase.initializeApp(firebaseConfig);db=firebase.firestore();db.enablePersistence({synchronizeTabs:true}).catch(()=>{})}
+function commit(batch){return new Promise(res=>{let done=false;batch.commit().then(()=>{done=true;res('ok')}).catch(e=>{done=true;res(e)});setTimeout(()=>{if(!done)res('pending')},2500)})}
+const okr=r=>r==='ok'||r==='pending';
+function put(b,col,o){const{id,...body}=o;b.set(db.collection(col).doc(id),body)}
 
 /* ---- ロック（8時間操作がなければ再確認） ---- */
-function unlocked(){const t=LS.get('unlock',0);return Date.now()-t<8*3600e3}
+function unlocked(){return Date.now()-LS.get('unlock',0)<8*3600e3}
 function touch(){LS.set('unlock',Date.now())}
 ['click','keydown'].forEach(ev=>document.addEventListener(ev,()=>{if(unlocked())touch()},{passive:true}));
 function tryUnlock(){if($('passInput').value===PASSCODE){touch();$('lock').hidden=true;start()}else $('passErr').hidden=false}
@@ -471,219 +564,321 @@ async function load(){
   $('sync').textContent='読み込み中…';
   try{
     const from=S.range==='all'?null:(()=>{const f=fyStart();const back=addDays(today(),-70);return back<f?back:f})();
-    const sQ=db.collection(C.settings).doc('main').get();
-    const dQ=db.collection(C.deals).get();
-    const lQ=from?db.collection(C.logs).where('date','>=',from).get():db.collection(C.logs).get();
-    const[sSnap,dSnap,lSnap]=await Promise.all([sQ,dQ,lQ]);
+    const[sSnap,cSnap,rSnap]=await Promise.all([
+      db.collection(C.settings).doc('main').get(),
+      db.collection(C.cases).get(),
+      from?db.collection(C.reports).where('date','>=',from).get():db.collection(C.reports).get()]);
     if(sSnap.exists)S.settings={...DEF,...sSnap.data()};
-    S.deals=new Map();dSnap.forEach(d=>S.deals.set(d.id,{id:d.id,...d.data()}));
-    S.logs=[];lSnap.forEach(d=>S.logs.push({id:d.id,...d.data()}));
-    S.loadedFrom=from;S.ready=true;
-    const t=new Date();$('sync').textContent=`${pad(t.getHours())}:${pad(t.getMinutes())} 更新`;
-    $('errbar').hidden=true;
+    S.cases=new Map();cSnap.forEach(d=>S.cases.set(d.id,{id:d.id,...d.data()}));
+    S.reports=[];rSnap.forEach(d=>S.reports.push({id:d.id,...d.data()}));
+    S.ready=true;const t=new Date();$('sync').textContent=`${pad(t.getHours())}:${pad(t.getMinutes())} 更新`;$('errbar').hidden=true;
   }catch(e){showErr('データを読み込めませんでした（'+(e.code||e.message)+'）。🔄で読み込み直してください。');$('sync').textContent=''}
   renderAll();
 }
 $('reloadBtn').onclick=()=>load().then(()=>toast('最新のデータにしました'));
 
-/* 保存：オフラインでも端末に一時保存して、電波が戻ったら送信される */
-function commit(batch){
-  return new Promise(res=>{let done=false;
-    batch.commit().then(()=>{done=true;res('ok')}).catch(e=>{done=true;res(e)});
-    setTimeout(()=>{if(!done)res('pending')},2500)});
+/* ---- 共通の表示部品 ---- */
+function dueBadge(s,label='期限'){if(!s)return'';const t=today();const cls=s<t?'over':s<=addDays(t,3)?'soon':'later';const lab=s<t?'期限切れ':s===t?'今日':'';return `<span class="due ${cls}">${label} ${md(s)}${lab?' '+lab:''}</span>`}
+function chipsHtml(list,cur){return list.map(v=>`<button type="button" data-v="${esc(v)}" class="${v===cur?'on':''}">${esc(v)}</button>`).join('')}
+function chipBind(id,get,set,toggle=true){$(id).onclick=e=>{const b=e.target.closest('button');if(!b)return;const v=b.dataset.v;set(toggle&&get()===v?'':v);$(id).querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.v===get()))}}
+const repsOf=id=>S.reports.filter(r=>r.caseId===id).sort((a,b)=>sk(b).localeCompare(sk(a)));
+
+/* =========================================================
+   ① 案件
+   ========================================================= */
+const CG={group:LS.get('cgroup','open')};
+const CGROUPS=[['open','進行中'],['won','受注'],['lost','失注'],['done','完了'],['all','すべて']];
+function setupCaseFilters(){
+  keepSelect($('cfStaff'),S.settings.staff,'担当：全員');
+  if(!setupCaseFilters.done){const me=LS.get('me','');if(S.settings.staff.includes(me))$('cfStaff').value=me;setupCaseFilters.done=true}
+  keepSelect($('cfKind'),KINDS,'種類：すべて');
+  keepSelect($('cfType'),typesOf($('cfKind').value),'業務内容：すべて');
+}
+['cfStaff','cfKind','cfType'].forEach(id=>$(id).addEventListener('change',()=>{if(id==='cfKind')keepSelect($('cfType'),typesOf($('cfKind').value),'業務内容：すべて');if(id==='cfStaff')LS.set('me',$('cfStaff').value);renderCases()}));
+$('cfQ').addEventListener('input',renderCases);
+$('cGroup').onclick=e=>{const b=e.target.closest('button');if(!b)return;CG.group=b.dataset.g;LS.set('cgroup',CG.group);renderCases()};
+function caseCard(c){
+  const st=stateOf(c);const amt=[];
+  if(c.kind==='営業'){if(c.result==='受注')amt.push(`<span>月額</span><b>+${yen(c.increase)}</b><span>売上開始</span><b>${ymLabel(c.salesStart)}</b>`);else{if(c.quote)amt.push(`<span>見積</span><b>${yen(c.quote)}</b>`);if(c.expected)amt.push(`<span>見込</span><b>${yen(c.expected)}</b>`)}}
+  return `<div class="card">
+    <div class="top"><span class="kindtag k-${esc(c.kind)}">${esc(c.kind)}</span><button class="caselink co" data-case="${c.id}">${esc(c.company)}</button><span class="st st-${esc(st)}">${esc(st)}</span><span class="who">${esc(c.staff)}</span></div>
+    ${c.title?`<div class="title">${esc(c.title)}</div>`:''}
+    <div class="tags"><span class="tag">${esc(c.type||'')}</span>${c.kind==='営業'&&c.kubun?`<span class="tag">${esc(c.kubun)}</span>`:''}${c.industry?`<span class="tag">${esc(c.industry)}</span>`:''}${c.route?`<span class="tag">${esc(c.route)}</span>`:''}<span class="tag">登録 ${md(c.createdDate)}</span>${c.lastDate?`<span class="tag">最終 ${md(c.lastDate)}</span>`:''}</div>
+    ${amt.length?`<div class="amts">${amt.join('')}</div>`:''}
+    ${isOpen(c)&&(c.nextAction||c.nextDate)?`<div class="txt"><b>次にやること</b> ${esc(c.nextAction||'')} ${dueBadge(c.nextDate)}</div>`:''}
+    ${c.result==='失注'&&c.lostReason?`<div class="txt"><b>失注理由</b> ${esc(c.lostReason)}</div>`:''}
+    <div class="acts"><button data-case="${c.id}">詳細・経過（日報${c.logCount||0}件）</button><span class="sp"></span>${isOpen(c)?`<button data-write="${c.id}">日報を書く</button>`:''}</div>
+  </div>`;
+}
+function filteredCases(){
+  const st=$('cfStaff').value,k=$('cfKind').value,ty=$('cfType').value,q=norm($('cfQ').value),g=CG.group;
+  let rows=[...S.cases.values()].filter(c=>(!st||c.staff===st)&&(!k||c.kind===k)&&(!ty||c.type===ty)&&(!q||norm([c.company,c.title,c.detail].join(' ')).includes(q))&&
+    (g==='all'||(g==='open'&&isOpen(c))||(g==='won'&&c.result==='受注')||(g==='lost'&&c.result==='失注')||(g==='done'&&c.result==='完了')));
+  if(g==='open')rows.sort((a,b)=>(a.nextDate||'9999').localeCompare(b.nextDate||'9999')||(b.lastDate||b.createdDate||'').localeCompare(a.lastDate||a.createdDate||''));
+  else rows.sort((a,b)=>(b.closedDate||b.lastDate||'').localeCompare(a.closedDate||a.lastDate||''));
+  return rows;
+}
+function renderCases(){
+  $('cGroup').innerHTML=CGROUPS.map(([k,v])=>`<button data-g="${k}" class="${CG.group===k?'on':''}">${v}</button>`).join('');
+  const rows=filteredCases();
+  const exp=rows.filter(c=>isOpen(c)&&c.kind==='営業').reduce((a,c)=>a+(c.expected||0),0);
+  const over=rows.filter(c=>isOpen(c)&&c.nextDate&&c.nextDate<today()).length;
+  $('caseCount').textContent=`${rows.length}件`+(CG.group==='open'?`・見込月額 ${yen(exp)}${over?`・期限切れ ${over}件`:''}`:'');
+  $('caseList').innerHTML=rows.slice(0,300).map(caseCard).join('')||`<div class="empty">${S.cases.size?'該当する案件はありません。':'まだ案件がありません。<br>「＋ 新しい案件」から最初の案件を登録してください。'}</div>`;
+}
+$('newCaseBtn').onclick=()=>openCase(null);
+
+/* ---- 案件ダイアログ ---- */
+const CF={kind:'営業',kubun:'新規',route:'',id:null,afterSave:null};
+function setKind(k){CF.kind=k;$('ccKind').innerHTML=chipsHtml(KINDS,k);
+  keepSelect($('ccType'),typesOf(k),null);
+  document.querySelectorAll('#caseFrm .salesOnly').forEach(el=>el.hidden=k!=='営業');
+  $('ccCompanyLbl').textContent=k==='社内'?'作業名・相手先':'会社名・事業所名';
+  $('ccCompany').placeholder=k==='社内'?'例：収集運搬業許可の更新（堺市）':'例：〇〇食堂 堺東店';}
+$('ccKind').onclick=e=>{const b=e.target.closest('button');if(b)setKind(b.dataset.v)};
+chipBind('ccKubun',()=>CF.kubun,v=>CF.kubun=v||'新規',false);
+chipBind('ccRoute',()=>CF.route,v=>CF.route=v);
+function openCase(id,opts={}){
+  const c=id?S.cases.get(id):null;CF.id=id;CF.afterSave=opts.afterSave||null;
+  $('caseFrm').reset();$('ccMsg').textContent='';
+  fillSelect($('ccStaff'),S.settings.staff,null);
+  fillSelect($('ccIndustry'),S.settings.industries,'選択してください');
+  setKind(c?c.kind:'営業');
+  CF.kubun=c?.kubun||'新規';CF.route=c?.route||'';
+  $('ccKubun').innerHTML=chipsHtml(KUBUN,CF.kubun);$('ccRoute').innerHTML=chipsHtml(S.settings.routes,CF.route);
+  if(c){$('ccType').value=c.type||'';$('ccCompany').value=c.company||'';$('ccStaff').value=c.staff||'';$('ccTitle').value=c.title||'';$('ccIndustry').value=c.industry||'';
+    $('ccExpected').value=c.expected??'';$('ccQuote').value=c.quote??'';$('ccDetail').value=c.detail||'';$('ccNext').value=c.nextAction||'';$('ccNextDate').value=c.nextDate||'';
+    $('cdTitle').textContent=c.company;$('ccSave').textContent='案件の内容を保存';$('ccMore').open=true;$('cdExisting').hidden=false;$('ccWrap').open=false;$('ccWrapSum').hidden=false;renderCaseExtra(c);}
+  else{const me=opts.staff||$('fStaff').value||LS.get('me','');if(S.settings.staff.includes(me))$('ccStaff').value=me;
+    $('cdTitle').textContent='新しい案件';$('ccSave').textContent='案件を登録';$('ccMore').open=false;$('cdExisting').hidden=true;$('ccWrap').open=true;$('ccWrapSum').hidden=true;}
+  $('caseDlg').showModal();if(!c)setTimeout(()=>$('ccCompany').focus(),50);
+}
+$('cdClose').onclick=()=>$('caseDlg').close();
+$('caseFrm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const v={kind:CF.kind,type:$('ccType').value,company:$('ccCompany').value.trim(),staff:$('ccStaff').value,title:$('ccTitle').value.trim(),detail:$('ccDetail').value.trim(),
+    nextAction:$('ccNext').value.trim(),nextDate:$('ccNextDate').value};
+  if(v.kind==='営業')Object.assign(v,{kubun:CF.kubun,industry:$('ccIndustry').value,route:CF.route});
+  for(const[k,id]of[['expected','ccExpected'],['quote','ccQuote']]){if(v.kind!=='営業')break;const n=num($(id).value);if(Number.isNaN(n)){$('ccMsg').textContent='金額は数字で入れてください';$('ccMsg').className='msg err';return}v[k]=n}
+  const miss=[];if(!v.type)miss.push('業務内容');if(!v.company)miss.push(v.kind==='社内'?'作業名':'会社名');if(!v.staff)miss.push('担当者');
+  if(miss.length){$('ccMsg').textContent='入力してください：'+miss.join('、');$('ccMsg').className='msg err';return}
+  const now=Date.now();
+  const c=CF.id?{...S.cases.get(CF.id),...v,updatedAt:now}:{id:'c'+uid(),...v,status:STAGES[v.kind][0],result:'',createdDate:today(),createdAt:now,updatedAt:now,logCount:0};
+  const b=db.batch();put(b,C.cases,c);$('ccSave').disabled=true;const r=await commit(b);$('ccSave').disabled=false;
+  if(!okr(r)){$('ccMsg').textContent='保存できませんでした（'+(r.code||r.message)+'）';$('ccMsg').className='msg err';return}
+  S.cases.set(c.id,c);LS.set('me',c.staff);
+  if(!CF.id){$('caseDlg').close();toast(`案件「${c.company}」を登録しました`);const f=CF.afterSave;renderAll();if(f)f(c);}
+  else{$('ccMsg').textContent='保存しました';$('ccMsg').className='msg ok';$('cdTitle').textContent=c.company;renderAll();renderCaseExtra(c)}
+});
+function monthOpts(sel){const t=today().slice(0,7);let h='';for(let i=-3;i<=12;i++){const m=shiftYm(t,i);h+=`<option value="${m}" ${m===sel?'selected':''}>${ymLabel(m)}</option>`}return h}
+function renderCaseExtra(c){
+  const st=stateOf(c);
+  $('cdSummary').innerHTML=`<div class="top"><span class="kindtag k-${esc(c.kind)}">${esc(c.kind)}</span><span class="tag">${esc(c.type||'')}</span><span class="st st-${esc(st)}">${esc(st)}</span><span class="who">担当 ${esc(c.staff)}</span></div>
+    ${c.title?`<div class="co">${esc(c.title)}</div>`:''}
+    <div class="tags">${c.kind==='営業'&&c.kubun?`<span class="tag">${esc(c.kubun)}</span>`:''}${c.industry?`<span class="tag">${esc(c.industry)}</span>`:''}${c.route?`<span class="tag">${esc(c.route)}</span>`:''}<span class="tag">登録 ${md(c.createdDate)}</span></div>
+    ${c.kind==='営業'&&!c.result&&(c.quote||c.expected)?`<div class="amts">${c.quote?`<span>見積</span><b>${yen(c.quote)}</b>`:''}${c.expected?`<span>見込</span><b>${yen(c.expected)}</b>`:''}</div>`:''}
+    ${c.detail?`<div class="txt"><b>詳細</b> ${esc(c.detail)}</div>`:''}
+    ${isOpen(c)&&(c.nextAction||c.nextDate)?`<div class="txt"><b>次にやること</b> ${esc(c.nextAction||'')} ${dueBadge(c.nextDate)}</div>`:''}`;
+  const box=$('closeBox');
+  if(c.result){
+    const ok=c.result!=='失注';
+    box.innerHTML=`<div class="result ${ok?'ok':'ng'}"><b>${esc(c.result)}（${md(c.closedDate)}）</b>
+      ${c.result==='受注'?`<div class="amts"><span>月額の増加</span><b>+${yen(c.increase)}</b><span>売上開始</span><b>${ymLabel(c.salesStart)}</b><span>経路</span><b>${esc(c.route||'未入力')}</b></div>`:''}
+      ${c.result==='失注'&&c.lostReason?`<div class="txt">理由：${esc(c.lostReason)}</div>`:''}</div>
+      <div class="row"><button class="btn ghost sm" id="reopenBtn">進行中に戻す</button><span class="hint">決着を取り消すと、集計からも外れます</span></div>`;
+    $('reopenBtn').onclick=()=>closeCase(c,{result:'',closedDate:'',salesStart:'',increase:0,lostReason:''},'進行中に戻しました');
+  }else if(c.kind==='営業'){
+    box.innerHTML=`<span class="secttl">決着（受注・失注）</span>
+      <div class="row"><button class="btn sm okb" id="wonOpen">受注にする</button><button class="btn sm ngb" id="lostOpen">失注にする</button></div>
+      <div id="wonForm" hidden style="display:flex;flex-direction:column;gap:10px">
+        <div class="g3"><div class="f"><label for="wDate">受注日</label><input type="date" id="wDate" value="${today()}"></div>
+        <div class="f"><label for="wStart">売上が上がる月</label><select id="wStart">${monthOpts(shiftYm(today().slice(0,7),1))}</select></div>
+        <div class="f"><label for="wInc">月額の増加（円）</label><input id="wInc" inputmode="numeric" value="${c.expected||''}"></div></div>
+        <div class="f"><span class="lt req">獲得経路</span><div class="chips sm" id="wRoute">${chipsHtml(S.settings.routes,c.route||'')}</div></div>
+        <div class="row"><button class="btn sm okb" id="wonSave">受注で決着する</button><span class="msg" id="wonMsg"></span></div>
+      </div>
+      <div id="lostForm" hidden style="display:flex;flex-direction:column;gap:10px">
+        <div class="g2"><div class="f"><label for="lDate">失注日</label><input type="date" id="lDate" value="${today()}"></div>
+        <div class="f"><label for="lReason">理由</label><input id="lReason" placeholder="例：他社のほうが安かった"></div></div>
+        <div class="row"><button class="btn sm ngb" id="lostSave">失注で決着する</button></div>
+      </div>`;
+    let route=c.route||'';
+    $('wRoute').onclick=e=>{const b=e.target.closest('button');if(!b)return;route=b.dataset.v;$('wRoute').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.v===route))};
+    $('wonOpen').onclick=()=>{$('wonForm').hidden=false;$('lostForm').hidden=true};
+    $('lostOpen').onclick=()=>{$('lostForm').hidden=false;$('wonForm').hidden=true};
+    $('wonSave').onclick=()=>{const inc=num($('wInc').value);
+      if(!route){$('wonMsg').textContent='獲得経路を選んでください';$('wonMsg').className='msg err';return}
+      if(inc==null||Number.isNaN(inc)){$('wonMsg').textContent='月額の増加を数字で入れてください';$('wonMsg').className='msg err';return}
+      closeCase(c,{result:'受注',closedDate:$('wDate').value||today(),salesStart:$('wStart').value,increase:inc,route},'受注で決着しました')};
+    $('lostSave').onclick=()=>closeCase(c,{result:'失注',closedDate:$('lDate').value||today(),lostReason:$('lReason').value.trim()},'失注で決着しました');
+  }else{
+    box.innerHTML=`<span class="secttl">完了</span><div class="row"><input type="date" id="dDate" value="${today()}" style="width:auto"><button class="btn sm okb" id="doneBtn">完了にする</button></div>`;
+    $('doneBtn').onclick=()=>closeCase(c,{result:'完了',closedDate:$('dDate').value||today()},'完了にしました');
+  }
+  const reps=repsOf(c.id);
+  $('cdTimeline').innerHTML=reps.length?reps.map(r=>`<div class="ev"><div class="h"><span class="d">${md(r.date)}${tr(r)}</span><b>${esc(r.method||'')}</b>${r.progress?`<span class="st st-${esc(r.progress)}">${esc(r.progress)}</span>`:''}<span class="who">${esc(r.staff)}</span></div>
+    <div class="txt">${esc(r.action)}</div>${r.nextAction||r.nextDate?`<div class="txt"><b>次</b> ${esc(r.nextAction||'')} ${r.nextDate?md(r.nextDate):''}</div>`:''}</div>`).join(''):'<div class="muted" style="padding-left:14px">まだ日報がありません</div>';
+  $('cdWrite').hidden=!isOpen(c);
+  $('cdWrite').onclick=()=>{$('caseDlg').close();startWrite(c.id)};
+  const del=$('cdDelete');del.disabled=(c.logCount||0)>0||reps.length>0;del.textContent='案件を削除';delete del.dataset.arm;
+  del.onclick=async()=>{if(del.dataset.arm!=='1'){del.dataset.arm='1';del.textContent='本当に削除する';return}
+    const b=db.batch();b.delete(db.collection(C.cases).doc(c.id));const r=await commit(b);if(!okr(r)){toast('削除できませんでした');return}
+    S.cases.delete(c.id);$('caseDlg').close();toast('案件を削除しました');renderAll()};
+}
+async function closeCase(c,patch,msgText){
+  const n={...c,...patch,updatedAt:Date.now()};const b=db.batch();put(b,C.cases,n);const r=await commit(b);
+  if(!okr(r)){toast('保存できませんでした');return}
+  S.cases.set(n.id,n);toast(msgText);renderAll();renderCaseExtra(n);
 }
 
 /* =========================================================
-   入力フォーム
+   ② 日報を書く（案件を選んで追記）
    ========================================================= */
-const F={kubun:'新規',method:'',content:'',status:'',route:'',check:'未確認',dealId:null,forceNew:false,editId:null};
-function chipGroup(id,list,key,onChange){
-  const el=$(id);el.innerHTML=list.map(v=>`<button type="button" data-v="${esc(v)}">${esc(v)}</button>`).join('');
-  el.onclick=e=>{const b=e.target.closest('button');if(!b)return;F[key]=(F[key]===b.dataset.v&&key!=='kubun'&&key!=='check')?'':b.dataset.v;syncChips();onChange&&onChange()};
-}
-function syncChips(){
-  [['cKubun','kubun'],['cMethod','method'],['cContent','content'],['cStatus','status'],['cRoute','route'],['cCheck','check']].forEach(([id,k])=>{
-    $(id).querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===F[k]))});
-  const won=F.status==='契約';
-  $('incBox').style.opacity=won?1:.55;
-  $('routeLbl').classList.toggle('req',won);
-}
-function fillSelect(el,list,first){el.innerHTML=(first!=null?`<option value="">${esc(first)}</option>`:'')+list.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('')}
+const F={caseId:null,method:'',progress:'',check:'未確認',editId:null};
 function setupForm(){
-  const st=S.settings;
-  const keep=$('fStaff').value||LS.get('staff','');
-  fillSelect($('fStaff'),st.staff,st.staff.length?null:'設定で担当者を登録');
-  if(st.staff.includes(keep))$('fStaff').value=keep;
-  const ki=$('fIndustry').value;fillSelect($('fIndustry'),st.industries,'選択してください');$('fIndustry').value=ki;
-  chipGroup('cKubun',KUBUN,'kubun');chipGroup('cMethod',METHODS,'method');chipGroup('cContent',CONTENTS,'content');
-  chipGroup('cStatus',STATUSES,'status');chipGroup('cRoute',st.routes,'route');chipGroup('cCheck',CHECKS,'check');
-  $('coList').innerHTML=[...S.deals.values()].sort((a,b)=>(b.lastDate||'').localeCompare(a.lastDate||'')).map(d=>`<option value="${esc(d.company)}">`).join('');
-  syncChips();
+  const keep=$('fStaff').value||LS.get('me','');
+  fillSelect($('fStaff'),S.settings.staff,S.settings.staff.length?null:'設定で担当者を登録');
+  if(S.settings.staff.includes(keep))$('fStaff').value=keep;
+  $('cMethod').innerHTML=chipsHtml(METHODS,F.method);
+  $('cCheck').innerHTML=chipsHtml(CHECKS,F.check);
+  renderPicked();
 }
-function findDeal(name){const n=norm(name);if(!n)return null;let best=null;
-  for(const d of S.deals.values())if(norm(d.company)===n&&(!best||(d.lastDate||'')>(best.lastDate||'')))best=d;return best}
-function onCompany(){
-  if(F.editId)return;
-  const d=F.forceNew?null:findDeal($('fCompany').value);
-  F.dealId=d?d.id:null;
-  const box=$('dealInfo');
-  if(!d){box.hidden=!F.forceNew;box.innerHTML=F.forceNew?'新しい案件として記録します。<button type="button" class="btn ghost sm" id="undoNew">前の案件の続きにする</button>':'';
-    const u=$('undoNew');if(u)u.onclick=()=>{F.forceNew=false;onCompany()};return}
-  box.hidden=false;
-  box.innerHTML=`<span>この会社の<b>案件の続き</b>として記録します</span><span class="st st-${esc(d.status)}">${esc(d.status||'')}</span><span>最終 ${md(d.lastDate)}・${esc(d.staff||'')}・記録${d.logCount||1}回</span><button type="button" class="btn ghost sm" id="forceNew">別の案件にする</button>`;
-  $('forceNew').onclick=()=>{F.forceNew=true;onCompany()};
-  // 前回の内容を引き継ぐ
-  if(!$('fIndustry').value&&d.industry)$('fIndustry').value=d.industry;
-  F.kubun=d.kubun||F.kubun;if(!F.route&&d.route)F.route=d.route;
-  if($('fQuote').value===''&&d.quote)$('fQuote').value=d.quote;
-  if($('fExpected').value===''&&d.expected)$('fExpected').value=d.expected;
-  syncChips();
+chipBind('cMethod',()=>F.method,v=>F.method=v);
+chipBind('cProg',()=>F.progress,v=>F.progress=v);
+chipBind('cCheck',()=>F.check,v=>F.check=v||'未確認',false);
+function renderPickList(){
+  const st=$('fStaff').value,q=norm($('pickQ').value),all=$('pickAll').checked;
+  const rows=[...S.cases.values()].filter(c=>(!st||c.staff===st)&&(all||isOpen(c))&&(!q||norm(c.company+' '+(c.title||'')).includes(q)))
+    .sort((a,b)=>(b.lastDate||b.createdDate||'').localeCompare(a.lastDate||a.createdDate||''));
+  $('pickList').innerHTML=rows.slice(0,80).map(c=>`<button type="button" class="it" data-pick="${c.id}"><span class="l1"><span class="kindtag k-${esc(c.kind)}">${esc(c.kind)}</span><b>${esc(c.company)}</b><span class="st st-${esc(stateOf(c))}">${esc(stateOf(c))}</span></span><span class="s">${esc(c.type||'')}${c.title?'｜'+esc(c.title):''}${c.nextDate?'　期限 '+md(c.nextDate):''}</span></button>`).join('')
+    ||`<div class="empty" style="padding:16px">${st?st+'さんの':''}進行中の案件がありません。<br>「＋ 新しい案件」から登録してください。</div>`;
 }
-$('fCompany').addEventListener('input',()=>{F.forceNew=false;onCompany()});
-$('fCompany').addEventListener('change',onCompany);
+function renderPicked(){
+  const c=F.caseId?S.cases.get(F.caseId):null;
+  $('pickArea').hidden=!!c;$('pickedBox').hidden=!c;
+  if(!c){renderPickList();$('cProg').innerHTML='';$('amtRow').hidden=false;return}
+  $('pickedBox').innerHTML=`<div class="picked"><div class="l1"><span class="kindtag k-${esc(c.kind)}">${esc(c.kind)}</span><b>${esc(c.company)}</b><span class="st st-${esc(stateOf(c))}">${esc(stateOf(c))}</span><span class="who">${esc(c.staff)}</span></div>
+    <div class="muted">${esc(c.type||'')}${c.title?'｜'+esc(c.title):''}</div>
+    <div class="row"><button type="button" class="btn ghost sm" id="pickInfo">案件の詳細</button>${F.editId?'':'<button type="button" class="btn ghost sm" id="pickChange">別の案件にする</button>'}</div></div>`;
+  $('pickInfo').onclick=()=>openCase(c.id);
+  if($('pickChange'))$('pickChange').onclick=()=>{F.caseId=null;renderPicked()};
+  $('cProg').innerHTML=chipsHtml(STAGES[c.kind]||[],F.progress);
+  $('amtRow').hidden=c.kind!=='営業';
+}
+function pickCase(id,prefill=true){
+  const c=S.cases.get(id);if(!c)return;F.caseId=id;
+  if(c.staff&&S.settings.staff.includes(c.staff))$('fStaff').value=c.staff;
+  if(prefill){F.progress='';$('fQuote').value=c.quote??'';$('fExpected').value=c.expected??'';$('fNext').value=c.nextAction||'';$('fNextDate').value=c.nextDate||'';
+    if(!F.method&&c.kind==='社内'){F.method='社内作業';$('cMethod').innerHTML=chipsHtml(METHODS,F.method)}}
+  renderPicked();
+}
+$('pickList').onclick=e=>{const b=e.target.closest('[data-pick]');if(b)pickCase(b.dataset.pick)};
+$('pickQ').addEventListener('input',renderPickList);$('pickAll').addEventListener('change',renderPickList);
+$('pickNew').onclick=()=>openCase(null,{staff:$('fStaff').value,afterSave:c=>{go('input');pickCase(c.id)}});
+$('fStaff').onchange=()=>{LS.set('me',$('fStaff').value);if(F.caseId&&S.cases.get(F.caseId)?.staff!==$('fStaff').value&&!F.editId){F.caseId=null}renderPicked();renderRecent()};
+function startWrite(caseId){go('input');resetForm();pickCase(caseId);window.scrollTo({top:0,behavior:'smooth'})}
 function msg(t,cls){$('fMsg').textContent=t;$('fMsg').className='msg'+(cls?' '+cls:'')}
-function resetForm(keepStaff=true){
-  const staff=$('fStaff').value;const keepDate=$('fDate').value,nextStart=$('fEnd').value;
-  $('frm').reset();Object.assign(F,{kubun:'新規',method:'',content:'',status:'',route:'',check:'未確認',dealId:null,forceNew:false,editId:null});
-  $('fDate').value=keepStaff&&keepDate?keepDate:today();if(keepStaff){$('fStaff').value=staff;$('fStart').value=nextStart||''}
-  $('dealInfo').hidden=true;$('fTitle').textContent='営業活動を記録';$('saveBtn').textContent='記録する';$('fCancel').hidden=true;$('moreBox').open=false;
-  syncChips();
+function resetForm(keep=true){
+  const staff=$('fStaff').value,keepDate=$('fDate').value,nextStart=$('fEnd').value;
+  $('frm').reset();Object.assign(F,{caseId:null,method:'',progress:'',check:'未確認',editId:null});
+  $('fDate').value=keep&&keepDate?keepDate:today();if(keep){$('fStaff').value=staff;$('fStart').value=nextStart||''}
+  $('fTitle').textContent='日報を書く';$('saveBtn').textContent='日報を追記する';$('fCancel').hidden=true;$('moreBox').open=false;
+  $('cMethod').innerHTML=chipsHtml(METHODS,'');$('cCheck').innerHTML=chipsHtml(CHECKS,'未確認');renderPicked();
 }
 $('fCancel').onclick=()=>{resetForm();msg('')};
-$('fStaff').onchange=()=>{LS.set('staff',$('fStaff').value);renderRecent()};
-
 function startEdit(id){
-  const l=S.logs.find(x=>x.id===id);if(!l)return;
-  go('input');resetForm();
-  Object.assign(F,{kubun:l.kubun||'新規',method:l.method||'',content:l.content||'',status:l.status||'',route:l.route||'',check:l.check||'未確認',dealId:l.dealId,editId:l.id});
-  $('fDate').value=l.date;$('fStart').value=l.start||'';$('fEnd').value=l.end||'';$('fStaff').value=l.staff;$('fCompany').value=l.company||'';$('fIndustry').value=l.industry||'';
-  $('fNeeds').value=l.needs||'';$('fMemo').value=l.memo||'';
-  $('fQuote').value=l.quote??'';$('fExpected').value=l.expected??'';$('fIncrease').value=l.increase??'';
-  $('fNext').value=l.nextAction||'';$('fNextDate').value=l.nextDate||'';$('fNote').value=l.note||'';
-  if(l.note||l.check!=='未確認')$('moreBox').open=true;
-  $('fTitle').textContent='記録を直す';$('saveBtn').textContent='直した内容で保存';$('fCancel').hidden=false;
-  $('dealInfo').hidden=true;syncChips();msg(`${md(l.date)} ${l.company} の記録を編集中です。`);
-  window.scrollTo({top:0,behavior:'smooth'});
+  const r=S.reports.find(x=>x.id===id);if(!r)return;go('input');resetForm();
+  Object.assign(F,{caseId:r.caseId,method:r.method||'',progress:r.progress||'',check:r.check||'未確認',editId:r.id});
+  $('fDate').value=r.date;$('fStart').value=r.start||'';$('fEnd').value=r.end||'';$('fStaff').value=r.staff;
+  $('fAction').value=r.action||'';$('fQuote').value=r.quote??'';$('fExpected').value=r.expected??'';$('fNext').value=r.nextAction||'';$('fNextDate').value=r.nextDate||'';$('fNote').value=r.note||'';
+  $('cMethod').innerHTML=chipsHtml(METHODS,F.method);$('cCheck').innerHTML=chipsHtml(CHECKS,F.check);
+  if(r.note||F.check!=='未確認')$('moreBox').open=true;
+  $('fTitle').textContent='日報を直す';$('saveBtn').textContent='直した内容で保存';$('fCancel').hidden=false;renderPicked();
+  msg(`${md(r.date)} ${r.company} の日報を編集中です。`);window.scrollTo({top:0,behavior:'smooth'});
 }
-function startContinue(dealId){
-  const d=S.deals.get(dealId);if(!d)return;go('input');resetForm();
-  $('fCompany').value=d.company;onCompany();$('fCompany').blur();window.scrollTo({top:0,behavior:'smooth'});
+/* 案件に、最新の日報の内容を反映 */
+function applyToCase(c,r){
+  if(r.progress&&isOpen(c))c.status=r.progress;
+  c.nextAction=r.nextAction||'';c.nextDate=r.nextDate||'';
+  if(c.kind==='営業'){if(r.quote!=null)c.quote=r.quote;if(r.expected!=null)c.expected=r.expected}
+  c.lastDate=r.date;return c;
 }
-
-/* 案件の最新状態を、その案件のいちばん新しい日報から作り直す */
-function dealFromLog(deal,l){
-  Object.assign(deal,{company:l.company,kubun:l.kubun,industry:l.industry||deal.industry||'',staff:l.staff,status:l.status,
-    nextAction:l.nextAction||'',nextDate:l.nextDate||'',lastDate:l.date});
-  if(l.route)deal.route=l.route;
-  if(l.quote!=null)deal.quote=l.quote;
-  if(l.expected!=null)deal.expected=l.expected;
-  if(l.status==='契約'){deal.increase=l.increase!=null?l.increase:(deal.increase||0);if(!deal.contractDate||deal.contractDate>l.date)deal.contractDate=l.date}
-  return deal;
-}
-function latestLogOf(dealId,exceptId){return S.logs.filter(x=>x.dealId===dealId&&x.id!==exceptId).sort((a,b)=>sk(b).localeCompare(sk(a)))[0]}
-
 $('frm').addEventListener('submit',async e=>{
   e.preventDefault();
   if(!db){msg('データベースにつながっていません。リロードしてください。','err');return}
-  const v={date:$('fDate').value,start:$('fStart').value,end:$('fEnd').value,staff:$('fStaff').value,company:$('fCompany').value.trim(),kubun:F.kubun,industry:$('fIndustry').value,
-    method:F.method,content:F.content,status:F.status,route:F.route,needs:$('fNeeds').value.trim(),memo:$('fMemo').value.trim(),
-    nextAction:$('fNext').value.trim(),nextDate:$('fNextDate').value,check:F.check,note:$('fNote').value.trim()};
-  const miss=[];if(!v.date)miss.push('営業日');if(!v.staff)miss.push('担当者');if(!v.company)miss.push('会社名');if(!v.method)miss.push('営業方法');if(!v.content)miss.push('営業内容');if(!v.status)miss.push('営業状況');
-  if(v.status==='契約'&&!v.route)miss.push('獲得経路（契約のとき）');
-  if(v.start&&v.end&&v.end<v.start){msg('終了時刻が開始時刻より前になっています。','err');return}
+  const c0=F.caseId?S.cases.get(F.caseId):null;
+  const v={caseId:F.caseId,date:$('fDate').value,start:$('fStart').value,end:$('fEnd').value,staff:$('fStaff').value,method:F.method,action:$('fAction').value.trim(),
+    progress:F.progress,nextAction:$('fNext').value.trim(),nextDate:$('fNextDate').value,check:F.check,note:$('fNote').value.trim()};
+  const miss=[];if(!v.staff)miss.push('担当者');if(!v.date)miss.push('日付');if(!c0)miss.push('案件');if(!v.method)miss.push('どうやって');if(!v.action)miss.push('何をしたか');
   if(miss.length){msg('入力してください：'+miss.join('、'),'err');return}
-  for(const[k,id]of[['quote','fQuote'],['expected','fExpected'],['increase','fIncrease']]){const n=num($(id).value);if(Number.isNaN(n)){msg('金額は数字で入れてください。','err');$(id).focus();return}v[k]=n}
-  if(v.status!=='契約')v.increase=v.increase??null;
-  const batch=db.batch();const now=Date.now();
-  let log,deal,isNewDeal=false;
-  if(F.editId){
-    const old=S.logs.find(x=>x.id===F.editId);log={...old,...v,updatedAt:now};
-    deal=S.deals.get(old.dealId)?{...S.deals.get(old.dealId)}:{id:old.dealId,firstDate:v.date,createdAt:now,logCount:1};
-    const latest=latestLogOf(old.dealId,old.id);
-    if(!latest||sk(log)>=sk(latest)){
-      if(old.status==='契約'&&v.status!=='契約'&&deal.contractDate===old.date){delete deal.contractDate;deal.increase=0}
-      dealFromLog(deal,log);
-    }
-  }else{
-    if(F.dealId&&S.deals.get(F.dealId)){deal={...S.deals.get(F.dealId)};deal.logCount=(deal.logCount||1)+1}
-    else{isNewDeal=true;deal={id:'d'+uid(),firstDate:v.date,createdAt:now,logCount:1,increase:0}}
-    log={id:'l'+uid(),dealId:deal.id,...v,createdAt:now};
-    if(!deal.lastDate||v.date>=deal.lastDate)dealFromLog(deal,log);
-    else if(v.status==='契約'&&!deal.contractDate){deal.contractDate=v.date;deal.increase=v.increase||0}
-    if(deal.firstDate>v.date)deal.firstDate=v.date;
-  }
-  deal.updatedAt=now;
-  const{id:lid,...lbody}=log;const{id:did,...dbody}=deal;
-  batch.set(db.collection(C.logs).doc(lid),lbody);
-  batch.set(db.collection(C.deals).doc(did),dbody);
-  $('saveBtn').disabled=true;
-  const r=await commit(batch);
-  $('saveBtn').disabled=false;
-  if(r!=='ok'&&r!=='pending'){msg('保存できませんでした（'+(r.code||r.message)+'）。もう一度押してください。','err');return}
-  // 手元のデータも更新
-  const i=S.logs.findIndex(x=>x.id===lid);if(i>=0)S.logs[i]=log;else S.logs.push(log);
-  S.deals.set(did,deal);
-  LS.set('staff',v.staff);
-  const was=F.editId;resetForm();setupForm();renderRecent();
-  msg(r==='pending'?`${v.company} を保存しました（電波が戻ると送信されます）`:(was?'記録を直しました。':`${v.company} を記録しました。`),'ok');
+  if(v.start&&v.end&&v.end<v.start){msg('終了時刻が開始時刻より前になっています。','err');return}
+  v.quote=null;v.expected=null;
+  if(c0.kind==='営業'){for(const[k,id]of[['quote','fQuote'],['expected','fExpected']]){const n=num($(id).value);if(Number.isNaN(n)){msg('金額は数字で入れてください。','err');$(id).focus();return}v[k]=n}}
+  Object.assign(v,{company:c0.company,title:c0.title||'',kind:c0.kind,type:c0.type||''});
+  const now=Date.now();let rep,c={...c0};
+  if(F.editId){const old=S.reports.find(x=>x.id===F.editId);rep={...old,...v,updatedAt:now}}
+  else{rep={id:'r'+uid(),...v,createdAt:now};c.logCount=(c.logCount||0)+1}
+  const others=S.reports.filter(x=>x.caseId===c.id&&x.id!==rep.id);
+  const latest=others.sort((a,b)=>sk(b).localeCompare(sk(a)))[0];
+  if(!latest||sk(rep)>=sk(latest))applyToCase(c,rep);
+  c.updatedAt=now;
+  const b=db.batch();put(b,C.reports,rep);put(b,C.cases,c);
+  $('saveBtn').disabled=true;const r=await commit(b);$('saveBtn').disabled=false;
+  if(!okr(r)){msg('保存できませんでした（'+(r.code||r.message)+'）。もう一度押してください。','err');return}
+  const i=S.reports.findIndex(x=>x.id===rep.id);if(i>=0)S.reports[i]=rep;else S.reports.push(rep);S.cases.set(c.id,c);
+  LS.set('me',v.staff);const was=F.editId;resetForm();renderRecent();
+  msg(r==='pending'?`${c.company} に追記しました（電波が戻ると送信されます）`:(was?'日報を直しました。':`${c.company} に日報を追記しました。`),'ok');
   if(was)go('logs');else window.scrollTo({top:0,behavior:'smooth'});
 });
 
-/* =========================================================
-   一覧の表示部品
-   ========================================================= */
-const tr=l=>l.start||l.end?` ${l.start||''}〜${l.end||''}`:'';
-function dueBadge(s){if(!s)return'';const t=today();const cls=s<t?'over':s<=addDays(t,3)?'soon':'later';const lab=s<t?'期限切れ':s===t?'今日':'';return `<span class="due ${cls}">次回 ${md(s)}${lab?' '+lab:''}</span>`}
-function logCard(l,opts={}){
-  const amt=[];if(l.quote)amt.push(`<span>見積</span><b>${yen(l.quote)}</b>`);if(l.expected)amt.push(`<span>見込</span><b>${yen(l.expected)}</b>`);if(l.status==='契約'&&l.increase)amt.push(`<span>増加</span><b>+${yen(l.increase)}</b>`);
+/* ---- 日報カード（一覧・最近） ---- */
+function repCard(r,opts={}){
+  const c=S.cases.get(r.caseId);
+  const amt=[];if(r.quote)amt.push(`<span>見積</span><b>${yen(r.quote)}</b>`);if(r.expected)amt.push(`<span>見込</span><b>${yen(r.expected)}</b>`);
   return `<div class="card">
-    <div class="top"><span class="dt">${md(l.date)}${tr(l)}</span>${opts.noCo?'':`<span class="co">${esc(l.company)}</span>`}<span class="who">${esc(l.staff)}</span></div>
-    <div class="tags"><span class="tag">${esc(l.kubun)}</span>${l.industry?`<span class="tag">${esc(l.industry)}</span>`:''}<span class="tag">${esc(l.method)}</span><span class="tag">${esc(l.content)}</span><span class="st st-${esc(l.status)}">${esc(l.status)}</span>${l.route?`<span class="tag">${esc(l.route)}</span>`:''}</div>
-    ${l.needs?`<div class="txt"><b>困りごと</b> ${esc(l.needs)}</div>`:''}
-    ${l.memo?`<div class="txt"><b>提案・メモ</b> ${esc(l.memo)}</div>`:''}
+    <div class="top"><span class="dt">${md(r.date)}${tr(r)}</span><span class="kindtag k-${esc(r.kind)}">${esc(r.kind)}</span><button class="caselink co" data-case="${r.caseId}">${esc(c?c.company:r.company)}</button><span class="who">${esc(r.staff)}</span></div>
+    <div class="tags"><span class="tag">${esc(r.type||'')}</span><span class="tag">${esc(r.method)}</span>${r.progress?`<span class="st st-${esc(r.progress)}">${esc(r.progress)}</span>`:''}${c&&c.result?`<span class="st st-${esc(c.result)}">案件：${esc(c.result)}</span>`:''}</div>
+    <div class="txt">${esc(r.action)}</div>
     ${amt.length?`<div class="amts">${amt.join('')}</div>`:''}
-    ${l.nextAction||l.nextDate?`<div class="txt"><b>次回</b> ${esc(l.nextAction)} ${dueBadge(l.nextDate)}</div>`:''}
-    ${l.note?`<div class="txt"><b>備考</b> ${esc(l.note)}</div>`:''}
-    ${opts.noActs?'':`<div class="acts"><button class="chk chk-${esc(l.check||'未確認')}" data-chk="${l.id}" title="押すと切り替わります">上司：${esc(l.check||'未確認')}</button><span class="sp"></span><button data-edit="${l.id}">編集</button><button data-del="${l.id}">削除</button></div>`}
+    ${r.nextAction||r.nextDate?`<div class="txt"><b>次にやること</b> ${esc(r.nextAction)} ${r.nextDate?`<span class="tag">期限 ${md(r.nextDate)}</span>`:''}</div>`:''}
+    ${r.note?`<div class="txt"><b>備考</b> ${esc(r.note)}</div>`:''}
+    <div class="acts"><button class="chk chk-${esc(r.check||'未確認')}" data-chk="${r.id}" title="押すと切り替わります">上司：${esc(r.check||'未確認')}</button><span class="sp"></span><button data-edit="${r.id}">編集</button><button data-del="${r.id}">削除</button></div>
   </div>`;
+}
+function renderRecent(){
+  const st=$('fStaff').value;$('recentWho').textContent=st?st+'さん':'';
+  const rows=S.reports.filter(r=>!st||r.staff===st).sort((a,b)=>sk(b).localeCompare(sk(a))).slice(0,6);
+  $('recentList').innerHTML=rows.length?rows.map(r=>repCard(r)).join(''):'<div class="empty">まだ日報がありません。</div>';
 }
 let armed=null;
 async function onListClick(e){
-  const ed=e.target.closest('[data-edit]'),dl=e.target.closest('[data-del]'),ck=e.target.closest('[data-chk]'),cn=e.target.closest('[data-cont]'),op=e.target.closest('[data-open]');
+  const cs=e.target.closest('[data-case]'),wr=e.target.closest('[data-write]'),ed=e.target.closest('[data-edit]'),dl=e.target.closest('[data-del]'),ck=e.target.closest('[data-chk]');
+  if(cs)return openCase(cs.dataset.case);
+  if(wr)return startWrite(wr.dataset.write);
   if(ed)return startEdit(ed.dataset.edit);
-  if(cn)return startContinue(cn.dataset.cont);
-  if(op){const id=op.dataset.open;openDeals.has(id)?openDeals.delete(id):openDeals.add(id);return renderDeals()}
-  if(ck){const l=S.logs.find(x=>x.id===ck.dataset.chk);if(!l)return;const nx=CHECKS[(CHECKS.indexOf(l.check||'未確認')+1)%3];
-    l.check=nx;ck.textContent='上司：'+nx;ck.className='chk chk-'+nx;
-    const b=db.batch();b.update(db.collection(C.logs).doc(l.id),{check:nx});commit(b);return}
+  if(ck){const r=S.reports.find(x=>x.id===ck.dataset.chk);if(!r)return;const nx=CHECKS[(CHECKS.indexOf(r.check||'未確認')+1)%3];
+    r.check=nx;ck.textContent='上司：'+nx;ck.className='chk chk-'+nx;const b=db.batch();b.update(db.collection(C.reports).doc(r.id),{check:nx});commit(b);return}
   if(dl){const id=dl.dataset.del;
     if(armed!==id){document.querySelectorAll('[data-del].arm').forEach(x=>{x.classList.remove('arm');x.textContent='削除'});armed=id;dl.classList.add('arm');dl.textContent='本当に削除';setTimeout(()=>{if(armed===id){armed=null;dl.classList.remove('arm');dl.textContent='削除'}},4000);return}
-    armed=null;await deleteLog(id)}
+    armed=null;await deleteRep(id)}
 }
-async function deleteLog(id){
-  const l=S.logs.find(x=>x.id===id);if(!l)return;
-  const b=db.batch();b.delete(db.collection(C.logs).doc(id));
-  const deal=S.deals.get(l.dealId);let removeDeal=false,nd=null;
-  if(deal){const rest=latestLogOf(l.dealId,id);
-    if(!rest&&(deal.logCount||1)<=1){removeDeal=true;b.delete(db.collection(C.deals).doc(deal.id))}
-    else{nd={...deal,logCount:Math.max(1,(deal.logCount||1)-1),updatedAt:Date.now()};
-      if(rest&&l.date>=rest.date){if(nd.contractDate===l.date&&l.status==='契約'&&rest.status!=='契約'){delete nd.contractDate;nd.increase=0}dealFromLog(nd,rest)}
-      const{id:_,...body}=nd;b.set(db.collection(C.deals).doc(deal.id),body)}}
-  const r=await commit(b);
-  if(r!=='ok'&&r!=='pending'){toast('削除できませんでした');return}
-  S.logs=S.logs.filter(x=>x.id!==id);if(removeDeal)S.deals.delete(l.dealId);else if(nd)S.deals.set(nd.id,nd);
-  toast('削除しました');renderAll();
+async function deleteRep(id){
+  const r=S.reports.find(x=>x.id===id);if(!r)return;
+  const b=db.batch();b.delete(db.collection(C.reports).doc(id));
+  let c=S.cases.get(r.caseId);
+  if(c){c={...c,logCount:Math.max(0,(c.logCount||1)-1),updatedAt:Date.now()};
+    const rest=S.reports.filter(x=>x.caseId===c.id&&x.id!==id).sort((a,b)=>sk(b).localeCompare(sk(a)));
+    if(!rest.length||sk(r)>=sk(rest[0])){
+      if(rest.length){applyToCase(c,rest[0]);if(!rest[0].progress){const p=rest.find(x=>x.progress);if(p&&isOpen(c))c.status=p.progress}}
+      else{c.lastDate='';if(isOpen(c))c.status=STAGES[c.kind][0]}}
+    put(b,C.cases,c)}
+  const res=await commit(b);if(!okr(res)){toast('削除できませんでした');return}
+  S.reports=S.reports.filter(x=>x.id!==id);if(c)S.cases.set(c.id,c);toast('削除しました');renderAll();
 }
-['recentList','logList','dealList'].forEach(id=>$(id).addEventListener('click',onListClick));
-
-function renderRecent(){
-  const st=$('fStaff').value;$('recentWho').textContent=st?st+'さん':'';
-  const rows=S.logs.filter(l=>!st||l.staff===st).sort((a,b)=>sk(b).localeCompare(sk(a))).slice(0,6);
-  $('recentList').innerHTML=rows.length?rows.map(l=>logCard(l)).join(''):'<div class="empty">まだ記録がありません。左のフォームから1件目を記録してください。</div>';
-}
+['caseList','recentList','logList'].forEach(id=>$(id).addEventListener('click',onListClick));
 
 /* =========================================================
-   日報一覧
+   ③ 日報一覧
    ========================================================= */
 const L={per:LS.get('lper','week'),limit:60};
 const PERS=[['week','今週'],['lastweek','先週'],['month','今月'],['lastmonth','先月'],['fy','今年度'],['custom','期間指定']];
@@ -691,112 +886,139 @@ function perRange(p){const t=today();
   if(p==='week'){const a=weekStart(t);return[a,addDays(a,6)]}
   if(p==='lastweek'){const a=addDays(weekStart(t),-7);return[a,addDays(a,6)]}
   if(p==='month')return[t.slice(0,8)+'01',monthEnd(t.slice(0,7))];
-  if(p==='lastmonth'){const d=pd(t);d.setDate(0);const ym=ds(d).slice(0,7);return[ym+'-01',monthEnd(ym)]}
+  if(p==='lastmonth'){const ym=shiftYm(t.slice(0,7),-1);return[ym+'-01',monthEnd(ym)]}
   if(p==='fy'){const a=fyStart();return[a,addDays(a.replace(/^\d+/,y=>+y+1),-1)]}
   if(p==='custom')return[$('lFrom').value||'0000-01-01',$('lTo').value||'9999-12-31'];
   return['0000-01-01','9999-12-31'];
 }
 function setupLogFilters(){
   $('lPer').innerHTML=PERS.map(([k,v])=>`<button data-p="${k}">${v}</button>`).join('');
-  const keep=id=>$(id).value;
-  const sets=[['lStaff',S.settings.staff,'担当：全員'],['lKubun',KUBUN,'区分：すべて'],['lMethod',METHODS,'方法：すべて'],['lContent',CONTENTS,'内容：すべて'],['lStatus',STATUSES,'状況：すべて'],['lIndustry',S.settings.industries,'業種：すべて'],['lCheck',CHECKS,'上司確認：すべて']];
-  sets.forEach(([id,list,first])=>{const k=keep(id);fillSelect($(id),list,first);$(id).value=k||''});
+  keepSelect($('lStaff'),S.settings.staff,'担当：全員');keepSelect($('lKind'),KINDS,'種類：すべて');keepSelect($('lType'),typesOf($('lKind').value),'業務内容：すべて');
+  keepSelect($('lMethod'),METHODS,'方法：すべて');keepSelect($('lCheck'),CHECKS,'上司確認：すべて');
 }
 $('lPer').onclick=e=>{const b=e.target.closest('button');if(!b)return;L.per=b.dataset.p;LS.set('lper',L.per);L.limit=60;renderLogs()};
-['lStaff','lKubun','lMethod','lContent','lStatus','lIndustry','lCheck','lFrom','lTo'].forEach(id=>$(id).addEventListener('change',()=>{L.limit=60;renderLogs()}));
+['lStaff','lKind','lType','lMethod','lCheck','lFrom','lTo'].forEach(id=>$(id).addEventListener('change',()=>{if(id==='lKind')keepSelect($('lType'),typesOf($('lKind').value),'業務内容：すべて');L.limit=60;renderLogs()}));
 $('lQ').addEventListener('input',()=>{L.limit=60;renderLogs()});
 function filteredLogs(){
   const[a,b]=perRange(L.per);const q=norm($('lQ').value);
-  const f={staff:$('lStaff').value,kubun:$('lKubun').value,method:$('lMethod').value,content:$('lContent').value,status:$('lStatus').value,industry:$('lIndustry').value,check:$('lCheck').value};
-  return S.logs.filter(l=>l.date>=a&&l.date<=b&&Object.entries(f).every(([k,v])=>!v||(k==='check'?(l.check||'未確認')===v:l[k]===v))&&(!q||norm([l.company,l.needs,l.memo,l.nextAction,l.note].join(' ')).includes(q)))
+  const f={staff:$('lStaff').value,kind:$('lKind').value,type:$('lType').value,method:$('lMethod').value,check:$('lCheck').value};
+  return S.reports.filter(r=>r.date>=a&&r.date<=b&&Object.entries(f).every(([k,v])=>!v||(k==='check'?(r.check||'未確認')===v:r[k]===v))&&(!q||norm([r.company,r.title,r.action,r.nextAction,r.note].join(' ')).includes(q)))
     .sort((x,y)=>sk(y).localeCompare(sk(x)));
 }
 function renderLogs(){
   $('lPer').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.p===L.per));$('lCustom').hidden=L.per!=='custom';
   const rows=filteredLogs();
-  $('logCount').textContent=`${rows.length}件`;
-  let h=rows.slice(0,L.limit).map(l=>logCard(l)).join('');
+  $('logCount').textContent=`${rows.length}件`+(rows.length?`・計${hrs(rows.reduce((a,r)=>a+mins(r),0))}時間`:'');
+  let h=rows.slice(0,L.limit).map(r=>repCard(r)).join('');
   if(rows.length>L.limit)h+=`<button class="btn ghost sm more-btn" id="logMore">さらに表示（残り${rows.length-L.limit}件）</button>`;
-  $('logList').innerHTML=h||`<div class="empty">この条件の記録はありません。${S.range!=='all'&&L.per==='custom'?'<br>今年度より前の記録は、設定で「すべて読み込む」にすると表示されます。':''}</div>`;
+  $('logList').innerHTML=h||'<div class="empty">この条件の日報はありません。</div>';
   const m=$('logMore');if(m)m.onclick=()=>{L.limit+=100;renderLogs()};
 }
 $('csvBtn').onclick=()=>{
-  const rows=filteredLogs();
-  const H=['営業日','開始','終了','営業担当者','会社名・事業所名','顧客区分','業種','営業方法','営業内容','先方の困りごと・要望','提案内容・商談メモ','見積提出額（月額・円）','営業状況','契約見込月額（円）','契約後の月額売上増加（円）','次回対応・宿題','次回連絡予定日','上司確認','備考','獲得経路'];
+  const rows=filteredLogs().slice().reverse();
+  const H=['日付','開始','終了','担当者','種類','業務内容','会社名・作業名','案件の内容','方法','何をしたか','進み具合','見積提出額','見込月額','次にやること','期限','上司確認','備考','案件の状況'];
   const q=v=>{v=v==null?'':String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
-  const body=rows.slice().reverse().map(l=>[l.date,l.start,l.end,l.staff,l.company,l.kubun,l.industry,l.method,l.content,l.needs,l.memo,l.quote,l.status,l.expected,l.status==='契約'?l.increase:'',l.nextAction,l.nextDate,l.check||'未確認',l.note,l.route].map(q).join(','));
+  const body=rows.map(r=>{const c=S.cases.get(r.caseId);return[r.date,r.start,r.end,r.staff,r.kind,r.type,r.company,r.title,r.method,r.action,r.progress,r.quote,r.expected,r.nextAction,r.nextDate,r.check||'未確認',r.note,c?stateOf(c):''].map(q).join(',')});
   const blob=new Blob(['﻿'+[H.join(','),...body].join('\r\n')],{type:'text/csv'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`営業日報_${today()}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
 };
 
 /* =========================================================
-   案件
+   ④ 週報
    ========================================================= */
-const D={group:LS.get('dgroup','open')};const openDeals=new Set();
-const GROUPS=[['open','進行中'],['won','契約'],['lost','失注・保留'],['all','すべて']];
-function renderDeals(){
-  $('dGroup').innerHTML=GROUPS.map(([k,v])=>`<button data-g="${k}" class="${D.group===k?'on':''}">${v}</button>`).join('');
-  const st=$('dStaff').value,q=norm($('dQ').value);
-  let rows=[...S.deals.values()].filter(d=>(!st||d.staff===st)&&(!q||norm(d.company).includes(q))&&
-    (D.group==='all'||(D.group==='open'&&OPEN(d.status))||(D.group==='won'&&d.status==='契約')||(D.group==='lost'&&['失注','保留'].includes(d.status))));
-  if(D.group==='open')rows.sort((a,b)=>(a.nextDate||'9999').localeCompare(b.nextDate||'9999')||(b.lastDate||'').localeCompare(a.lastDate||''));
-  else rows.sort((a,b)=>(b.contractDate||b.lastDate||'').localeCompare(a.contractDate||a.lastDate||''));
-  const sumExp=rows.filter(d=>OPEN(d.status)).reduce((a,d)=>a+(d.expected||0),0);
-  $('dealCount').textContent=`${rows.length}件`+(D.group==='open'?`・見込月額 ${yen(sumExp)}`:'');
-  $('dealList').innerHTML=rows.slice(0,200).map(d=>{
-    const hist=openDeals.has(d.id)?S.logs.filter(l=>l.dealId===d.id).sort((a,b)=>sk(b).localeCompare(sk(a))):null;
-    const amt=[];if(d.quote)amt.push(`<span>見積</span><b>${yen(d.quote)}</b>`);if(d.expected&&OPEN(d.status))amt.push(`<span>見込</span><b>${yen(d.expected)}</b>`);if(d.status==='契約')amt.push(`<span>増加</span><b>+${yen(d.increase||0)}</b>`);
-    return `<div class="card">
-      <div class="top"><span class="co">${esc(d.company)}</span><span class="st st-${esc(d.status)}">${esc(d.status)}</span><span class="who">${esc(d.staff)}</span></div>
-      <div class="tags"><span class="tag">${esc(d.kubun||'')}</span>${d.industry?`<span class="tag">${esc(d.industry)}</span>`:''}${d.route?`<span class="tag">${esc(d.route)}</span>`:''}<span class="tag">初回 ${md(d.firstDate)}</span><span class="tag">最終 ${md(d.lastDate)}</span>${d.contractDate?`<span class="tag">契約 ${md(d.contractDate)}</span>`:''}</div>
-      ${amt.length?`<div class="amts">${amt.join('')}</div>`:''}
-      ${OPEN(d.status)&&(d.nextAction||d.nextDate)?`<div class="txt"><b>次回</b> ${esc(d.nextAction||'')} ${dueBadge(d.nextDate)}</div>`:''}
-      ${hist?`<div class="hist">${hist.length?hist.map(l=>logCard(l,{noCo:true,noActs:true})).join(''):'<div class="muted">読み込んだ範囲に記録がありません</div>'}</div>`:''}
-      <div class="acts"><button data-open="${d.id}">${hist?'経過を閉じる':`経過を見る（${d.logCount||1}回）`}</button><span class="sp"></span><button data-cont="${d.id}">続きを記録</button></div>
-    </div>`}).join('')||'<div class="empty">該当する案件はありません。</div>';
+let wStart=addDays(weekStart(today()),today()===weekStart(today())?-7:0);  // 月曜に開いたら先週分
+const W={detail:LS.get('wdetail',1)};
+$('wPrev').onclick=()=>{wStart=addDays(wStart,-7);renderWeek()};$('wNext').onclick=()=>{wStart=addDays(wStart,7);renderWeek()};
+$('wStaff').onchange=renderWeek;
+$('wDetail').onclick=e=>{const b=e.target.closest('button');if(!b)return;W.detail=+b.dataset.d;LS.set('wdetail',W.detail);renderWeek()};
+function weekText(staff){
+  const a=wStart,b=addDays(wStart,6),t=today();
+  const reps=S.reports.filter(r=>r.date>=a&&r.date<=b&&(!staff||r.staff===staff)).sort((x,y)=>sk(x).localeCompare(sk(y)));
+  const cases=[...S.cases.values()].filter(c=>!staff||c.staff===staff);
+  const who=x=>staff?'':`（${x.staff}）`;
+  const sales=reps.filter(r=>r.kind==='営業'),inner=reps.filter(r=>r.kind==='社内');
+  const cnt=list=>{const m={};list.forEach(r=>m[r.method]=(m[r.method]||0)+1);return Object.entries(m).sort((x,y)=>y[1]-x[1]).map(([k,v])=>`${k}${v}`).join('・')};
+  const won=cases.filter(c=>c.result==='受注'&&c.closedDate>=a&&c.closedDate<=b);
+  const lost=cases.filter(c=>c.result==='失注'&&c.closedDate>=a&&c.closedDate<=b);
+  const done=cases.filter(c=>c.result==='完了'&&c.closedDate>=a&&c.closedDate<=b);
+  const newC=cases.filter(c=>c.createdDate>=a&&c.createdDate<=b);
+  const o=[];
+  o.push(`【営業週報】${md(a)}〜${md(b)}　${staff||'営業部'}`,'');
+  o.push(`■活動 ${reps.length}件`+(reps.length?`（営業${sales.length}・社内作業${inner.length}）`:''));
+  if(sales.length)o.push(`　営業：${cnt(sales)}`);
+  if(inner.length){const m=inner.reduce((x,r)=>x+mins(r),0);o.push(`　社内作業：${[...new Set(inner.map(r=>r.type))].join('・')}${m?`（計${hrs(m)}時間）`:''}`)}
+  if(newC.length)o.push(`　新しく登録した案件 ${newC.length}件`);
+  o.push('',`■受注 ${won.length}件　月額 +${yen(won.reduce((x,c)=>x+(c.increase||0),0))}`);
+  won.forEach(c=>o.push(`・${c.company}（${c.type}）+${yen(c.increase)}／月　${ymLabel(c.salesStart)}から［${c.route||'経路未入力'}］${who(c)}`));
+  if(lost.length){o.push('',`■失注 ${lost.length}件`);lost.forEach(c=>o.push(`・${c.company}${c.lostReason?'：'+c.lostReason:''}${who(c)}`))}
+  if(done.length){o.push('',`■完了した社内作業 ${done.length}件`);done.forEach(c=>o.push(`・${c.company}（${c.type}）${who(c)}`))}
+  if(W.detail&&reps.length){
+    o.push('','■日報');
+    reps.forEach(r=>{o.push(`${md(r.date)}${tr(r)} ${r.company}｜${r.type}｜${r.method}${r.progress?'→'+r.progress:''}${who(r)}`);o.push(`　${r.action.replace(/\n/g,'\n　')}`)});
+  }
+  const line=c=>`・${md(c.nextDate)} ${c.company}　${c.nextAction||'対応'}${who(c)}`;
+  const todo=cases.filter(c=>isOpen(c)&&c.nextDate&&c.nextDate>=t&&c.nextDate<=addDays(b,7)).sort((x,y)=>x.nextDate.localeCompare(y.nextDate));
+  const late=cases.filter(c=>isOpen(c)&&c.nextDate&&c.nextDate<t).sort((x,y)=>x.nextDate.localeCompare(y.nextDate));
+  o.push('','■これからの予定（来週末まで）');if(todo.length)todo.forEach(c=>o.push(line(c)));else o.push('・予定の入力なし');
+  if(late.length){o.push('',`■期限を過ぎた案件 ${late.length}件`);late.forEach(c=>o.push(line(c)))}
+  const open=cases.filter(c=>isOpen(c)&&c.kind==='営業');
+  o.push('',`■進行中の営業案件 ${open.length}件　見込月額 ${yen(open.reduce((x,c)=>x+(c.expected||0),0))}`);
+  return o.join('\n');
 }
-$('dGroup').onclick=e=>{const b=e.target.closest('button');if(!b)return;D.group=b.dataset.g;LS.set('dgroup',D.group);renderDeals()};
-$('dStaff').onchange=renderDeals;$('dQ').addEventListener('input',renderDeals);
+function renderWeek(){
+  $('wLabel').textContent=`${md(wStart)}〜${md(addDays(wStart,6))}`;
+  $('wDetail').innerHTML=['集計のみ','日報も載せる'].map((v,i)=>`<button data-d="${i}" class="${W.detail===i?'on':''}">${v}</button>`).join('');
+  $('wkText').value=weekText($('wStaff').value);$('wMsg').textContent='';
+}
+$('wCopy').onclick=async()=>{const t=$('wkText').value;
+  try{await navigator.clipboard.writeText(t);$('wMsg').textContent='コピーしました。LINE WORKSに貼り付けてください。';$('wMsg').className='msg ok'}
+  catch(e){$('wkText').focus();$('wkText').select();$('wMsg').textContent='選択しました。コピーしてください。';$('wMsg').className='msg'}};
 
 /* =========================================================
-   集計（月間報告）
+   ⑤ 集計
    ========================================================= */
 let mYm=today().slice(0,7);
-function shiftYm(ym,n){const[y,m]=ym.split('-').map(Number);const d=new Date(y,m-1+n,1);return `${d.getFullYear()}-${pad(d.getMonth()+1)}`}
 $('mPrev').onclick=()=>{mYm=shiftYm(mYm,-1);renderStats()};$('mNext').onclick=()=>{mYm=shiftYm(mYm,1);renderStats()};
 $('mStaff').onchange=()=>renderStats();
+$('incInternal').checked=LS.get('incint',false);
+$('incInternal').onchange=()=>{LS.set('incint',$('incInternal').checked);renderStats()};
 function monthKpi(ym,staff){
-  const a=ym+'-01',b=monthEnd(ym);
-  const logs=S.logs.filter(l=>l.date>=a&&l.date<=b&&(!staff||l.staff===staff));
-  const deals=[...S.deals.values()].filter(d=>!staff||d.staff===staff);
-  const won=deals.filter(d=>d.status==='契約'&&d.contractDate>=a&&d.contractDate<=b);
-  const touched=new Set(logs.map(l=>l.dealId));
-  const pipe=deals.filter(d=>OPEN(d.status)&&touched.has(d.id));
-  const inc=won.reduce((s,d)=>s+(d.increase||0),0);
+  const a=ym+'-01',b=monthEnd(ym);const inc=$('incInternal').checked;
+  const reps=S.reports.filter(r=>r.date>=a&&r.date<=b&&(!staff||r.staff===staff));
+  const act=inc?reps:reps.filter(r=>r.kind!=='社内');
+  const inner=reps.filter(r=>r.kind==='社内');
+  const cases=[...S.cases.values()].filter(c=>!staff||c.staff===staff);
+  const sc=cases.filter(c=>c.kind==='営業');
+  const startHere=sc.filter(c=>c.result==='受注'&&c.salesStart===ym);
+  const incSum=startHere.reduce((s,c)=>s+(c.increase||0),0);
   const target=(S.settings.target||0)*(staff?1:Math.max(1,S.settings.staff.length));
-  return{logs,act:logs.length,nNew:logs.filter(l=>l.kubun==='新規').length,add:logs.filter(l=>l.content==='既存顧客への追加提案').length,
-    quote:logs.filter(l=>l.status==='見積提出').length,wonNew:won.filter(d=>d.kubun==='新規').length,won,
-    pipe,pipeAmt:pipe.reduce((s,d)=>s+(d.expected||0),0),inc,target,rate:target?inc/target:0,
-    visits:logs.filter(l=>l.method==='訪問').length,calls:logs.filter(l=>l.method==='電話').length};
+  return{act,visits:act.filter(r=>r.method==='訪問').length,calls:act.filter(r=>r.method==='電話').length,
+    newCases:sc.filter(c=>c.createdDate>=a&&c.createdDate<=b).length,
+    quote:reps.filter(r=>r.progress==='見積提出').length,
+    won:sc.filter(c=>c.result==='受注'&&c.closedDate>=a&&c.closedDate<=b),
+    lost:sc.filter(c=>c.result==='失注'&&c.closedDate>=a&&c.closedDate<=b),
+    startHere,incSum,target,rate:target?incSum/target:0,
+    open:sc.filter(isOpen),inner,innerMin:inner.reduce((s,r)=>s+mins(r),0),
+    innerCases:cases.filter(c=>c.kind==='社内'&&(reps.some(r=>r.caseId===c.id)))};
 }
 function renderStats(){
   const staff=$('mStaff').value;const k=monthKpi(mYm,staff);
-  $('mLabel').textContent=`${mYm.slice(0,4)}年${+mYm.slice(5)}月`;
+  $('mLabel').textContent=ymLabel(mYm);
   const cell=(l,v,s,extra='')=>`<div class="kpi"><span class="lbl">${l}</span><span class="v">${v}</span>${s?`<span class="s">${s}</span>`:''}${extra}</div>`;
   $('kpis').innerHTML=[
-    cell('営業活動件数',`${k.act}<small>件</small>`,`訪問 ${k.visits}・電話 ${k.calls}`),
-    cell('新規営業件数',`${k.nNew}<small>件</small>`,'新しい顧客への営業'),
-    cell('既存顧客への追加提案',`${k.add}<small>件</small>`,'回収頻度・対象拡大など'),
-    cell('見積提出件数',`${k.quote}<small>件</small>`,'見積後のフォローを忘れずに'),
-    cell('新規契約件数',`${k.wonNew}<small>件</small>`,`契約は既存含め ${k.won.length}件`),
-    cell('契約見込月額',yen(k.pipeAmt),`今月動いた進行中の案件 ${k.pipe.length}件`),
-    cell('契約による月額売上増加',yen(k.inc),'今月契約した案件の合計'),
-    cell('売上目標達成率',`${Math.round(k.rate*100)}<small>%</small>`,`目標 ${yen(k.target)}`,`<div class="meter"><i style="width:${Math.min(100,k.rate*100)}%;background:${k.rate>=1?'var(--ok)':'var(--accent)'}"></i></div>`)
+    cell('活動件数',`${k.act.length}<small>件</small>`,`訪問 ${k.visits}・電話 ${k.calls}${$('incInternal').checked?'（社内作業込み）':''}`),
+    cell('新しく登録した営業案件',`${k.newCases}<small>件</small>`,'この月に登録した案件'),
+    cell('見積提出',`${k.quote}<small>件</small>`,'進み具合を「見積提出」にした日報'),
+    cell('受注 ／ 失注',`${k.won.length}<small>件</small> ／ ${k.lost.length}<small>件</small>`,'この月に決着した案件'),
+    cell('売上増加（この月から）',yen(k.incSum),`売上がこの月から上がる受注 ${k.startHere.length}件`),
+    cell('売上目標達成率',`${Math.round(k.rate*100)}<small>%</small>`,`目標 ${yen(k.target)}`,`<div class="meter"><i style="width:${Math.min(100,k.rate*100)}%;background:${k.rate>=1?'var(--ok)':'var(--accent)'}"></i></div>`),
+    cell('進行中の営業案件',`${k.open.length}<small>件</small>`,'いま決着していない案件'),
+    cell('見込月額（進行中）',yen(k.open.reduce((s,c)=>s+(c.expected||0),0)),'進行中の案件の見込の合計'),
   ].join('');
-  $('kpiNote').textContent=(staff?'':'全員分の合計です。目標は1人あたり目標×人数。')+'見込額・売上増加は案件ごとに最新の金額で数えています（二重計上なし）。';
+  $('internalStrip').innerHTML=`<span>社内作業</span><b>${k.inner.length}件</b>${k.innerMin?`<span>計</span><b>${hrs(k.innerMin)}時間</b>`:''}${k.innerCases.length?`<span>${k.innerCases.map(c=>esc(c.type)).filter((x,i,a)=>a.indexOf(x)===i).join('・')}</span>`:'<span>この月はなし</span>'}`;
+  $('kpiNote').textContent=(staff?'':'全員分の合計。目標は1人あたり目標×人数。')+'売上増加は「売上が上がる月」で数えています。受注は案件の画面で決着したものです。';
   loadReview();drawChart();
 }
-/* 振り返り */
 let rvKey=null;
 async function loadReview(){
   const key=`${mYm}__${$('mStaff').value||'all'}`;if(key===rvKey)return;rvKey=key;
@@ -806,14 +1028,13 @@ async function loadReview(){
   try{const s=await db.collection(C.monthly).doc(key).get();if(rvKey!==key)return;const d=s.exists?s.data():{};
     $('rvGood').value=d.good||'';$('rvIssue').value=d.issue||'';$('rvNext').value=d.next||'';$('rvComment').value=d.comment||''}catch(e){}
 }
-$('rvSave').onclick=async()=>{const key=rvKey;const b=db.batch();
-  b.set(db.collection(C.monthly).doc(key),{good:$('rvGood').value,issue:$('rvIssue').value,next:$('rvNext').value,comment:$('rvComment').value,updatedAt:Date.now()});
-  const r=await commit(b);$('rvMsg').textContent=r==='ok'||r==='pending'?'保存しました':'保存できませんでした';$('rvMsg').className='msg '+(r==='ok'||r==='pending'?'ok':'err')};
+$('rvSave').onclick=async()=>{const b=db.batch();b.set(db.collection(C.monthly).doc(rvKey),{good:$('rvGood').value,issue:$('rvIssue').value,next:$('rvNext').value,comment:$('rvComment').value,updatedAt:Date.now()});
+  const r=await commit(b);$('rvMsg').textContent=okr(r)?'保存しました':'保存できませんでした';$('rvMsg').className='msg '+(okr(r)?'ok':'err')};
 
-/* グラフ（外部の部品を使わずSVGで描く＝軽い） */
+/* グラフ（SVG） */
 const G={per:LS.get('gper','fy'),view:LS.get('gview',0),m:LS.get('gm',0)};
 const GP=[['month','今月'],['fy','今年度'],['all','全期間']];
-const GV=['担当者別','経路の割合','月の推移','案件の状況'];
+const GV=['担当者別','経路の割合','月の推移','案件の状況','活動の内訳'];
 $('gPer').onclick=e=>{const b=e.target.closest('button');if(!b)return;G.per=b.dataset.p;LS.set('gper',G.per);drawChart()};
 $('gView').onclick=e=>{const b=e.target.closest('button');if(!b)return;G.view=+b.dataset.v;LS.set('gview',G.view);drawChart()};
 $('gMetric').onclick=e=>{const b=e.target.closest('button');if(!b)return;G.m=+b.dataset.m;LS.set('gm',G.m);drawChart()};
@@ -825,266 +1046,209 @@ function drawChart(){
   $('gPer').innerHTML=GP.map(([k,v])=>`<button data-p="${k}" class="${G.per===k?'on':''}">${v}</button>`).join('');
   $('gView').innerHTML=GV.map((v,i)=>`<button data-v="${i}" class="${G.view===i?'on':''}">${v}</button>`).join('');
   $('gMetric').innerHTML=['件数','月額(万円)'].map((v,i)=>`<button data-m="${i}" class="${G.m===i?'on':''}">${v}</button>`).join('');
-  $('gMetric').style.visibility=G.view===3?'hidden':'visible';
+  $('gMetric').style.visibility=G.view>=3?'hidden':'visible';
   const box=$('chartBox'),empty=$('chartEmpty'),lg=$('lg');box.innerHTML='';
-  const t=today();let a='0000',b='9999';
+  const t=today();let a='0000-01-01',b='9999-12-31';
   if(G.per==='month'){a=t.slice(0,8)+'01';b=monthEnd(t.slice(0,7))}else if(G.per==='fy'){a=fyStart();b=addDays(a.replace(/^\d+/,y=>+y+1),-1)}
+  const am=a.slice(0,7),bm=b.slice(0,7);
   const staffSel=$('mStaff').value;
-  const P=staffSel?[staffSel]:[...new Set([...S.settings.staff,...[...S.deals.values()].map(d=>d.staff).filter(Boolean)])];
+  const P=staffSel?[staffSel]:[...new Set([...S.settings.staff,...[...S.cases.values()].map(c=>c.staff).filter(Boolean)])];
   const R=S.settings.routes;
-  const won=[...S.deals.values()].filter(d=>d.status==='契約'&&d.contractDate>=a&&d.contractDate<=b&&(!staffSel||d.staff===staffSel));
-  const val=d=>G.m===0?1:(d.increase||0)/10000;
+  const wonAll=[...S.cases.values()].filter(c=>c.kind==='営業'&&c.result==='受注'&&c.salesStart&&(!staffSel||c.staff===staffSel));
+  const won=wonAll.filter(c=>c.salesStart>=am&&c.salesStart<=bm);
+  const val=c=>G.m===0?1:(c.increase||0)/10000;
   const unit=G.m===0?'件':'万円';const fmt=v=>G.m===0?Math.round(v)+'件':(Math.round(v*10)/10)+'万円';
   const tc=css('--muted'),gc=css('--grid'),fg=css('--fg'),surf=css('--surface');
-  const W=Math.max(280,box.clientWidth),H=box.clientHeight||300;
+  const W2=Math.max(280,box.clientWidth),H=box.clientHeight||300;
   const tx=(x,y,s,o={})=>`<text x="${x}" y="${y}" fill="${o.c||tc}" font-size="${o.s||11}" text-anchor="${o.a||'middle'}" font-family="${o.f||'ui-monospace,Menlo,monospace'}" ${o.w?`font-weight="${o.w}"`:''} dominant-baseline="${o.b||'auto'}">${esc(s)}</text>`;
   const jp="-apple-system,'Hiragino Sans',sans-serif";
   const yAx=(L,T,PW,PH,sc,u)=>sc.ticks.map(v=>{const y=T+PH-v/sc.top*PH;return `<line x1="${L}" x2="${L+PW}" y1="${y}" y2="${y}" stroke="${gc}"/>`+tx(L-8,y,ft(v),{a:'end',b:'middle'})}).join('')+tx(L-8,T-12,u,{a:'end'});
+  const none=s=>{empty.hidden=false;empty.textContent=s;lg.innerHTML=''};
   let s='';
-  const none=t=>{empty.hidden=false;empty.textContent=t;lg.innerHTML=''};
-  if(G.view!==3&&!won.length)return none('この期間の契約はまだありません。日報で営業状況を「契約」にすると、ここに表示されます。');
-  empty.hidden=true;
-  if(G.view===0){
-    lg.innerHTML=R.map((r,i)=>`<span><i style="background:${rc(i)}"></i>${esc(r)}</span>`).join('')+`<span><i style="background:${css('--muted')}"></i>経路未入力</span>`;
-    const RR=[...R,''];
-    const M=P.map(p=>RR.map(r=>won.filter(d=>d.staff===p&&(r?d.route===r:!R.includes(d.route))).reduce((x,d)=>x+val(d),0)));
-    const tot=M.map(r=>r.reduce((x,y)=>x+Math.max(0,y),0));const sc=niceScale(Math.max(...tot));
-    const L=46,T=26,PW=W-L-12,PH=H-T-34;s+=yAx(L,T,PW,PH,sc,unit);
+  const stacked=(rowsBy,labels,colors,unitLbl,fmtF)=>{ // 縦の積み上げ棒
+    const tot=rowsBy.map(r=>r.reduce((x,y)=>x+Math.max(0,y),0));const sc=niceScale(Math.max(...tot));
+    const L=46,T=26,PW=W2-L-12,PH=H-T-34;s+=yAx(L,T,PW,PH,sc,unitLbl);
     const slot=PW/Math.max(1,P.length),bw=Math.min(60,slot*.5);
     P.forEach((p,i)=>{const cx=L+slot*(i+.5);let y=T+PH;
-      M[i].forEach((v,k)=>{if(v<=0)return;const h=v/sc.top*PH;y-=h;s+=`<rect x="${cx-bw/2}" y="${y}" width="${bw}" height="${Math.max(0,h-1)}" fill="${k<R.length?rc(k):css('--muted')}"><title>${esc(p)}・${esc(RR[k]||'経路未入力')}：${fmt(v)}</title></rect>`});
-      s+=tx(cx,y-6,fmt(tot[i]),{c:fg,w:700})+tx(cx,T+PH+20,p,{c:fg,s:13,f:jp,w:600})});
+      rowsBy[i].forEach((v,k)=>{if(v<=0)return;const h=v/sc.top*PH;y-=h;s+=`<rect x="${cx-bw/2}" y="${y}" width="${bw}" height="${Math.max(0,h-1)}" fill="${colors[k]}"><title>${esc(p)}・${esc(labels[k])}：${fmtF(v)}</title></rect>`});
+      s+=tx(cx,y-6,fmtF(tot[i]),{c:fg,w:700})+tx(cx,T+PH+20,p,{c:fg,s:13,f:jp,w:600})});
+  };
+  if(G.view<=2&&!won.length)return none('この期間に売上が始まる受注はまだありません。案件の画面で「受注」にすると表示されます。');
+  empty.hidden=true;
+  if(G.view===0){
+    const RR=[...R,''];const cols=RR.map((r,i)=>r?rc(i):css('--muted'));
+    lg.innerHTML=RR.map((r,i)=>`<span><i style="background:${cols[i]}"></i>${esc(r||'経路未入力')}</span>`).join('');
+    stacked(P.map(p=>RR.map(r=>won.filter(c=>c.staff===p&&(r?c.route===r:!R.includes(c.route))).reduce((x,c)=>x+val(c),0))),RR.map(r=>r||'経路未入力'),cols,unit,fmt);
   }else if(G.view===1){
-    const tt=R.map(r=>won.filter(d=>d.route===r).reduce((x,d)=>x+Math.max(0,val(d)),0));const sum=tt.reduce((x,y)=>x+y,0);
-    if(!sum)return none('獲得経路が入った契約がまだありません。');
+    const tt=R.map(r=>won.filter(c=>c.route===r).reduce((x,c)=>x+Math.max(0,val(c)),0));const sum=tt.reduce((x,y)=>x+y,0);
+    if(!sum)return none('獲得経路が入った受注がまだありません。');
     lg.innerHTML=R.map((r,i)=>`<span><i style="background:${rc(i)}"></i>${esc(r)} ${Math.round(tt[i]/sum*100)}%</span>`).join('');
-    const cx=W/2,cy=H/2,Ro=Math.min(W,H)/2-12,Ri=Ro*.58;let a0=-Math.PI/2;const pt=(r,a)=>`${cx+r*Math.cos(a)},${cy+r*Math.sin(a)}`;
+    const cx=W2/2,cy=H/2,Ro=Math.min(W2,H)/2-12,Ri=Ro*.58;let a0=-Math.PI/2;const pt=(r,a)=>`${cx+r*Math.cos(a)},${cy+r*Math.sin(a)}`;
     tt.forEach((v,i)=>{if(v<=0)return;const a1=a0+v/sum*Math.PI*2;const big=(a1-a0)>Math.PI?1:0;
       const d=(a1-a0)>=Math.PI*2-1e-6?`M${pt(Ro,0)}A${Ro},${Ro} 0 1 1 ${pt(Ro,Math.PI)}A${Ro},${Ro} 0 1 1 ${pt(Ro,0)}M${pt(Ri,0)}A${Ri},${Ri} 0 1 0 ${pt(Ri,Math.PI)}A${Ri},${Ri} 0 1 0 ${pt(Ri,0)}Z`:`M${pt(Ro,a0)}A${Ro},${Ro} 0 ${big} 1 ${pt(Ro,a1)}L${pt(Ri,a1)}A${Ri},${Ri} 0 ${big} 0 ${pt(Ri,a0)}Z`;
       s+=`<path d="${d}" fill="${rc(i)}" stroke="${surf}" stroke-width="2" fill-rule="evenodd"><title>${esc(R[i])}：${fmt(v)}</title></path>`;
-      const am=(a0+a1)/2,pc=Math.round(v/sum*100);if(pc>=6)s+=tx(cx+(Ro+Ri)/2*Math.cos(am),cy+(Ro+Ri)/2*Math.sin(am),pc+'%',{c:'#fff',s:12,w:700,b:'middle'});a0=a1});
+      const amd=(a0+a1)/2,pc=Math.round(v/sum*100);if(pc>=6)s+=tx(cx+(Ro+Ri)/2*Math.cos(amd),cy+(Ro+Ri)/2*Math.sin(amd),pc+'%',{c:'#fff',s:12,w:700,b:'middle'});a0=a1});
     const self=R.indexOf('自力開拓');if(self>=0)s+=tx(cx,cy-9,'自力開拓',{s:12,f:jp,b:'middle'})+tx(cx,cy+15,Math.round(tt[self]/sum*100)+'%',{c:fg,s:24,w:700,b:'middle'});
   }else if(G.view===2){
-    const end=G.per==='month'?t.slice(0,7):(b>t?t:b).slice(0,7);
-    let start=G.per==='month'?shiftYm(end,-5):(a==='0000'?(won.map(d=>d.contractDate).sort()[0]||t).slice(0,7):a.slice(0,7));
-    const Ms=[];for(let m=start;m<=end&&Ms.length<36;m=shiftYm(m,1))Ms.push(m);
-    const all=[...S.deals.values()].filter(d=>d.status==='契約'&&d.contractDate&&(!staffSel||d.staff===staffSel));
+    const end=G.per==='month'?t.slice(0,7):(bm>shiftYm(t.slice(0,7),3)?shiftYm(t.slice(0,7),3):bm);
+    const st0=G.per==='month'?shiftYm(end,-5):(am<'1900'?(wonAll.map(c=>c.salesStart).sort()[0]||t.slice(0,7)):am);
+    const Ms=[];for(let m=st0;m<=end&&Ms.length<36;m=shiftYm(m,1))Ms.push(m);
     const dash=['','6 4','2 3','10 3 2 3','1 4'];
-    lg.innerHTML=P.map((p,i)=>`<span><i style="background:${rc(i)}"></i>${esc(p)}</span>`).join('');
-    const SS=P.map(p=>Ms.map(m=>all.filter(d=>d.staff===p&&d.contractDate.slice(0,7)===m).reduce((x,d)=>x+val(d),0)));
-    const sc=niceScale(Math.max(...SS.flat()));const L=46,T=26,PW=W-L-18,PH=H-T-30;s+=yAx(L,T,PW,PH,sc,unit);
+    lg.innerHTML=P.map((p,i)=>`<span><i style="background:${rc(i)}"></i>${esc(p)}</span>`).join('')+'<span class="muted">（売上が上がる月）</span>';
+    const SS=P.map(p=>Ms.map(m=>wonAll.filter(c=>c.staff===p&&c.salesStart===m).reduce((x,c)=>x+val(c),0)));
+    const sc=niceScale(Math.max(...SS.flat()));const L=46,T=26,PW=W2-L-18,PH=H-T-30;s+=yAx(L,T,PW,PH,sc,unit);
     const X=i=>Ms.length===1?L+PW/2:L+i*PW/(Ms.length-1),Y=v=>T+PH-Math.max(0,v)/sc.top*PH;
-    Ms.forEach((m,i)=>s+=tx(X(i),T+PH+20,(+m.slice(5))+'月'));
+    Ms.forEach((m,i)=>s+=tx(X(i),T+PH+20,(+m.slice(5))+'月',{c:m>t.slice(0,7)?css('--accent'):tc}));
     SS.forEach((arr,k)=>{const c=rc(k);s+=`<polyline points="${arr.map((v,i)=>X(i)+','+Y(v)).join(' ')}" fill="none" stroke="${c}" stroke-width="2.2" stroke-dasharray="${dash[k%5]}" stroke-linejoin="round"/>`;
-      arr.forEach((v,i)=>s+=`<circle cx="${X(i)}" cy="${Y(v)}" r="${i===arr.length-1?5:3.5}" fill="${i===arr.length-1?c:surf}" stroke="${c}" stroke-width="2"><title>${esc(P[k])}・${+Ms[i].slice(5)}月：${fmt(v)}</title></circle>`)});
+      arr.forEach((v,i)=>s+=`<circle cx="${X(i)}" cy="${Y(v)}" r="3.8" fill="${surf}" stroke="${c}" stroke-width="2"><title>${esc(P[k])}・${+Ms[i].slice(5)}月から：${fmt(v)}</title></circle>`)});
+  }else if(G.view===3){
+    const ST=STAGES['営業'];const open=[...S.cases.values()].filter(c=>c.kind==='営業'&&isOpen(c)&&(!staffSel||c.staff===staffSel));
+    if(!open.length)return none('進行中の営業案件はありません。');
+    const cols=ST.map((x,i)=>rc(i+1));
+    lg.innerHTML=ST.map((x,i)=>`<span><i style="background:${cols[i]}"></i>${x}</span>`).join('')+'<span class="muted">（いま進行中の営業案件の数）</span>';
+    stacked(P.map(p=>ST.map(x=>open.filter(c=>c.staff===p&&stateOf(c)===x).length)),ST,cols,'件',v=>Math.round(v)+'件');
   }else{
-    const ST=['未接触','担当者確認','商談中','見積提出'];
-    const open=[...S.deals.values()].filter(d=>OPEN(d.status)&&(!staffSel||d.staff===staffSel));
-    if(!open.length)return none('進行中の案件はありません。');
-    lg.innerHTML=ST.map((x,i)=>`<span><i style="background:${rc(i+1)}"></i>${x}</span>`).join('')+'<span class="muted">（いま進行中の案件の数）</span>';
-    const M=P.map(p=>ST.map(x=>open.filter(d=>d.staff===p&&d.status===x).length));
-    const tot=M.map(r=>r.reduce((x,y)=>x+y,0));const sc=niceScale(Math.max(...tot));
-    const L=74,T=10,R2=50,PW=W-L-R2,PH=H-T-28;
-    sc.ticks.forEach(v=>{const x=L+v/sc.top*PW;s+=`<line x1="${x}" x2="${x}" y1="${T}" y2="${T+PH}" stroke="${gc}"/>`+tx(x,T+PH+18,ft(v))});
-    const slot=PH/Math.max(1,P.length),bh=Math.min(36,slot*.55);
-    P.forEach((p,i)=>{const cy=T+slot*(i+.5);let x=L;
-      M[i].forEach((v,k)=>{if(!v)return;const w=v/sc.top*PW;s+=`<rect x="${x}" y="${cy-bh/2}" width="${Math.max(0,w-1)}" height="${bh}" fill="${rc(k+1)}"><title>${esc(p)}・${ST[k]}：${v}件</title></rect>`;x+=w});
-      s+=tx(L-10,cy,p,{a:'end',c:fg,s:13,f:jp,w:600,b:'middle'})+tx(x+8,cy,tot[i]+'件',{a:'start',c:fg,w:700,b:'middle'})});
+    const reps=S.reports.filter(r=>r.date>=a&&r.date<=b&&(!staffSel||r.staff===staffSel));
+    if(!reps.length)return none('この期間の日報はありません。');
+    const cols=[rc(0),css('--amber')];
+    lg.innerHTML=`<span><i style="background:${cols[0]}"></i>営業の活動</span><span><i style="background:${cols[1]}"></i>社内作業</span><span class="muted">（日報の件数）</span>`;
+    stacked(P.map(p=>['営業','社内'].map(k=>reps.filter(r=>r.staff===p&&r.kind===k).length)),['営業の活動','社内作業'],cols,'件',v=>Math.round(v)+'件');
   }
-  box.innerHTML=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="成果のグラフ" style="display:block">${s}</svg>`;
+  box.innerHTML=`<svg width="${W2}" height="${H}" viewBox="0 0 ${W2} ${H}" role="img" aria-label="グラフ" style="display:block">${s}</svg>`;
 }
 let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(drawChart,150)});
 
 /* =========================================================
-   週報
-   ========================================================= */
-let wStart=addDays(weekStart(today()),today()===weekStart(today())?-7:0);  // 月曜に開いたら先週分
-const W={detail:LS.get('wdetail',1)};
-$('wPrev').onclick=()=>{wStart=addDays(wStart,-7);renderWeek()};$('wNext').onclick=()=>{wStart=addDays(wStart,7);renderWeek()};
-$('wStaff').onchange=renderWeek;
-$('wDetail').onclick=e=>{const b=e.target.closest('button');if(!b)return;W.detail=+b.dataset.d;LS.set('wdetail',W.detail);renderWeek()};
-function weekText(staff){
-  const a=wStart,b=addDays(wStart,6);
-  const logs=S.logs.filter(l=>l.date>=a&&l.date<=b&&(!staff||l.staff===staff)).sort((x,y)=>sk(x).localeCompare(sk(y)));
-  const deals=[...S.deals.values()].filter(d=>!staff||d.staff===staff);
-  const won=deals.filter(d=>d.status==='契約'&&d.contractDate>=a&&d.contractDate<=b);
-  const cnt=k=>{const m={};logs.forEach(l=>m[l[k]]=(m[l[k]]||0)+1);return Object.entries(m).sort((x,y)=>y[1]-x[1]).map(([k2,v])=>`${k2}${v}`).join('・')};
-  const out=[];
-  out.push(`【営業週報】${md(a)}〜${md(b)}　${staff||'営業部'}`);
-  out.push('');
-  out.push(`■活動 ${logs.length}件`+(logs.length?`（${cnt('method')}）`:''));
-  if(logs.length)out.push(`　新規${logs.filter(l=>l.kubun==='新規').length}・既存${logs.filter(l=>l.kubun==='既存').length}／見積提出${logs.filter(l=>l.status==='見積提出').length}`);
-  out.push('');
-  out.push(`■契約 ${won.length}件　月額 +${yen(won.reduce((x,d)=>x+(d.increase||0),0))}`);
-  won.forEach(d=>out.push(`・${d.company}（${d.kubun||''}${d.industry?'／'+d.industry:''}）+${yen(d.increase||0)}／月［${d.route||'経路未入力'}］${staff?'':' '+d.staff}`));
-  const lost=logs.filter(l=>l.status==='失注');
-  if(lost.length){out.push('');out.push(`■失注 ${lost.length}件`);lost.forEach(l=>out.push(`・${l.company}${l.memo?'：'+l.memo:''}`))}
-  if(W.detail&&logs.length){
-    out.push('');out.push('■活動の内容');
-    logs.forEach(l=>{
-      out.push(`${md(l.date)}${tr(l)} ${l.company}｜${l.method}｜${l.content}→${l.status}${staff?'':'（'+l.staff+'）'}`);
-      if(l.needs)out.push(`　困りごと：${l.needs}`);
-      if(l.memo)out.push(`　提案：${l.memo}`);
-      const am=[];if(l.status==='契約')am.push(`月額+${yen(l.increase||0)}`);else{if(l.quote)am.push(`見積${yen(l.quote)}`);if(l.expected)am.push(`見込${yen(l.expected)}`)}if(am.length)out.push(`　${am.join('／')}`);
-    });
-  }
-  const nb=addDays(b,7);
-  const line=d=>`・${md(d.nextDate)} ${d.company}　${d.nextAction||'連絡'}${staff?'':'（'+d.staff+'）'}`;
-  const todo=deals.filter(d=>OPEN(d.status)&&d.nextDate&&d.nextDate>=today()&&d.nextDate<=nb).sort((x,y)=>x.nextDate.localeCompare(y.nextDate));
-  const late=deals.filter(d=>OPEN(d.status)&&d.nextDate&&d.nextDate<today()).sort((x,y)=>x.nextDate.localeCompare(y.nextDate));
-  out.push('');out.push('■これからの予定・宿題（来週末まで）');
-  if(todo.length)todo.forEach(d=>out.push(line(d)));else out.push('・予定の入力なし');
-  if(late.length){out.push('');out.push(`■連絡予定日を過ぎた案件 ${late.length}件`);late.forEach(d=>out.push(line(d)))}
-  const pipe=deals.filter(d=>OPEN(d.status));
-  out.push('');out.push(`■進行中の案件 ${pipe.length}件　見込月額 ${yen(pipe.reduce((x,d)=>x+(d.expected||0),0))}`);
-  return out.join('\n');
-}
-function renderWeek(){
-  $('wLabel').textContent=`${md(wStart)}〜${md(addDays(wStart,6))}`;
-  $('wDetail').innerHTML=['集計のみ','内容も載せる'].map((v,i)=>`<button data-d="${i}" class="${W.detail===i?'on':''}">${v}</button>`).join('');
-  $('wkText').value=weekText($('wStaff').value);$('wMsg').textContent='';
-}
-$('wCopy').onclick=async()=>{const t=$('wkText').value;
-  try{await navigator.clipboard.writeText(t);$('wMsg').textContent='コピーしました。LINE WORKSに貼り付けてください。';$('wMsg').className='msg ok'}
-  catch(e){$('wkText').focus();$('wkText').select();$('wMsg').textContent='選択しました。コピーしてください。';$('wMsg').className='msg'}};
-
-/* =========================================================
    設定
    ========================================================= */
-$('setBtn').onclick=()=>{const s=S.settings;$('sStaff').value=s.staff.join('\n');$('sTarget').value=s.target;$('sInd').value=s.industries.join('\n');$('sRoute').value=s.routes.join('\n');
+$('setBtn').onclick=()=>{const s=S.settings;
+  $('sStaff').value=s.staff.join('\n');$('sTarget').value=s.target;$('sSalesTypes').value=s.salesTypes.join('\n');$('sInternalTypes').value=s.internalTypes.join('\n');$('sInd').value=s.industries.join('\n');$('sRoute').value=s.routes.join('\n');
   $('sRange').innerHTML=[['fy','今年度から（軽い）'],['all','すべて読み込む']].map(([k,v])=>`<button data-r="${k}" class="${S.range===k?'on':''}">${v}</button>`).join('');
   $('sMsg').textContent='';$('sSampleMsg').textContent='';$('setDlg').showModal()};
 $('setClose').onclick=()=>$('setDlg').close();
 const lines=v=>[...new Set(v.split(/\n/).map(x=>x.trim()).filter(Boolean))];
 $('sSave').onclick=async()=>{
-  const n={staff:lines($('sStaff').value),target:num($('sTarget').value)||0,industries:lines($('sInd').value),routes:lines($('sRoute').value)};
+  const n={staff:lines($('sStaff').value),target:num($('sTarget').value)||0,salesTypes:lines($('sSalesTypes').value),internalTypes:lines($('sInternalTypes').value),industries:lines($('sInd').value),routes:lines($('sRoute').value)};
   if(!n.staff.length){$('sMsg').textContent='担当者を1人以上入れてください';$('sMsg').className='msg err';return}
-  if(!n.routes.length)n.routes=DEF.routes;if(!n.industries.length)n.industries=DEF.industries;
+  for(const k of['salesTypes','internalTypes','industries','routes'])if(!n[k].length)n[k]=DEF[k];
   const b=db.batch();b.set(db.collection(C.settings).doc('main'),n);const r=await commit(b);
-  if(r!=='ok'&&r!=='pending'){$('sMsg').textContent='保存できませんでした';$('sMsg').className='msg err';return}
+  if(!okr(r)){$('sMsg').textContent='保存できませんでした';$('sMsg').className='msg err';return}
   S.settings={...DEF,...n};$('sMsg').textContent='保存しました';$('sMsg').className='msg ok';renderAll();
 };
 $('sRange').onclick=e=>{const b=e.target.closest('button');if(!b)return;S.range=b.dataset.r;LS.set('range',S.range);$('sRange').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));load()};
-/* 見本データ（今年度4月〜今日まで、毎月の推移が見える量） */
+
+/* ---- 見本データ ---- */
 function buildSample(){
   const staff=S.settings.staff.length?S.settings.staff:DEF.staff;const R=S.settings.routes,IND=S.settings.industries;
+  const ST=S.settings.salesTypes,IT=S.settings.internalTypes;
   let seed=20261028;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
-  const pick=a=>a[Math.floor(rnd()*a.length)];
+  const pick=a=>a[Math.floor(rnd()*a.length)];const ri=(a,b)=>a+Math.floor(rnd()*(b-a+1));
   const wpick=o=>{const t=Object.values(o).reduce((a,b)=>a+b,0);let r=rnd()*t;for(const[k,v]of Object.entries(o)){r-=v;if(r<=0)return k}return Object.keys(o)[0]};
-  const ri=(a,b)=>a+Math.floor(rnd()*(b-a+1));
   // 担当者ごとの特徴：1人目＝自力開拓が多い、2人目＝管理会社紹介が多い、3人目＝料金改定が得意
-  const PROFILE=[
-    {route:{[R[0]]:6,[R[3]||R[0]]:2,[R[4]||R[0]]:1,[R[2]||R[0]]:1},type:{new:7,add:2,rev:1},win:.42,per:[4,6]},
-    {route:{[R[1]||R[0]]:6,[R[0]]:2,[R[2]||R[0]]:1,[R[4]||R[0]]:1},type:{new:8,add:1,rev:1},win:.5,per:[4,6]},
-    {route:{[R[0]]:4,[R[3]||R[0]]:3,[R[4]||R[0]]:2},type:{new:3,add:2,rev:5},win:.55,per:[3,5]}
-  ];
-  const PFX=['さくら','みなと','こだま','ひかり','あおば','つばさ','やまと','はなまる','かもめ','そら','いずみ','ほたる','けやき','もみじ','なぎさ','あさひ','ゆうひ','わかば','しおり','ことぶき','ひまわり','すずらん','あかね','いろは','おおぞら','かえで','きらら','くすのき','さつき','しらさぎ','たちばな','つくし','とまと','なのはな','のぞみ','はやて','ふたば','まほろば','みずほ','むさし','めぐみ','やよい','ゆりかご','よつば','りんどう','わかたけ'];
-  const SFX={'飲食業':['食堂','居酒屋','カフェ','ラーメン','焼肉店'],'小売業':['スーパー','精肉店','パン店','ドラッグ','青果店'],'製造業':['製作所','工業','食品工場','印刷'],'建設業':['工務店','建設','塗装','設備'],
-    '医療・福祉':['クリニック','歯科','老人ホーム','デイサービス','整骨院'],'不動産・管理会社':['マンション','ハイツ','管理センター','ビル'],'事務所・オフィス':['事務所','会計事務所','商事','オフィス'],
-    '宿泊業':['ホテル','旅館','ゲストハウス'],'教育':['保育園','学習塾','幼稚園'],'サービス業':['美容室','自動車整備','クリーニング','スポーツクラブ'],'その他':['倉庫','物流センター','農園']};
-  const usedName=new Set();
-  const nameFor=ind=>{for(let i=0;i<50;i++){const n=pick(PFX)+pick(SFX[ind]||['商店']);if(!usedName.has(n)){usedName.add(n);return n}}return pick(PFX)+'商店'+usedName.size};
-  const NEEDS={new:['今の業者の回収時間が遅い','料金が高いので見直したい','ダンボールの量が増えて困っている','開店予定で業者を探している','分別のやり方を教えてほしい','毎日回収してほしい','産廃もまとめて頼みたい'],
-    add:['回収回数を増やしたい','ビン・缶も一緒に出したい','繁忙期だけ増便したい','段ボールの回収も頼みたい'],
-    rev:['処分費の値上げ説明を求められた','ごみの量が契約時より増えている','回収先が増えたので見直したい']};
-  const MEMOS={new:['週3回→毎日回収で見積り','可燃とダンボールをセットで提案','他社より月2,000円安く提示','オーナー確認待ち','現場を確認して容器の数を提案','管理会社の担当者と同行訪問'],
-    add:['週2→週3回で見積り','ビン・缶の回収を追加提案','年末だけ増便を提案'],
-    rev:['処分費上昇の資料を持参して説明','量の実測結果を提示','契約更新に合わせて改定を提案']};
+  const PF=[
+    {route:{[R[0]]:6,[R[3]||R[0]]:2,[R[4]||R[0]]:1,[R[2]||R[0]]:1},type:{[ST[0]]:7,[ST[2]||ST[0]]:2,[ST[1]||ST[0]]:1},win:.45},
+    {route:{[R[1]||R[0]]:6,[R[0]]:2,[R[2]||R[0]]:1,[R[4]||R[0]]:1},type:{[ST[0]]:8,[ST[2]||ST[0]]:1,[ST[1]||ST[0]]:1},win:.5},
+    {route:{[R[0]]:4,[R[3]||R[0]]:3,[R[4]||R[0]]:2},type:{[ST[1]||ST[0]]:5,[ST[0]]:3,[ST[2]||ST[0]]:2},win:.55}];
+  const PFX=['さくら','みなと','こだま','ひかり','あおば','つばさ','やまと','はなまる','かもめ','そら','いずみ','ほたる','けやき','もみじ','なぎさ','あさひ','ゆうひ','わかば','しおり','ことぶき','ひまわり','すずらん','あかね','いろは','おおぞら','かえで','きらら','くすのき','さつき','しらさぎ','たちばな','つくし','なのはな','のぞみ','はやて','ふたば','まほろば','みずほ','むさし','めぐみ','やよい','よつば','りんどう','わかたけ'];
+  const SFX={'飲食業':['食堂','居酒屋','カフェ','ラーメン','焼肉店'],'小売業':['スーパー','精肉店','パン店','ドラッグ'],'製造業':['製作所','工業','食品工場','印刷'],'建設業':['工務店','建設','塗装'],
+    '医療・福祉':['クリニック','歯科','老人ホーム','デイサービス'],'不動産・管理会社':['マンション','ハイツ','ビル'],'事務所・オフィス':['事務所','商事','オフィス'],'宿泊業':['ホテル','旅館'],'教育':['保育園','学習塾'],'サービス業':['美容室','自動車整備','クリーニング'],'その他':['倉庫','物流センター']};
+  const used=new Set();const nameFor=ind=>{for(let i=0;i<60;i++){const n=pick(PFX)+pick(SFX[ind]||['商店']);if(!used.has(n)){used.add(n);return n}}return pick(PFX)+'商店'+used.size};
+  const TITLE={new:['可燃・ダンボールの新規回収','産廃（廃プラ）の新規回収','開店にあわせた回収契約','他社からの切り替え'],rev:['処分費上昇にともなう料金改定','回収量増加による料金見直し'],add:['回収回数の追加','ビン・缶の回収追加','段ボール回収の追加']};
+  const ACT={first:['飛び込みで訪問。店長と名刺交換','管理会社の担当者と同行して訪問','電話で担当者を確認、訪問の約束','問い合わせを受けて現地確認'],
+    mid:['回収時間の希望をヒアリング','ごみの量と容器の数を確認','見積書を持参して説明','オーナーに見積内容を確認してもらう','他社の料金と比較された','条件を調整して再見積'],
+    rev:['処分費上昇の資料を持参して説明','量の実測結果を提示','改定額について了承を確認']};
   const NEXT=['見積りの返事を確認','担当者に再訪問','資料を送る','オーナーに電話','契約書を持参'];
-  const t=today(),fy=fyStart(t);
-  const months=[];for(let m=fy.slice(0,7);m<=t.slice(0,7);m=shiftYm(m,1))months.push(m);
-  const deals=[],logs=[];let ts=Date.now()-5e9,n=0;
-  staff.forEach((st,si)=>{
-    const pf=PROFILE[si%PROFILE.length];
+  const hm=x=>`${pad(Math.floor(x/60))}:${pad(x%60)}`;
+  const t=today(),fy=fyStart(t);const months=[];for(let m=fy.slice(0,7);m<=t.slice(0,7);m=shiftYm(m,1))months.push(m);
+  const cases=[],reps=[];let ts=Date.now()-5e9,n=0;
+  const mkRep=(c,date,method,action,progress,extra={})=>{const sm=ri(17,33)*30,du=c.kind==='社内'?pick([60,90,120,180]):pick([30,30,45,60,60,90]);
+    const r={id:`rsample${n}_${reps.length}`,caseId:c.id,company:c.company,title:c.title,kind:c.kind,type:c.type,date,start:hm(sm),end:hm(Math.min(sm+du,19*60)),staff:c.staff,method,action,progress,
+      quote:null,expected:null,nextAction:'',nextDate:'',check:(pd(t)-pd(date))/864e5>14?pick(['確認済み','確認済み','確認済み','要相談']):pick(CHECKS),note:'',createdAt:ts++,sample:true,...extra};
+    reps.push(r);c.logCount++;applyToCase(c,r);return r};
+  staff.forEach((st,si)=>{const pf=PF[si%PF.length];
     months.forEach((ym,mi)=>{
-      const cnt=ri(pf.per[0],pf.per[1])+(mi%3===1?1:0);
+      const last=ym===t.slice(0,7)?+t.slice(8,10):+monthEnd(ym).slice(8,10);
+      const cnt=ri(4,6)+(mi%3===1?1:0);
       for(let j=0;j<cnt;j++){
-        const type=wpick(pf.type);const kubun=type==='new'?'新規':'既存';
-        const ind=pick(IND.filter(x=>SFX[x])),route=type==='new'?wpick(pf.route):(rnd()<.6?R[3]||R[0]:R[0]);
-        const last=ym===t.slice(0,7)?+t.slice(8,10):+monthEnd(ym).slice(8,10);
-        let date=`${ym}-${pad(ri(1,Math.max(1,last)))}`;if(date>t)date=t;
-        const exp=type==='new'?pick([8000,10000,12000,15000,18000,22000,25000,30000,38000,45000,55000,75000]):type==='add'?pick([3000,4000,6000,8000,10000,15000]):pick([3000,4000,5000,6000,8000,10000,12000]);
-        const age=(pd(t)-pd(date))/864e5;
-        // 結末：古い案件ほど決着している
-        let end=rnd()<pf.win?'契約':rnd()<.35?'失注':rnd()<.3?'保留':'open';
-        if(end==='open'&&age>75)end=rnd()<.5?'失注':'保留';
-        const flow=type==='rev'?(end==='open'?['担当者確認','商談中']:['担当者確認',end==='契約'?'契約':end]):
-          end==='契約'?pick([['担当者確認','商談中','見積提出','契約'],['商談中','見積提出','契約'],['見積提出','契約']]):
-          end==='open'?pick([['未接触','担当者確認'],['担当者確認','商談中'],['商談中','見積提出'],['担当者確認','商談中','見積提出']]):
-          pick([['担当者確認','商談中','見積提出',end],['商談中',end],['見積提出',end]]);
-        const company=nameFor(ind)+'(見本)';
-        const deal={id:'dsample'+(n++),company,firstDate:date,createdAt:ts,logCount:0,increase:0,sample:true};
-        let d=date;let stopped=false;
-        flow.forEach((stt,k)=>{
-          if(stopped)return;
-          if(k){const nd=addDays(d,ri(3,14));if(nd>t){stopped=true;return}d=nd}
-          const content=type==='rev'?'料金改定':type==='add'?'既存顧客への追加提案':stt==='見積提出'?'見積提出':stt==='契約'&&k>0&&rnd()<.3?'契約後フォロー':'新規営業';
-          const method=k===0?(route===R[1]||route===R[2]||route===R[3]?pick(['紹介','訪問','電話']):pick(['訪問','訪問','訪問','電話','メール'])):pick(['訪問','訪問','電話','メール','オンライン']);
-          const isLast=k===flow.length-1;
-          const l={id:`lsample${n}_${k}`,dealId:deal.id,date:d,staff:st,company,kubun,industry:ind,method,content,status:stt,
-            route:(k===0||stt==='契約')?route:'',needs:k===0?pick(NEEDS[type]):'',memo:stt==='失注'?pick(['他社のほうが安かった','今の業者を継続','オーナーの判断で見送り']):pick(MEMOS[type]),
-            quote:['見積提出','契約'].includes(stt)||(k>0&&type!=='new')?exp+pick([0,1000,2000]):null,expected:exp,increase:stt==='契約'?exp:null,
-            nextAction:OPEN(stt)?pick(NEXT):'',nextDate:'',check:age>14?pick(['確認済み','確認済み','確認済み','要相談']):pick(CHECKS),note:'',createdAt:ts++,sample:true};
-          if(OPEN(stt)){const nd=addDays(d,ri(4,12));l.nextDate=nd}
-          {const sm=ri(17,33)*30,du=pick([30,30,45,60,60,90]);const hm=x=>`${pad(Math.floor(x/60))}:${pad(x%60)}`;l.start=hm(sm);l.end=hm(sm+du)}
-          logs.push(l);deal.logCount++;dealFromLog(deal,l);
+        const type=wpick(pf.type),tk=type===ST[1]?'rev':type===ST[2]?'add':'new';
+        const ind=pick(IND.filter(x=>SFX[x])),route=tk==='new'?wpick(pf.route):(rnd()<.6?R[3]||R[0]:R[0]);
+        let d=`${ym}-${pad(ri(1,Math.max(1,last)))}`;if(d>t)d=t;
+        const exp=tk==='new'?pick([8000,10000,12000,15000,18000,22000,25000,30000,38000,45000,55000,75000]):pick([3000,4000,5000,6000,8000,10000,12000]);
+        const c={id:'csample'+(n++),kind:'営業',type,company:nameFor(ind)+'(見本)',title:pick(TITLE[tk]),staff:st,kubun:tk==='new'?'新規':'既存',industry:ind,route,
+          detail:route===R[1]?'管理会社からの紹介案件':'',expected:exp,quote:null,status:'未接触',result:'',createdDate:d,createdAt:ts++,updatedAt:ts,logCount:0,nextAction:'',nextDate:'',sample:true};
+        const age=(pd(t)-pd(d))/864e5;
+        let end=rnd()<pf.win?'受注':rnd()<.35?'失注':'open';if(end==='open'&&age>80)end=rnd()<.6?'失注':'受注';
+        const flow=tk==='rev'?['担当者確認','商談中']:pick([['担当者確認','商談中','見積提出'],['商談中','見積提出'],['担当者確認','見積提出'],['見積提出']]);
+        const steps=end==='open'?flow.slice(0,ri(1,flow.length)):flow;
+        let stop=false;
+        steps.forEach((pg,k)=>{if(stop)return;if(k){const nd=addDays(d,ri(3,14));if(nd>t){stop=true;return}d=nd}
+          const method=k===0?(route===R[1]||route===R[2]||route===R[3]?pick(['紹介','訪問','電話']):pick(['訪問','訪問','訪問','電話'])):pick(['訪問','訪問','電話','メール','オンライン']);
+          const r=mkRep(c,d,method,k===0?pick(tk==='rev'?ACT.rev:ACT.first):pick(tk==='rev'?ACT.rev:ACT.mid),pg,
+            {expected:exp,quote:pg==='見積提出'?exp+pick([0,1000,2000]):null});
+          if(k===steps.length-1&&end==='open'){r.nextAction=pick(NEXT);r.nextDate=addDays(d,ri(4,12));applyToCase(c,r)}
         });
-        deals.push(deal);
+        if(end!=='open'&&!stop){const cd=addDays(d,ri(2,10));if(cd<=t){
+          if(end==='受注'){const r=mkRep(c,cd,'訪問','契約内容を確認して受注','',{});c.result='受注';c.closedDate=cd;c.increase=exp;c.salesStart=shiftYm(cd.slice(0,7),rnd()<.7?1:0)}
+          else{c.result='失注';c.closedDate=cd;c.lostReason=pick(['他社のほうが安かった','今の業者を継続','オーナーの判断で見送り'])}}
+          else{c.nextAction=pick(NEXT);c.nextDate=addDays(d,ri(3,10))}}
+        cases.push(c);
       }
+      // 社内作業：毎月1件の社内業務、ときどき許可更新（2人目は7〜8月に集中）
+      const inner=[[IT[1]||IT[0],'月次の処理実績の取りまとめ']];
+      if((si===1&&(ym.endsWith('-07')||ym.endsWith('-08')))||(si===0&&ym.endsWith('-05')))inner.push([IT[0],ym.endsWith('-05')?'堺市 一般廃棄物収集運搬業許可の更新':'大阪府 産業廃棄物収集運搬業許可の更新']);
+      inner.forEach(([type,title])=>{let d=`${ym}-${pad(ri(1,Math.max(1,last)))}`;if(d>t)d=t;
+        const c={id:'csample'+(n++),kind:'社内',type,company:title+'(見本)',title:'',staff:st,detail:'',status:'未着手',result:'',createdDate:d,createdAt:ts++,updatedAt:ts,logCount:0,nextAction:'',nextDate:'',sample:true};
+        const k=type===IT[0]?ri(3,5):1;let stop=false;
+        for(let i=0;i<k;i++){if(i){const nd=addDays(d,ri(1,6));if(nd>t){stop=true;break}d=nd}
+          mkRep(c,d,'社内作業',type===IT[0]?pick(['必要書類の収集','申請書の作成','役所に提出・確認','車両一覧の作成']):'実績表を作成して提出','進行中')}
+        if(!stop&&d<t){c.result='完了';c.closedDate=d}
+        cases.push(c);
+      });
     });
   });
-  // 先月までの振り返り（全員）
-  const reviews=months.slice(0,-1).map(ym=>({id:`${ym}__all`,good:'管理会社経由の紹介で新規が続いた。見積提出後のフォローが早くできた。',issue:'価格で他社に負けた案件があった。見積後の連絡が遅れた案件あり。',next:'見積提出中の案件を月初にまとめて追う。飲食店の多いエリアを重点的に回る。',comment:'',sample:true}));
-  return{logs,deals,reviews};
+  const reviews=months.slice(0,-1).map(ym=>({id:`${ym}__all`,good:'管理会社経由の紹介で新規が続いた。見積提出後のフォローが早くできた。',issue:'価格で他社に負けた案件があった。期限を過ぎた案件があった。',next:'見積提出中の案件を月初にまとめて追う。飲食店の多いエリアを重点的に回る。',comment:'',sample:true}));
+  return{cases,reps,reviews};
 }
-async function writeOps(ops){for(let i=0;i<ops.length;i+=400){const b=db.batch();ops.slice(i,i+400).forEach(([op,c,o])=>{if(op==='del')b.delete(db.collection(c).doc(o));else{const{id,...body}=o;b.set(db.collection(c).doc(id),body)}});await commit(b)}}
+async function writeOps(ops){for(let i=0;i<ops.length;i+=400){const b=db.batch();ops.slice(i,i+400).forEach(([op,c,o])=>{if(op==='del')b.delete(db.collection(c).doc(o));else put(b,c,o)});await commit(b)}}
 async function removeSample(){
-  const ls=S.logs.filter(l=>l.sample),dd=[...S.deals.values()].filter(d=>d.sample);
-  const ops=[...ls.map(l=>['del',C.logs,l.id]),...dd.map(d=>['del',C.deals,d.id])];
-  // 見本の振り返りだけ消す（本物の振り返りは残す）
+  const rs=S.reports.filter(r=>r.sample),cs=[...S.cases.values()].filter(c=>c.sample);
+  const ops=[...rs.map(r=>['del',C.reports,r.id]),...cs.map(c=>['del',C.cases,c.id])];
   const t=today();for(let m=fyStart(t).slice(0,7);m<=t.slice(0,7);m=shiftYm(m,1)){try{const s=await db.collection(C.monthly).doc(`${m}__all`).get();if(s.exists&&s.data().sample)ops.push(['del',C.monthly,`${m}__all`])}catch(e){}}
-  await writeOps(ops);
-  S.logs=S.logs.filter(l=>!l.sample);dd.forEach(d=>S.deals.delete(d.id));rvKey=null;
-  return ls.length;
+  await writeOps(ops);S.reports=S.reports.filter(r=>!r.sample);cs.forEach(c=>S.cases.delete(c.id));rvKey=null;return rs.length;
 }
 $('sSample').onclick=async()=>{
   const btn=$('sSample');btn.disabled=true;$('sSampleMsg').textContent='書き込み中…（少し時間がかかります）';$('sSampleMsg').className='msg';
-  try{
-    await removeSample();
-    const{logs,deals,reviews}=buildSample();
-    await writeOps([...logs.map(l=>['set',C.logs,l]),...deals.map(d=>['set',C.deals,d]),...reviews.map(r=>['set',C.monthly,r])]);
-    logs.forEach(l=>S.logs.push(l));deals.forEach(d=>S.deals.set(d.id,d));rvKey=null;
-    const won=deals.filter(d=>d.status==='契約').length;
-    $('sSampleMsg').textContent=`見本を入れました（日報${logs.length}件・案件${deals.length}件・うち契約${won}件）`;$('sSampleMsg').className='msg ok';renderAll();
+  try{await removeSample();const{cases,reps,reviews}=buildSample();
+    await writeOps([...reps.map(r=>['set',C.reports,r]),...cases.map(c=>['set',C.cases,c]),...reviews.map(r=>['set',C.monthly,r])]);
+    reps.forEach(r=>S.reports.push(r));cases.forEach(c=>S.cases.set(c.id,c));rvKey=null;
+    $('sSampleMsg').textContent=`見本を入れました（案件${cases.length}件・日報${reps.length}件・受注${cases.filter(c=>c.result==='受注').length}件）`;$('sSampleMsg').className='msg ok';renderAll();
   }catch(e){$('sSampleMsg').textContent='書き込めませんでした：'+(e.code||e.message);$('sSampleMsg').className='msg err'}
   btn.disabled=false;
 };
-$('sSampleDel').onclick=async()=>{
-  $('sSampleMsg').textContent='削除中…';const n=await removeSample();
-  $('sSampleMsg').textContent=`見本を消しました（日報${n}件）`;$('sSampleMsg').className='msg ok';renderAll();
-};
+$('sSampleDel').onclick=async()=>{$('sSampleMsg').textContent='削除中…';const k=await removeSample();$('sSampleMsg').textContent=`見本を消しました（日報${k}件）`;$('sSampleMsg').className='msg ok';renderAll()};
+
 
 /* =========================================================
    画面切り替え
    ========================================================= */
-function go(t){cur=t;LS.set('tab',t);
+const TABS=['cases','input','logs','week','stats'];
+function go(t){cur=t;
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
-  ['input','logs','deals','stats','week'].forEach(k=>$('v-'+k).hidden=k!==t);
-  renderCur();window.scrollTo(0,0)}
+  TABS.forEach(k=>$('v-'+k).hidden=k!==t);renderCur();window.scrollTo(0,0)}
 $('tabs').onclick=e=>{const b=e.target.closest('button');if(b)go(b.dataset.t)};
-function staffSelects(){[['dStaff','担当：全員'],['mStaff','全員'],['wStaff','全員（まとめ）']].forEach(([id,f])=>{const k=$(id).value;fillSelect($(id),S.settings.staff,f);if(S.settings.staff.includes(k))$(id).value=k})}
-function renderCur(){if(cur==='input')renderRecent();if(cur==='logs')renderLogs();if(cur==='deals')renderDeals();if(cur==='stats'){rvKey=null;renderStats()}if(cur==='week')renderWeek()}
-function renderAll(){setupForm();setupLogFilters();staffSelects();renderCur()}
-
+function staffSelects(){[['mStaff','全員'],['wStaff','全員（まとめ）']].forEach(([id,f])=>keepSelect($(id),S.settings.staff,f))}
+function renderCur(){if(cur==='cases')renderCases();if(cur==='input'){renderPicked();renderRecent()}if(cur==='logs')renderLogs();if(cur==='week')renderWeek();if(cur==='stats'){rvKey=null;renderStats()}}
+function renderAll(){setupCaseFilters();setupForm();setupLogFilters();staffSelects();renderCur()}
+$('themeBtn').onclick=()=>applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');
 document.getElementById('bannerBg').src=document.getElementById('bannerImg').src;
 let started=false;
 function start(){if(started)return;started=true;
   applyTheme(LS.get('theme','light'));$('fDate').value=today();
-  go('stats');  // 開いたときは毎回「集計」から
+  go('cases');   // 開いたときは毎回「案件」から
   renderAll();load();
 }
-$('themeBtn').onclick=()=>applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');
 if(unlocked()){$('lock').hidden=true;start()}else{applyTheme(LS.get('theme','light'));setTimeout(()=>$('passInput').focus(),50)}
+
 </script>
 </body>
 </html>
