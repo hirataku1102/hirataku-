@@ -73,6 +73,8 @@ h3{font-size:14px;margin:0;font-weight:700}
 .req::after{content:"必須";font-size:10px;font-weight:600;color:var(--warn);margin-left:6px;border:1px solid currentColor;border-radius:4px;padding:0 4px;vertical-align:1px}
 input[type=text],input[type=date],input[type=search],input[type=password],input:not([type]),input[inputmode],select,textarea{width:100%;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:16px}
 textarea{resize:vertical;min-height:64px}
+.trow{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center}
+input[type=time]{width:100%;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:16px}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 @media (max-width:560px){.g3{grid-template-columns:1fr}}
@@ -227,6 +229,9 @@ dialog .db{padding:16px;display:flex;flex-direction:column;gap:16px}
     <div class="g2">
       <div class="f"><label class="req" for="fDate">いつ（営業日）</label><input type="date" id="fDate"></div>
       <div class="f"><label class="req" for="fStaff">担当者</label><select id="fStaff"></select></div>
+    </div>
+    <div class="f"><span class="lt">時間</span>
+      <div class="trow"><input type="time" id="fStart" aria-label="開始時刻" step="300"><span class="muted">〜</span><input type="time" id="fEnd" aria-label="終了時刻" step="300"></div>
     </div>
     <div class="f">
       <label class="req" for="fCompany">どこへ（会社名・事業所名）</label>
@@ -432,6 +437,7 @@ const num=s=>{const v=String(s??'').replace(/[０-９]/g,c=>String.fromCharCode(
 const norm=s=>String(s||'').replace(/[\s　]+/g,'').replace(/[Ａ-Ｚａ-ｚ０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)).toLowerCase();
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const LS={get(k,d){try{const v=localStorage.getItem('sr_'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('sr_'+k,JSON.stringify(v))}catch(e){}}};
+const sk=l=>l.date+(l.start||'99:99')+String(l.createdAt||0).padStart(15,'0');
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 function toast(t){const el=$('toast');el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2600)}
 function showErr(t){$('errbar').textContent=t;$('errbar').hidden=false}
@@ -537,9 +543,9 @@ $('fCompany').addEventListener('input',()=>{F.forceNew=false;onCompany()});
 $('fCompany').addEventListener('change',onCompany);
 function msg(t,cls){$('fMsg').textContent=t;$('fMsg').className='msg'+(cls?' '+cls:'')}
 function resetForm(keepStaff=true){
-  const staff=$('fStaff').value;
+  const staff=$('fStaff').value;const keepDate=$('fDate').value,nextStart=$('fEnd').value;
   $('frm').reset();Object.assign(F,{kubun:'新規',method:'',content:'',status:'',route:'',check:'未確認',dealId:null,forceNew:false,editId:null});
-  $('fDate').value=today();if(keepStaff)$('fStaff').value=staff;
+  $('fDate').value=keepStaff&&keepDate?keepDate:today();if(keepStaff){$('fStaff').value=staff;$('fStart').value=nextStart||''}
   $('dealInfo').hidden=true;$('fTitle').textContent='営業活動を記録';$('saveBtn').textContent='記録する';$('fCancel').hidden=true;$('moreBox').open=false;
   syncChips();
 }
@@ -550,7 +556,7 @@ function startEdit(id){
   const l=S.logs.find(x=>x.id===id);if(!l)return;
   go('input');resetForm();
   Object.assign(F,{kubun:l.kubun||'新規',method:l.method||'',content:l.content||'',status:l.status||'',route:l.route||'',check:l.check||'未確認',dealId:l.dealId,editId:l.id});
-  $('fDate').value=l.date;$('fStaff').value=l.staff;$('fCompany').value=l.company||'';$('fIndustry').value=l.industry||'';
+  $('fDate').value=l.date;$('fStart').value=l.start||'';$('fEnd').value=l.end||'';$('fStaff').value=l.staff;$('fCompany').value=l.company||'';$('fIndustry').value=l.industry||'';
   $('fNeeds').value=l.needs||'';$('fMemo').value=l.memo||'';
   $('fQuote').value=l.quote??'';$('fExpected').value=l.expected??'';$('fIncrease').value=l.increase??'';
   $('fNext').value=l.nextAction||'';$('fNextDate').value=l.nextDate||'';$('fNote').value=l.note||'';
@@ -574,16 +580,17 @@ function dealFromLog(deal,l){
   if(l.status==='契約'){deal.increase=l.increase!=null?l.increase:(deal.increase||0);if(!deal.contractDate||deal.contractDate>l.date)deal.contractDate=l.date}
   return deal;
 }
-function latestLogOf(dealId,exceptId){return S.logs.filter(x=>x.dealId===dealId&&x.id!==exceptId).sort((a,b)=>(b.date+b.createdAt).localeCompare(a.date+a.createdAt))[0]}
+function latestLogOf(dealId,exceptId){return S.logs.filter(x=>x.dealId===dealId&&x.id!==exceptId).sort((a,b)=>sk(b).localeCompare(sk(a)))[0]}
 
 $('frm').addEventListener('submit',async e=>{
   e.preventDefault();
   if(!db){msg('データベースにつながっていません。リロードしてください。','err');return}
-  const v={date:$('fDate').value,staff:$('fStaff').value,company:$('fCompany').value.trim(),kubun:F.kubun,industry:$('fIndustry').value,
+  const v={date:$('fDate').value,start:$('fStart').value,end:$('fEnd').value,staff:$('fStaff').value,company:$('fCompany').value.trim(),kubun:F.kubun,industry:$('fIndustry').value,
     method:F.method,content:F.content,status:F.status,route:F.route,needs:$('fNeeds').value.trim(),memo:$('fMemo').value.trim(),
     nextAction:$('fNext').value.trim(),nextDate:$('fNextDate').value,check:F.check,note:$('fNote').value.trim()};
   const miss=[];if(!v.date)miss.push('営業日');if(!v.staff)miss.push('担当者');if(!v.company)miss.push('会社名');if(!v.method)miss.push('営業方法');if(!v.content)miss.push('営業内容');if(!v.status)miss.push('営業状況');
   if(v.status==='契約'&&!v.route)miss.push('獲得経路（契約のとき）');
+  if(v.start&&v.end&&v.end<v.start){msg('終了時刻が開始時刻より前になっています。','err');return}
   if(miss.length){msg('入力してください：'+miss.join('、'),'err');return}
   for(const[k,id]of[['quote','fQuote'],['expected','fExpected'],['increase','fIncrease']]){const n=num($(id).value);if(Number.isNaN(n)){msg('金額は数字で入れてください。','err');$(id).focus();return}v[k]=n}
   if(v.status!=='契約')v.increase=v.increase??null;
@@ -593,7 +600,7 @@ $('frm').addEventListener('submit',async e=>{
     const old=S.logs.find(x=>x.id===F.editId);log={...old,...v,updatedAt:now};
     deal=S.deals.get(old.dealId)?{...S.deals.get(old.dealId)}:{id:old.dealId,firstDate:v.date,createdAt:now,logCount:1};
     const latest=latestLogOf(old.dealId,old.id);
-    if(!latest||(log.date+log.createdAt)>=(latest.date+latest.createdAt)){
+    if(!latest||sk(log)>=sk(latest)){
       if(old.status==='契約'&&v.status!=='契約'&&deal.contractDate===old.date){delete deal.contractDate;deal.increase=0}
       dealFromLog(deal,log);
     }
@@ -619,17 +626,18 @@ $('frm').addEventListener('submit',async e=>{
   LS.set('staff',v.staff);
   const was=F.editId;resetForm();setupForm();renderRecent();
   msg(r==='pending'?`${v.company} を保存しました（電波が戻ると送信されます）`:(was?'記録を直しました。':`${v.company} を記録しました。`),'ok');
-  if(was)go('logs');
+  if(was)go('logs');else window.scrollTo({top:0,behavior:'smooth'});
 });
 
 /* =========================================================
    一覧の表示部品
    ========================================================= */
+const tr=l=>l.start||l.end?` ${l.start||''}〜${l.end||''}`:'';
 function dueBadge(s){if(!s)return'';const t=today();const cls=s<t?'over':s<=addDays(t,3)?'soon':'later';const lab=s<t?'期限切れ':s===t?'今日':'';return `<span class="due ${cls}">次回 ${md(s)}${lab?' '+lab:''}</span>`}
 function logCard(l,opts={}){
   const amt=[];if(l.quote)amt.push(`<span>見積</span><b>${yen(l.quote)}</b>`);if(l.expected)amt.push(`<span>見込</span><b>${yen(l.expected)}</b>`);if(l.status==='契約'&&l.increase)amt.push(`<span>増加</span><b>+${yen(l.increase)}</b>`);
   return `<div class="card">
-    <div class="top"><span class="dt">${md(l.date)}</span>${opts.noCo?'':`<span class="co">${esc(l.company)}</span>`}<span class="who">${esc(l.staff)}</span></div>
+    <div class="top"><span class="dt">${md(l.date)}${tr(l)}</span>${opts.noCo?'':`<span class="co">${esc(l.company)}</span>`}<span class="who">${esc(l.staff)}</span></div>
     <div class="tags"><span class="tag">${esc(l.kubun)}</span>${l.industry?`<span class="tag">${esc(l.industry)}</span>`:''}<span class="tag">${esc(l.method)}</span><span class="tag">${esc(l.content)}</span><span class="st st-${esc(l.status)}">${esc(l.status)}</span>${l.route?`<span class="tag">${esc(l.route)}</span>`:''}</div>
     ${l.needs?`<div class="txt"><b>困りごと</b> ${esc(l.needs)}</div>`:''}
     ${l.memo?`<div class="txt"><b>提案・メモ</b> ${esc(l.memo)}</div>`:''}
@@ -670,7 +678,7 @@ async function deleteLog(id){
 
 function renderRecent(){
   const st=$('fStaff').value;$('recentWho').textContent=st?st+'さん':'';
-  const rows=S.logs.filter(l=>!st||l.staff===st).sort((a,b)=>(b.date+b.createdAt).localeCompare(a.date+a.createdAt)).slice(0,6);
+  const rows=S.logs.filter(l=>!st||l.staff===st).sort((a,b)=>sk(b).localeCompare(sk(a))).slice(0,6);
   $('recentList').innerHTML=rows.length?rows.map(l=>logCard(l)).join(''):'<div class="empty">まだ記録がありません。左のフォームから1件目を記録してください。</div>';
 }
 
@@ -701,7 +709,7 @@ function filteredLogs(){
   const[a,b]=perRange(L.per);const q=norm($('lQ').value);
   const f={staff:$('lStaff').value,kubun:$('lKubun').value,method:$('lMethod').value,content:$('lContent').value,status:$('lStatus').value,industry:$('lIndustry').value,check:$('lCheck').value};
   return S.logs.filter(l=>l.date>=a&&l.date<=b&&Object.entries(f).every(([k,v])=>!v||(k==='check'?(l.check||'未確認')===v:l[k]===v))&&(!q||norm([l.company,l.needs,l.memo,l.nextAction,l.note].join(' ')).includes(q)))
-    .sort((x,y)=>(y.date+y.createdAt).localeCompare(x.date+x.createdAt));
+    .sort((x,y)=>sk(y).localeCompare(sk(x)));
 }
 function renderLogs(){
   $('lPer').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.p===L.per));$('lCustom').hidden=L.per!=='custom';
@@ -714,9 +722,9 @@ function renderLogs(){
 }
 $('csvBtn').onclick=()=>{
   const rows=filteredLogs();
-  const H=['営業日','営業担当者','会社名・事業所名','顧客区分','業種','営業方法','営業内容','先方の困りごと・要望','提案内容・商談メモ','見積提出額（月額・円）','営業状況','契約見込月額（円）','契約後の月額売上増加（円）','次回対応・宿題','次回連絡予定日','上司確認','備考','獲得経路'];
+  const H=['営業日','開始','終了','営業担当者','会社名・事業所名','顧客区分','業種','営業方法','営業内容','先方の困りごと・要望','提案内容・商談メモ','見積提出額（月額・円）','営業状況','契約見込月額（円）','契約後の月額売上増加（円）','次回対応・宿題','次回連絡予定日','上司確認','備考','獲得経路'];
   const q=v=>{v=v==null?'':String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
-  const body=rows.slice().reverse().map(l=>[l.date,l.staff,l.company,l.kubun,l.industry,l.method,l.content,l.needs,l.memo,l.quote,l.status,l.expected,l.status==='契約'?l.increase:'',l.nextAction,l.nextDate,l.check||'未確認',l.note,l.route].map(q).join(','));
+  const body=rows.slice().reverse().map(l=>[l.date,l.start,l.end,l.staff,l.company,l.kubun,l.industry,l.method,l.content,l.needs,l.memo,l.quote,l.status,l.expected,l.status==='契約'?l.increase:'',l.nextAction,l.nextDate,l.check||'未確認',l.note,l.route].map(q).join(','));
   const blob=new Blob(['﻿'+[H.join(','),...body].join('\r\n')],{type:'text/csv'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`営業日報_${today()}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
 };
@@ -736,7 +744,7 @@ function renderDeals(){
   const sumExp=rows.filter(d=>OPEN(d.status)).reduce((a,d)=>a+(d.expected||0),0);
   $('dealCount').textContent=`${rows.length}件`+(D.group==='open'?`・見込月額 ${yen(sumExp)}`:'');
   $('dealList').innerHTML=rows.slice(0,200).map(d=>{
-    const hist=openDeals.has(d.id)?S.logs.filter(l=>l.dealId===d.id).sort((a,b)=>(b.date+b.createdAt).localeCompare(a.date+a.createdAt)):null;
+    const hist=openDeals.has(d.id)?S.logs.filter(l=>l.dealId===d.id).sort((a,b)=>sk(b).localeCompare(sk(a))):null;
     const amt=[];if(d.quote)amt.push(`<span>見積</span><b>${yen(d.quote)}</b>`);if(d.expected&&OPEN(d.status))amt.push(`<span>見込</span><b>${yen(d.expected)}</b>`);if(d.status==='契約')amt.push(`<span>増加</span><b>+${yen(d.increase||0)}</b>`);
     return `<div class="card">
       <div class="top"><span class="co">${esc(d.company)}</span><span class="st st-${esc(d.status)}">${esc(d.status)}</span><span class="who">${esc(d.staff)}</span></div>
@@ -897,7 +905,7 @@ $('wStaff').onchange=renderWeek;
 $('wDetail').onclick=e=>{const b=e.target.closest('button');if(!b)return;W.detail=+b.dataset.d;LS.set('wdetail',W.detail);renderWeek()};
 function weekText(staff){
   const a=wStart,b=addDays(wStart,6);
-  const logs=S.logs.filter(l=>l.date>=a&&l.date<=b&&(!staff||l.staff===staff)).sort((x,y)=>(x.date+x.createdAt).localeCompare(y.date+y.createdAt));
+  const logs=S.logs.filter(l=>l.date>=a&&l.date<=b&&(!staff||l.staff===staff)).sort((x,y)=>sk(x).localeCompare(sk(y)));
   const deals=[...S.deals.values()].filter(d=>!staff||d.staff===staff);
   const won=deals.filter(d=>d.status==='契約'&&d.contractDate>=a&&d.contractDate<=b);
   const cnt=k=>{const m={};logs.forEach(l=>m[l[k]]=(m[l[k]]||0)+1);return Object.entries(m).sort((x,y)=>y[1]-x[1]).map(([k2,v])=>`${k2}${v}`).join('・')};
@@ -914,7 +922,7 @@ function weekText(staff){
   if(W.detail&&logs.length){
     out.push('');out.push('■活動の内容');
     logs.forEach(l=>{
-      out.push(`${md(l.date)} ${l.company}｜${l.method}｜${l.content}→${l.status}${staff?'':'（'+l.staff+'）'}`);
+      out.push(`${md(l.date)}${tr(l)} ${l.company}｜${l.method}｜${l.content}→${l.status}${staff?'':'（'+l.staff+'）'}`);
       if(l.needs)out.push(`　困りごと：${l.needs}`);
       if(l.memo)out.push(`　提案：${l.memo}`);
       const am=[];if(l.status==='契約')am.push(`月額+${yen(l.increase||0)}`);else{if(l.quote)am.push(`見積${yen(l.quote)}`);if(l.expected)am.push(`見込${yen(l.expected)}`)}if(am.length)out.push(`　${am.join('／')}`);
@@ -1018,6 +1026,7 @@ function buildSample(){
             quote:['見積提出','契約'].includes(stt)||(k>0&&type!=='new')?exp+pick([0,1000,2000]):null,expected:exp,increase:stt==='契約'?exp:null,
             nextAction:OPEN(stt)?pick(NEXT):'',nextDate:'',check:age>14?pick(['確認済み','確認済み','確認済み','要相談']):pick(CHECKS),note:'',createdAt:ts++,sample:true};
           if(OPEN(stt)){const nd=addDays(d,ri(4,12));l.nextDate=nd}
+          {const sm=ri(17,33)*30,du=pick([30,30,45,60,60,90]);const hm=x=>`${pad(Math.floor(x/60))}:${pad(x%60)}`;l.start=hm(sm);l.end=hm(sm+du)}
           logs.push(l);deal.logCount++;dealFromLog(deal,l);
         });
         deals.push(deal);
