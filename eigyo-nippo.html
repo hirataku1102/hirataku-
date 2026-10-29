@@ -313,9 +313,8 @@ dialog.wide{width:min(760px,calc(100vw - 24px))}
     <div class="tl" id="cdTimeline"></div>
     <div class="hint">日報を押すと、その日報を直す画面に移ります。メモは押すと直せます。</div>
     <div class="noteadd" id="noteAdd">
-      <div class="row"><input type="date" id="nDate" aria-label="日付" style="width:auto"><select id="nStaff" aria-label="書いた人" style="width:auto"></select><span class="muted" id="nMode"></span></div>
       <textarea id="nText" rows="2" placeholder="経過のメモを書き足す（例：先方から電話。来週中に返事をもらえる）"></textarea>
-      <div class="row"><button class="btn sm" id="nAdd">メモを追加</button><button class="btn ghost sm" id="nCancel" hidden>やめる</button><button class="btn sm delb" id="nDel" hidden>このメモを削除</button><span class="msg" id="nMsg"></span></div>
+      <div class="row"><button class="btn sm" id="nAdd">メモを追加</button><button class="btn ghost sm" id="nCancel" hidden>やめる</button><button class="btn sm delb" id="nDel" hidden>このメモを削除</button><span class="muted" id="nMode"></span><span class="msg" id="nMsg"></span></div>
     </div>
   </div>
   <div class="panel">
@@ -713,20 +712,21 @@ $('cpEditClose').onclick=()=>{$('cpEdit').hidden=true;window.scrollTo({top:0,beh
 
 /* ---- 経過メモ（日報とは別に書き足す） ---- */
 let noteEdit=null;
-function resetNote(){noteEdit=null;$('nText').value='';$('nDate').value=today();$('nMsg').textContent='';$('nAdd').textContent='メモを追加';$('nCancel').hidden=true;$('nDel').hidden=true;$('nMode').textContent='';
-  fillSelect($('nStaff'),S.settings.staff,null);const me=LS.get('me','');if(S.settings.staff.includes(me))$('nStaff').value=me}
+function resetNote(){noteEdit=null;$('nText').value='';$('nMsg').textContent='';$('nAdd').textContent='メモを追加';$('nCancel').hidden=true;$('nDel').hidden=true;$('nMode').textContent=''}
+/* メモは「今日・いま使っている人」で自動記録（使っている人＝最後に選んだ担当者） */
+const meNow=()=>{const me=LS.get('me','');return S.settings.staff.includes(me)?me:(S.settings.staff[0]||'')};
 $('nCancel').onclick=resetNote;
 async function saveNotes(c,notes,okText){const n={...c,notes,updatedAt:Date.now(),editedDate:today()};const b=db.batch();put(b,C.cases,n);const r=await commit(b);
   if(!okr(r)){$('nMsg').textContent='保存できませんでした';$('nMsg').className='msg err';return false}S.cases.set(n.id,n);toast(okText);renderCaseExtra(n);return true}
 $('nAdd').onclick=async()=>{const c=S.cases.get(pageCase);if(!c)return;const text=$('nText').value.trim();
   if(!text){$('nMsg').textContent='メモを入力してください';$('nMsg').className='msg err';return}
-  const notes=[...(c.notes||[])];const v={date:$('nDate').value||today(),staff:$('nStaff').value,text};
-  if(noteEdit){const i=notes.findIndex(x=>x.id===noteEdit);if(i>=0)notes[i]={...notes[i],...v}}else notes.push({id:'n'+uid(),...v,createdAt:Date.now()});
+  const notes=[...(c.notes||[])];
+  if(noteEdit){const i=notes.findIndex(x=>x.id===noteEdit);if(i>=0)notes[i]={...notes[i],text}}else notes.push({id:'n'+uid(),date:today(),staff:meNow(),text,createdAt:Date.now()});
   if(await saveNotes(c,notes,noteEdit?'メモを直しました':'メモを追加しました'))resetNote()};
 $('nDel').onclick=async()=>{const c=S.cases.get(pageCase);if(!c||!noteEdit)return;if(!confirm('このメモを削除しますか？'))return;
   if(await saveNotes(c,(c.notes||[]).filter(x=>x.id!==noteEdit),'メモを削除しました'))resetNote()};
 function editNote(id){const c=S.cases.get(pageCase);const n=(c.notes||[]).find(x=>x.id===id);if(!n)return;noteEdit=id;
-  $('nDate').value=n.date;if(S.settings.staff.includes(n.staff))$('nStaff').value=n.staff;$('nText').value=n.text;$('nAdd').textContent='メモを直す';$('nCancel').hidden=false;$('nDel').hidden=false;$('nMode').textContent='メモを編集中';$('nMsg').textContent='';
+  $('nText').value=n.text;$('nAdd').textContent='メモを直す';$('nCancel').hidden=false;$('nDel').hidden=false;$('nMode').textContent=`${ymd(n.date)}のメモを編集中`;$('nMsg').textContent='';
   $('noteAdd').scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>$('nText').focus(),200)}
 $('cdTimeline').addEventListener('click',e=>{const ev=e.target.closest('[data-rep],[data-note]');if(!ev)return;if(ev.dataset.rep)startEdit(ev.dataset.rep,{back:pageCase});else editNote(ev.dataset.note)});
 $('cdTimeline').addEventListener('keydown',e=>{if(e.key==='Enter'){const ev=e.target.closest('[data-rep],[data-note]');if(ev)ev.click()}});
