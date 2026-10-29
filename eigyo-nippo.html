@@ -310,13 +310,13 @@ dialog.wide{width:min(760px,calc(100vw - 24px))}
   </div>
   <div class="panel">
     <div class="row"><h2>経過</h2><span class="muted sp" id="cdCount"></span></div>
+    <div class="tl" id="cdTimeline"></div>
+    <div class="hint">日報を押すと、その日報を直す画面に移ります。メモは押すと直せます。</div>
     <div class="noteadd" id="noteAdd">
       <div class="row"><input type="date" id="nDate" aria-label="日付" style="width:auto"><select id="nStaff" aria-label="書いた人" style="width:auto"></select><span class="muted" id="nMode"></span></div>
       <textarea id="nText" rows="2" placeholder="経過のメモを書き足す（例：先方から電話。来週中に返事をもらえる）"></textarea>
       <div class="row"><button class="btn sm" id="nAdd">メモを追加</button><button class="btn ghost sm" id="nCancel" hidden>やめる</button><button class="btn sm delb" id="nDel" hidden>このメモを削除</button><span class="msg" id="nMsg"></span></div>
     </div>
-    <div class="tl" id="cdTimeline"></div>
-    <div class="hint">日報を押すと、その日報を直す画面に移ります。メモは押すと直せます。</div>
   </div>
   <div class="panel">
     <div class="closebox" id="closeBox"></div>
