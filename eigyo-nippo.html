@@ -237,6 +237,17 @@ dialog .db{padding:16px;display:flex;flex-direction:column;gap:16px}
 .pick button.it.none{border-style:dashed;background:var(--bg)}
 .closebtns{display:flex;flex-wrap:wrap;gap:8px}
 .btn.delb{background:transparent;border-color:var(--line);color:var(--sub)}
+.cptitle{font-size:24px;font-weight:900;margin:0;line-height:1.35;overflow-wrap:anywhere;text-wrap:balance}
+@media (max-width:600px){.cptitle{font-size:21px}}
+.sumtop{display:flex;gap:8px;align-items:flex-start}
+.sumtop .top{flex:1;min-width:0}
+.noteadd{display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--bg)}
+.tl .ev.click{cursor:pointer}
+.tl .ev.click:hover .h .d,.tl .ev.click:focus-visible .h .d{color:var(--accent);text-decoration:underline}
+.tl .ev.note::before{border-color:var(--amber);border-radius:3px}
+.notetag{font-size:11px;font-weight:800;border-radius:5px;padding:0 6px;background:var(--amber-soft);color:var(--amber)}
+.tl .ev .go{font-size:11px;color:var(--accent)}
+.closebox{border:0;padding:0}
 dialog.wide{width:min(760px,calc(100vw - 24px))}
 .secttl{font-size:13px;font-weight:800;color:var(--sub);letter-spacing:.04em}
 </style>
@@ -288,6 +299,32 @@ dialog.wide{width:min(760px,calc(100vw - 24px))}
     </div>
   </div>
   <div class="list" id="caseList"></div>
+</section>
+
+<!-- ============ 案件の画面 ============ -->
+<section id="v-case" class="inwrap casepage" hidden>
+  <div class="row"><button class="btn ghost sm" id="cpBack">← 案件一覧</button></div>
+  <div class="panel">
+    <h1 class="cptitle" id="cpTitle"></h1>
+    <div class="card" id="cdSummary" style="background:var(--bg)"></div>
+  </div>
+  <div class="panel">
+    <div class="row"><h2>経過</h2><span class="muted sp" id="cdCount"></span></div>
+    <div class="noteadd" id="noteAdd">
+      <div class="row"><input type="date" id="nDate" aria-label="日付" style="width:auto"><select id="nStaff" aria-label="書いた人" style="width:auto"></select><span class="muted" id="nMode"></span></div>
+      <textarea id="nText" rows="2" placeholder="経過のメモを書き足す（例：先方から電話。来週中に返事をもらえる）"></textarea>
+      <div class="row"><button class="btn sm" id="nAdd">メモを追加</button><button class="btn ghost sm" id="nCancel" hidden>やめる</button><button class="btn sm delb" id="nDel" hidden>このメモを削除</button><span class="msg" id="nMsg"></span></div>
+    </div>
+    <div class="tl" id="cdTimeline"></div>
+    <div class="hint">日報を押すと、その日報を直す画面に移ります。メモは押すと直せます。</div>
+  </div>
+  <div class="panel">
+    <div class="closebox" id="closeBox"></div>
+  </div>
+  <div class="panel" id="cpEdit" hidden>
+    <div class="row"><h2>案件の内容を直す</h2><button class="btn ghost sm sp" id="cpEditClose">閉じる</button></div>
+    <div id="formPage"></div>
+  </div>
 </section>
 
 <!-- ============ ② 日報を書く ============ -->
@@ -400,14 +437,8 @@ dialog.wide{width:min(760px,calc(100vw - 24px))}
 <dialog id="caseDlg" class="wide">
   <div class="dh"><h2 id="cdTitle">新しい案件</h2><button class="icon sp" id="cdClose" aria-label="閉じる">✕</button></div>
   <div class="db">
-    <div id="cdExisting" hidden style="display:flex;flex-direction:column;gap:16px">
-      <div class="card" id="cdSummary" style="background:var(--bg)"></div>
-      <div class="closebox" id="closeBox"></div>
-      <div class="row"><span class="secttl">経過（日報）</span><span class="muted sp" id="cdCount"></span></div>
-      <div class="tl" id="cdTimeline"></div>
-    </div>
-    <details id="ccWrap" open><summary id="ccWrapSum" class="secttl" style="cursor:pointer;color:var(--accent)">案件の内容を直す</summary>
-    <form id="caseFrm" novalidate autocomplete="off" style="display:flex;flex-direction:column;gap:14px;margin-top:12px">
+    <div id="formHome">
+    <form id="caseFrm" novalidate autocomplete="off" style="display:flex;flex-direction:column;gap:14px">
       <div class="g2">
         <div class="f"><span class="lt req">種類</span><div class="chips" id="ccKind"></div></div>
         <div class="f"><label class="req" for="ccType">業務内容</label><select id="ccType"></select></div>
@@ -442,7 +473,7 @@ dialog.wide{width:min(760px,calc(100vw - 24px))}
       </details>
       <div class="row"><button class="btn" id="ccSave" type="submit">案件を登録</button><span class="msg" id="ccMsg"></span></div>
     </form>
-    </details>
+    </div>
   </div>
 </dialog>
 
@@ -639,8 +670,8 @@ function setKind(k){CF.kind=k;$('ccKind').innerHTML=chipsHtml(KINDS,k);
 $('ccKind').onclick=e=>{const b=e.target.closest('button');if(b)setKind(b.dataset.v)};
 chipBind('ccKubun',()=>CF.kubun,v=>CF.kubun=v||'新規',false);
 chipBind('ccRoute',()=>CF.route,v=>CF.route=v);
-function openCase(id,opts={}){
-  const c=id?S.cases.get(id):null;CF.id=id;CF.afterSave=opts.afterSave||null;
+/* 案件のフォーム（新規はダイアログ、既存は案件の画面の下で使う） */
+function fillCaseForm(c,opts={}){
   $('caseFrm').reset();$('ccMsg').textContent='';
   fillSelect($('ccStaff'),S.settings.staff,null);fillSelect($('ccStaff2'),S.settings.staff,'なし');
   fillSelect($('ccIndustry'),S.settings.industries,'選択してください');
@@ -649,12 +680,56 @@ function openCase(id,opts={}){
   $('ccKubun').innerHTML=chipsHtml(KUBUN,CF.kubun);$('ccRoute').innerHTML=chipsHtml(S.settings.routes,CF.route);
   if(c){$('ccType').value=c.type||'';$('ccCompany').value=c.company||'';$('ccStaff').value=c.staff||'';$('ccStaff2').value=c.staff2||'';$('ccTitle').value=c.title||'';$('ccIndustry').value=c.industry||'';
     $('ccExpected').value=c.expected??'';$('ccQuote').value=c.quote??'';$('ccDetail').value=c.detail||'';$('ccNext').value=c.nextAction||'';$('ccNextDate').value=c.nextDate||'';
-    $('cdTitle').textContent=c.company;$('ccSave').textContent='案件の内容を保存';$('ccMore').open=true;$('cdExisting').hidden=false;$('ccWrap').open=false;$('ccWrapSum').hidden=false;renderCaseExtra(c);}
+    $('ccSave').textContent='案件の内容を保存';$('ccMore').open=true;}
   else{const me=opts.staff||$('fStaff').value||LS.get('me','');if(S.settings.staff.includes(me))$('ccStaff').value=me;
-    $('cdTitle').textContent='新しい案件';$('ccSave').textContent='案件を登録';$('ccMore').open=false;$('cdExisting').hidden=true;$('ccWrap').open=true;$('ccWrapSum').hidden=true;}
-  $('caseDlg').showModal();if(!c)setTimeout(()=>$('ccCompany').focus(),50);
+    $('ccSave').textContent='案件を登録';$('ccMore').open=false;}
+}
+function openCase(id,opts={}){
+  if(id){openCasePage(id);return}
+  CF.id=null;CF.afterSave=opts.afterSave||null;
+  $('formHome').appendChild($('caseFrm'));fillCaseForm(null,opts);
+  $('cdTitle').textContent='新しい案件';$('caseDlg').showModal();setTimeout(()=>$('ccCompany').focus(),50);
 }
 $('cdClose').onclick=()=>$('caseDlg').close();
+
+/* ---- 案件の画面（専用ページ。#case-ID で開く） ---- */
+let pageCase=null,prevTab='cases';
+function openCasePage(id,keepPrev){if(cur!=='case'&&!keepPrev)prevTab=cur;if(location.hash!=='#case-'+id)location.hash='case-'+id;else showCase(id)}
+function showCase(id){
+  const c=S.cases.get(id);if(!c){if(S.ready){toast('この案件は見つかりません（削除された可能性があります）');go('cases')}return}
+  const same=pageCase===id;pageCase=id;CF.id=id;CF.afterSave=null;
+  cur='case';document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t==='cases'));
+  TABS.forEach(k=>$('v-'+k).hidden=true);$('v-case').hidden=false;
+  $('cpBack').textContent=prevTab==='input'?'← 日報を書くに戻る':prevTab==='logs'?'← 日報一覧に戻る':'← 案件一覧';
+  if(!same){$('cpEdit').hidden=true;resetNote();window.scrollTo(0,0)}
+  renderCaseExtra(c);
+}
+function leaveCase(){pageCase=null;if(location.hash.startsWith('#case-'))history.replaceState(null,'',location.pathname+location.search)}
+window.addEventListener('hashchange',()=>{const m=location.hash.match(/^#case-(.+)$/);if(m)showCase(decodeURIComponent(m[1]));else if(cur==='case')go('cases')});
+$('cpBack').onclick=()=>{const t=prevTab||'cases';if(location.hash.startsWith('#case-')&&history.length>1&&t==='cases'){history.back()}else go(t)};
+function openEdit(){const c=S.cases.get(pageCase);if(!c)return;$('formPage').appendChild($('caseFrm'));fillCaseForm(c);$('cpEdit').hidden=false;
+  setTimeout(()=>$('cpEdit').scrollIntoView({behavior:'smooth',block:'start'}),30)}
+$('cpEditClose').onclick=()=>{$('cpEdit').hidden=true;window.scrollTo({top:0,behavior:'smooth'})};
+
+/* ---- 経過メモ（日報とは別に書き足す） ---- */
+let noteEdit=null;
+function resetNote(){noteEdit=null;$('nText').value='';$('nDate').value=today();$('nMsg').textContent='';$('nAdd').textContent='メモを追加';$('nCancel').hidden=true;$('nDel').hidden=true;$('nMode').textContent='';
+  fillSelect($('nStaff'),S.settings.staff,null);const me=LS.get('me','');if(S.settings.staff.includes(me))$('nStaff').value=me}
+$('nCancel').onclick=resetNote;
+async function saveNotes(c,notes,okText){const n={...c,notes,updatedAt:Date.now(),editedDate:today()};const b=db.batch();put(b,C.cases,n);const r=await commit(b);
+  if(!okr(r)){$('nMsg').textContent='保存できませんでした';$('nMsg').className='msg err';return false}S.cases.set(n.id,n);toast(okText);renderCaseExtra(n);return true}
+$('nAdd').onclick=async()=>{const c=S.cases.get(pageCase);if(!c)return;const text=$('nText').value.trim();
+  if(!text){$('nMsg').textContent='メモを入力してください';$('nMsg').className='msg err';return}
+  const notes=[...(c.notes||[])];const v={date:$('nDate').value||today(),staff:$('nStaff').value,text};
+  if(noteEdit){const i=notes.findIndex(x=>x.id===noteEdit);if(i>=0)notes[i]={...notes[i],...v}}else notes.push({id:'n'+uid(),...v,createdAt:Date.now()});
+  if(await saveNotes(c,notes,noteEdit?'メモを直しました':'メモを追加しました'))resetNote()};
+$('nDel').onclick=async()=>{const c=S.cases.get(pageCase);if(!c||!noteEdit)return;if(!confirm('このメモを削除しますか？'))return;
+  if(await saveNotes(c,(c.notes||[]).filter(x=>x.id!==noteEdit),'メモを削除しました'))resetNote()};
+function editNote(id){const c=S.cases.get(pageCase);const n=(c.notes||[]).find(x=>x.id===id);if(!n)return;noteEdit=id;
+  $('nDate').value=n.date;if(S.settings.staff.includes(n.staff))$('nStaff').value=n.staff;$('nText').value=n.text;$('nAdd').textContent='メモを直す';$('nCancel').hidden=false;$('nDel').hidden=false;$('nMode').textContent='メモを編集中';$('nMsg').textContent='';
+  $('noteAdd').scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>$('nText').focus(),200)}
+$('cdTimeline').addEventListener('click',e=>{const ev=e.target.closest('[data-rep],[data-note]');if(!ev)return;if(ev.dataset.rep)startEdit(ev.dataset.rep,{back:pageCase});else editNote(ev.dataset.note)});
+$('cdTimeline').addEventListener('keydown',e=>{if(e.key==='Enter'){const ev=e.target.closest('[data-rep],[data-note]');if(ev)ev.click()}});
 $('caseFrm').addEventListener('submit',async e=>{
   e.preventDefault();
   const v={kind:CF.kind,type:$('ccType').value,company:$('ccCompany').value.trim(),staff:$('ccStaff').value,staff2:$('ccStaff2').value===$('ccStaff').value?'':$('ccStaff2').value,title:$('ccTitle').value.trim(),detail:$('ccDetail').value.trim(),
@@ -664,23 +739,26 @@ $('caseFrm').addEventListener('submit',async e=>{
   const miss=[];if(!v.type)miss.push('業務内容');if(!v.company)miss.push(v.kind==='社内'?'作業名':'会社名');if(!v.staff)miss.push('担当者');
   if(miss.length){$('ccMsg').textContent='入力してください：'+miss.join('、');$('ccMsg').className='msg err';return}
   const now=Date.now();
+  const isNew=!CF.id||$('caseDlg').open;if(isNew)CF.id=null;
   const c=CF.id?{...S.cases.get(CF.id),...v,updatedAt:now,editedDate:today()}:{id:'c'+uid(),...v,result:'',createdDate:today(),createdAt:now,updatedAt:now,logCount:0};
   const b=db.batch();put(b,C.cases,c);$('ccSave').disabled=true;const r=await commit(b);$('ccSave').disabled=false;
   if(!okr(r)){$('ccMsg').textContent='保存できませんでした（'+(r.code||r.message)+'）';$('ccMsg').className='msg err';return}
   S.cases.set(c.id,c);LS.set('me',c.staff);
   if(!CF.id){$('caseDlg').close();toast(`案件「${c.company}」を登録しました`);const f=CF.afterSave;renderAll();if(f)f(c);}
-  else{$('ccMsg').textContent='保存しました';$('ccMsg').className='msg ok';$('cdTitle').textContent=c.company;renderAll();renderCaseExtra(c)}
+  else{$('ccMsg').textContent='保存しました';$('ccMsg').className='msg ok';toast('案件の内容を保存しました');renderAll()}
 });
 function monthOpts(sel){const t=today().slice(0,7);let h='';for(let i=-3;i<=12;i++){const m=shiftYm(t,i);h+=`<option value="${m}" ${m===sel?'selected':''}>${ymLabel(m)}</option>`}return h}
 function renderCaseExtra(c){
   const st=stateOf(c);
-  $('cdSummary').innerHTML=`<div class="top"><span class="kindtag k-${esc(c.kind)}">${esc(c.kind)}</span><span class="tag">${esc(c.type||'')}</span>${c.result?`<span class="st st-${esc(c.result)}">${esc(c.result)}</span>`:''}<span class="who">担当 ${esc(staffLabel(c))}</span></div>
+  $('cpTitle').textContent=c.company;document.title=c.company+'｜営業日報';
+  $('cdSummary').innerHTML=`<div class="sumtop"><div class="top"><span class="kindtag k-${esc(c.kind)}">${esc(c.kind)}</span><span class="tag">${esc(c.type||'')}</span>${c.result?`<span class="st st-${esc(c.result)}">${esc(c.result)}</span>`:''}<span class="who">担当 ${esc(staffLabel(c))}</span></div><button class="btn ghost sm" id="editOpen">案件を直す</button></div>
     ${c.title?`<div class="co">${esc(c.title)}</div>`:''}
     <div class="tags">${c.kind==='営業'&&c.kubun?`<span class="tag">${esc(c.kubun)}</span>`:''}${c.industry?`<span class="tag">${esc(c.industry)}</span>`:''}${c.route?`<span class="tag">${esc(c.route)}</span>`:''}<span class="tag">登録 ${md(c.createdDate)}</span></div>
     ${c.kind==='営業'&&!c.result&&(c.quote||c.expected)?`<div class="amts">${c.quote?`<span>見積</span><b>${yen(c.quote)}</b>`:''}${c.expected?`<span>見込</span><b>${yen(c.expected)}</b>`:''}</div>`:''}
     ${c.detail?`<div class="txt"><b>詳細</b> ${esc(c.detail)}</div>`:''}
     ${isOpen(c)&&(c.nextAction||c.nextDate)?`<div class="txt">${c.nextAction?`<b>次にやること</b> ${esc(c.nextAction)} `:''}${dueBadge(c.nextDate)}</div>`:''}
     <div class="muted" style="font-size:12px">最終更新日：${jpDate(lastUpd(c))}</div>`;
+  $('editOpen').onclick=openEdit;
   const box=$('closeBox');
   if(c.result){
     const ok=c.result!=='失注';
@@ -719,26 +797,29 @@ function renderCaseExtra(c){
     box.innerHTML=`<span class="secttl">決着</span><div class="closebtns"><button class="btn sm delb" id="delBtn">削除</button></div><div class="row"><input type="date" id="dDate" value="${today()}" style="width:auto"><button class="btn sm okb" id="doneBtn">完了にする</button></div>`;
     $('doneBtn').onclick=()=>closeCase(c,{result:'完了',closedDate:$('dDate').value||today()},'完了にしました');
   }
-  const reps=repsOf(c.id);
-  $('cdCount').textContent=reps.length?`${reps.length}件`:'';
-  $('cdTimeline').innerHTML=reps.length?reps.map(r=>`<div class="ev"><div class="h"><span class="d">${ymd(r.date)}${tr(r)}</span>${r.method?`<b>${esc(r.method)}</b>`:''}${r.progress?`<span class="st st-${esc(r.progress)}">${esc(r.progress)}</span>`:''}<span class="who">${esc(r.staff)}</span></div>
-    <div class="txt">${esc(r.action)}</div>${r.nextAction||r.nextDate?`<div class="txt"><b>次</b> ${esc(r.nextAction||'')} ${r.nextDate?ymd(r.nextDate):''}</div>`:''}</div>`).join(''):'<div class="muted" style="padding-left:14px">まだ日報がありません</div>';
+  const reps=repsOf(c.id),notes=c.notes||[];
+  const items=[...reps.map(r=>({t:'r',key:sk(r),r})),...notes.map(n=>({t:'n',key:n.date+'99:99'+String(n.createdAt||0).padStart(15,'0'),n}))].sort((a,b)=>b.key.localeCompare(a.key));
+  $('cdCount').textContent=reps.length||notes.length?`日報${reps.length}件・メモ${notes.length}件`:'';
+  $('cdTimeline').innerHTML=items.length?items.map(it=>it.t==='r'
+    ?`<div class="ev click" data-rep="${it.r.id}" tabindex="0" title="押すとこの日報を直せます"><div class="h"><span class="d">${ymd(it.r.date)}${tr(it.r)}</span>${it.r.method?`<b>${esc(it.r.method)}</b>`:''}<span class="who">${esc(it.r.staff)}</span><span class="go">日報を直す ›</span></div><div class="txt">${esc(it.r.action)}</div></div>`
+    :`<div class="ev note click" data-note="${it.n.id}" tabindex="0" title="押すとこのメモを直せます"><div class="h"><span class="d">${ymd(it.n.date)}</span><span class="notetag">メモ</span><span class="who">${esc(it.n.staff||'')}</span></div><div class="txt">${esc(it.n.text)}</div></div>`).join('')
+    :'<div class="muted" style="padding-left:14px">まだ日報もメモもありません</div>';
   $('delBtn').onclick=async()=>{
     const n=reps.length;
     if(!confirm(`案件「${c.company}」を削除しますか？\n${n?`この案件の日報${n}件は残り、会社名に「（削除済み）」と表示されます。`:'日報はありません。'}\nこの操作は元に戻せません。`))return;
     const b=db.batch();b.delete(db.collection(C.cases).doc(c.id));const r=await commit(b);if(!okr(r)){toast('削除できませんでした');return}
-    S.cases.delete(c.id);$('caseDlg').close();toast('案件を削除しました');renderAll()};
+    S.cases.delete(c.id);toast('案件を削除しました');go('cases');renderAll()};
 }
 async function closeCase(c,patch,msgText){
   const n={...c,...patch,updatedAt:Date.now()};const b=db.batch();put(b,C.cases,n);const r=await commit(b);
   if(!okr(r)){toast('保存できませんでした');return}
-  S.cases.set(n.id,n);toast(msgText);renderAll();renderCaseExtra(n);
+  S.cases.set(n.id,n);toast(msgText);renderAll();
 }
 
 /* =========================================================
    ② 日報を書く（案件を選んで記録。案件の状況は変えない）
    ========================================================= */
-const F={caseId:null,method:'',editId:null};
+const F={caseId:null,method:'',editId:null,back:null};
 function setupForm(){
   const keep=$('fStaff').value||LS.get('me','');
   fillSelect($('fStaff'),S.settings.staff,S.settings.staff.length?null:'設定で担当者を登録');
@@ -781,14 +862,14 @@ $('fDate').addEventListener('change',renderDay);
 function msg(t,cls){$('fMsg').textContent=t;$('fMsg').className='msg'+(cls?' '+cls:'')}
 function resetForm(keep=true){
   const staff=$('fStaff').value,keepDate=$('fDate').value,nextStart=$('fEnd').value;
-  $('frm').reset();Object.assign(F,{caseId:null,method:'',editId:null});
+  $('frm').reset();Object.assign(F,{caseId:null,method:'',editId:null,back:null});
   $('fDate').value=keep&&keepDate?keepDate:today();if(keep){$('fStaff').value=staff;$('fStart').value=nextStart||''}
   $('fTitle').textContent='日報を書く';$('saveBtn').textContent='日報を記録する';$('fCancel').hidden=true;
   $('cMethod').innerHTML=chipsHtml(METHODS,'');renderPicked();renderDay();
 }
-$('fCancel').onclick=()=>{resetForm();msg('')};
-function startEdit(id){
-  const r=S.reports.find(x=>x.id===id);if(!r)return;go('input');resetForm();
+$('fCancel').onclick=()=>{const back=F.back;resetForm();msg('');if(back&&S.cases.get(back))openCasePage(back,true)};
+function startEdit(id,opts={}){
+  const r=S.reports.find(x=>x.id===id);if(!r)return;go('input');resetForm();F.back=opts.back||null;
   Object.assign(F,{caseId:r.caseId||NONE,method:r.method||'',editId:r.id});
   if(F.caseId!==NONE&&!S.cases.get(F.caseId))F.caseId=NONE;   // 案件が削除されていたら「案件なし」として直す
   $('fDate').value=r.date;$('fStart').value=r.start||'';$('fEnd').value=r.end||'';$('fStaff').value=r.staff;
@@ -818,7 +899,8 @@ $('frm').addEventListener('submit',async e=>{
   $('saveBtn').disabled=true;const r=await commit(b);$('saveBtn').disabled=false;
   if(!okr(r)){msg('保存できませんでした（'+(r.code||r.message)+'）。もう一度押してください。','err');return}
   const i=S.reports.findIndex(x=>x.id===rep.id);if(i>=0)S.reports[i]=rep;else S.reports.push(rep);touched.forEach(c=>S.cases.set(c.id,c));
-  LS.set('me',v.staff);const was=!!old;resetForm();
+  LS.set('me',v.staff);const was=!!old,back=F.back;resetForm();
+  if(back&&S.cases.get(back)){toast('日報を直しました');openCasePage(back,true);return}
   msg(r==='pending'?`${v.company} の日報を記録しました（電波が戻ると送信されます）`:(was?'日報を直しました。':`${v.company} の日報を記録しました。`),'ok');
   if(!was)window.scrollTo({top:0,behavior:'smooth'});
 });
@@ -1220,19 +1302,20 @@ $('sSampleDel').onclick=async()=>{$('sSampleMsg').textContent='削除中…';con
    画面切り替え
    ========================================================= */
 const TABS=['cases','input','logs','week','stats'];
-function go(t){cur=t;
+function go(t){if(cur==='case'&&t!=='case')leaveCase();cur=t;$('v-case').hidden=true;document.title='営業日報';
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
   TABS.forEach(k=>$('v-'+k).hidden=k!==t);renderCur();window.scrollTo(0,0)}
 $('tabs').onclick=e=>{const b=e.target.closest('button');if(b)go(b.dataset.t)};
 function staffSelects(){[['mStaff','全員'],['wStaff','全員（まとめ）']].forEach(([id,f])=>keepSelect($(id),S.settings.staff,f))}
-function renderCur(){if(cur==='cases')renderCases();if(cur==='input'){renderPicked();renderDay()}if(cur==='logs')renderLogs();if(cur==='week')renderWeek();if(cur==='stats'){rvKey=null;renderStats()}}
+function renderCur(){if(cur==='case'){if(pageCase&&S.cases.get(pageCase))renderCaseExtra(S.cases.get(pageCase));return}if(cur==='cases')renderCases();if(cur==='input'){renderPicked();renderDay()}if(cur==='logs')renderLogs();if(cur==='week')renderWeek();if(cur==='stats'){rvKey=null;renderStats()}}
 function renderAll(){setupCaseFilters();setupForm();setupLogFilters();staffSelects();renderCur()}
 $('themeBtn').onclick=()=>applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');
 let started=false;
 function start(){if(started)return;started=true;
   applyTheme(LS.get('theme','light'));$('fDate').value=today();
-  go('cases');   // 開いたときは毎回「案件」から
-  renderAll();load();
+  const h=location.hash.match(/^#case-(.+)$/);
+  go('cases');   // 開いたときは毎回「案件」から（案件のリンクで開いたときはその案件）
+  renderAll();load().then(()=>{if(h)showCase(decodeURIComponent(h[1]))});
 }
 if(unlocked()){$('lock').hidden=true;start()}else{applyTheme(LS.get('theme','light'));setTimeout(()=>$('passInput').focus(),50)}
 
