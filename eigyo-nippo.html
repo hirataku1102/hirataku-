@@ -1345,8 +1345,8 @@ function buildSample(){
         cases.push(c);
       });
       // 解約（閉店など）：ときどき。1人目の分は「担当なし」で登録されることもある
-      if(mi%2===1){let d=`${ym}-${pad(ri(1,Math.max(1,last)))}`;if(d>t)d=t;const ind=pick(IND.filter(x=>SFX[x]));const amt=pick([6000,8000,10000,12000,15000,20000]);
-        const c={id:'csample'+(n++),kind:'営業',type:CANCEL,company:nameFor(ind)+'(見本)',title:pick(['閉店にともなう解約','移転にともなう解約','業者変更の申し出']),staff:si===0&&mi%4===1?'':st,members:[],kubun:'既存',industry:ind,route:'',expected:amt,quote:null,result:'',createdDate:d,createdAt:ts++,updatedAt:ts,logCount:0,nextAction:'',nextDate:'',detail:'',sample:true};
+      if((mi+si)%2===0){let d=`${ym}-${pad(ri(1,Math.max(1,last)))}`;if(d>t)d=t;const ind=pick(IND.filter(x=>SFX[x]));const amt=pick([6000,8000,10000,12000,15000,20000]);
+        const c={id:'csample'+(n++),kind:'営業',type:CANCEL,company:nameFor(ind)+'(見本)',title:pick(['閉店にともなう解約','移転にともなう解約','業者変更の申し出']),staff:si===0&&mi%3===2?'':st,members:[],kubun:'既存',industry:ind,route:'',expected:amt,quote:null,result:'',createdDate:d,createdAt:ts++,updatedAt:ts,logCount:0,nextAction:'',nextDate:'',detail:'',sample:true};
         mkRep(c,d,'電話',pick(['先方から閉店の連絡','解約の申し出を受けて事情を確認']),st);
         const cd=addDays(d,ri(3,12));if(cd<=t){if(rnd()<.8){c.result='解約';c.closedDate=cd;c.salesStart=shiftYm(cd.slice(0,7),1);c.increase=-amt;c.lostReason='閉店のため'}else{c.result='継続';c.closedDate=cd;c.lostReason='移転先でも継続'}}
         cases.push(c)}
@@ -1356,6 +1356,17 @@ function buildSample(){
     });
   });
   const reviews=months.slice(0,-1).map(ym=>({id:`${ym}__all`,good:'管理会社経由の紹介で新規が続いた。見積提出後のフォローが早くできた。',issue:'価格で他社に負けた案件があった。期限を過ぎた案件があった。',next:'見積提出中の案件を月初にまとめて追う。飲食店の多いエリアを重点的に回る。',comment:'',sample:true}));
+  // 売上のバランス調整：3人ほぼ均等、平生（いなければ1人目）が一番低くなるように受注の月額をそろえる
+  const weak=staff.includes('平生')?'平生':staff[0];
+  const wonOf=x=>cases.filter(c=>c.staff===x&&c.result==='受注');
+  const cxlOf=x=>cases.filter(c=>c.staff===x&&c.result==='解約').reduce((a,c)=>a+c.increase,0);
+  const gross=x=>wonOf(x).reduce((a,c)=>a+c.increase,0);
+  const avgNet=staff.reduce((a,x)=>a+gross(x)+cxlOf(x),0)/staff.length;
+  const others=staff.filter(x=>x!==weak);
+  staff.forEach(x=>{
+    const rate=x===weak?0.8:1+0.06*(others.length-1-others.indexOf(x))/Math.max(1,others.length-1);   // 1.06 → 1.00 → … 平生 0.80
+    const want=avgNet*rate-cxlOf(x),g=gross(x);if(!(g>0))return;const f=want/g;
+    wonOf(x).forEach(c=>{c.increase=Math.max(1000,Math.round(c.increase*f/1000)*1000);c.expected=c.increase})});
   return{cases,reps,reviews};
 }
 async function writeOps(ops){for(let i=0;i<ops.length;i+=400){const b=db.batch();ops.slice(i,i+400).forEach(([op,c,o])=>{if(op==='del')b.delete(db.collection(c).doc(o));else put(b,c,o)});await commit(b)}}
