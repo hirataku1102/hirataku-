@@ -1097,7 +1097,14 @@ function weekText(staff){
   if(done.length){o.push('',`■完了した案件 ${done.length}件`);done.forEach(c=>o.push(`・${c.company}（${c.type}）${who(c)}`))}
   if(W.detail&&reps.length){
     o.push('','■日報');
-    reps.forEach(r=>{o.push(`${md(r.date)}${tr(r)} ${repCo(r)}｜${r.type&&r.type!=='案件なし'?r.type+'｜':''}${r.method}${staff?'':'（'+r.staff+'）'}`);o.push(`　${r.action.replace(/\n/g,'\n　')}`)});
+    // 担当者ごと → 日付ごと → 時間順（同じ日は日付を1回だけ出す）
+    const people=[...S.settings.staff.filter(n=>reps.some(r=>r.staff===n)),...[...new Set(reps.map(r=>r.staff))].filter(n=>!S.settings.staff.includes(n))];
+    people.forEach((n,i)=>{const mine=reps.filter(r=>r.staff===n);
+      if(!staff){if(i)o.push('');o.push(`【${n}】${mine.length}件`)}
+      let day='';
+      mine.forEach(r=>{if(r.date!==day){day=r.date;o.push(md(r.date))}
+        o.push(`　${r.start||r.end?`${r.start||''}〜${r.end||''} `:''}${repCo(r)}｜${r.type&&r.type!=='案件なし'?r.type+'｜':''}${r.method}`);
+        o.push(`　　${r.action.replace(/\n/g,'\n　　')}`)})});
   }
   const line=c=>`・${md(c.nextDate)} ${c.company}　${c.nextAction||'対応'}${who(c)}`;
   const todo=mine.filter(c=>isOpen(c)&&c.nextDate&&c.nextDate>=t&&c.nextDate<=addDays(b,7)).sort((x,y)=>x.nextDate.localeCompare(y.nextDate));
@@ -1322,7 +1329,7 @@ function buildSample(){
         const steps=end==='open'?flow.slice(0,ri(1,flow.length)):flow;
         let stop=false;
         steps.forEach((pg,k)=>{if(stop)return;if(k){const nd=addDays(d,ri(3,14));if(nd>t){stop=true;return}d=nd}
-          const method=k===0?(route===R[1]||route===R[2]||route===R[3]?pick(['紹介','訪問','電話']):pick(['訪問','訪問','訪問','電話'])):pick(['訪問','訪問','電話','メール','オンライン']);
+          const method=k===0?(route===R[1]||route===R[2]||route===R[3]?pick(['訪問','訪問','電話']):pick(['訪問','訪問','訪問','電話'])):pick(['訪問','訪問','電話','メール','オンライン']);
           mkRep(c,d,method,k===0?pick(tk==='rev'?ACT.rev:ACT.first):pick(tk==='rev'?ACT.rev:ACT.mid),st2&&k%2===1?st2:st);
           if(pg==='見積提出')c.quote=exp+pick([0,1000,2000]);
           if(k===steps.length-1&&end==='open'&&rnd()<.7){c.nextAction=pick(NEXT);c.nextDate=addDays(d,ri(4,12))}
